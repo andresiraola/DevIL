@@ -19,7 +19,7 @@ ILpointf	*RegionPointsf = NULL;
 ILuint		PointNum = 0;
 ILubyte		*iRegionMask = NULL;
 
-void ILAPIENTRY iluRegionfv(ILpointf *Points, ILuint n)
+void ILAPIENTRY iluRegionfv(ILcontext* context, ILpointf *Points, ILuint n)
 {
 	if (Points == NULL || n == 0) {
 		ifree(RegionPointsi);
@@ -29,12 +29,12 @@ void ILAPIENTRY iluRegionfv(ILpointf *Points, ILuint n)
 		return;
 	}
 	if (n < 3) {
-		ilSetError(ILU_INVALID_PARAM);
+		ilSetError(context, ILU_INVALID_PARAM);
 		return;
 	}
 	ifree(RegionPointsi);
 	ifree(RegionPointsf);
-	RegionPointsf = (ILpointf*)ialloc(sizeof(ILpointf) * n);
+	RegionPointsf = (ILpointf*)ialloc(context, sizeof(ILpointf) * n);
 	if (RegionPointsf == NULL)
 		return;
 	memcpy(RegionPointsf, Points, sizeof(ILpointi) * n);
@@ -43,7 +43,7 @@ void ILAPIENTRY iluRegionfv(ILpointf *Points, ILuint n)
 }
 
 
-void ILAPIENTRY iluRegioniv(ILpointi *Points, ILuint n)
+void ILAPIENTRY iluRegioniv(ILcontext* context, ILpointi *Points, ILuint n)
 {
 	if (Points == NULL || n == 0) {
 		ifree(RegionPointsi);
@@ -53,12 +53,12 @@ void ILAPIENTRY iluRegioniv(ILpointi *Points, ILuint n)
 		return;
 	}
 	if (n < 3) {
-		ilSetError(ILU_INVALID_PARAM);
+		ilSetError(context, ILU_INVALID_PARAM);
 		return;
 	}
 	ifree(RegionPointsi);
 	ifree(RegionPointsf);
-	RegionPointsi = (ILpointi*)ialloc(sizeof(ILpointi) * n);
+	RegionPointsi = (ILpointi*)ialloc(context, sizeof(ILpointi) * n);
 	if (RegionPointsi == NULL)
 		return;
 	memcpy(RegionPointsi, Points, sizeof(ILpointi) * n);
@@ -124,7 +124,7 @@ void MakeEdgeRec(ILpointi lower, ILpointi upper, ILint yComp, Edge *edge, Edge *
 }
 
 
-void BuildEdgeList(ILuint cnt, ILpointi *pts, Edge **edges)
+void BuildEdgeList(ILcontext* context, ILuint cnt, ILpointi *pts, Edge **edges)
 {
 	Edge *edge;
 	ILpointi v1, v2;
@@ -137,7 +137,7 @@ void BuildEdgeList(ILuint cnt, ILpointi *pts, Edge **edges)
 	for (i = 0; i < cnt; i++) {
 		v2 = pts[i];
 		if (v1.y != v2.y) {			// nonhorizontal line
-			edge = (Edge*)ialloc(sizeof(Edge));
+			edge = (Edge*)ialloc(context, sizeof(Edge));
 			if (v1.y < v2.y) {		// up-going edge
 				MakeEdgeRec(v1, v2, yNext(i, cnt, pts), edge, edges);
 			}
@@ -223,7 +223,7 @@ void ResortActiveList(Edge *active)
 }
 
 
-ILubyte *iScanFill()
+ILubyte *iScanFill(ILcontext* context)
 {
 	Edge	**edges = NULL, *active = NULL/*, *temp*/;
 	ILuint	i, scan;
@@ -234,7 +234,7 @@ ILubyte *iScanFill()
 		return NULL;
 
 	if (RegionPointsf) {
-		RegionPointsi = (ILpointi*)ialloc(sizeof(ILpointi) * PointNum);
+		RegionPointsi = (ILpointi*)ialloc(context, sizeof(ILpointi) * PointNum);
 		if (RegionPointsi == NULL)
 			goto error;
 	}
@@ -248,18 +248,18 @@ ILubyte *iScanFill()
 			goto error;
 	}
 
-	edges = (Edge**)ialloc(sizeof(Edge*) * iluCurImage->Height);
-	iRegionMask = (ILubyte*)ialloc(iluCurImage->Width * iluCurImage->Height * iluCurImage->Depth);
+	edges = (Edge**)ialloc(context, sizeof(Edge*) * iluCurImage->Height);
+	iRegionMask = (ILubyte*)ialloc(context, iluCurImage->Width * iluCurImage->Height * iluCurImage->Depth);
 	if (edges == NULL || iRegionMask == NULL)
 		goto error;
 	imemclear(iRegionMask, iluCurImage->Width * iluCurImage->Height * iluCurImage->Depth);
 
 	for (i = 0; i < iluCurImage->Height; i++) {
-		edges[i] = (Edge*)ialloc(sizeof(Edge));
+		edges[i] = (Edge*)ialloc(context, sizeof(Edge));
 		edges[i]->next = NULL;
 	}
-	BuildEdgeList(PointNum, RegionPointsi, edges);
-	active = (Edge*)ialloc(sizeof(Edge));
+	BuildEdgeList(context, PointNum, RegionPointsi, edges);
+	active = (Edge*)ialloc(context, sizeof(Edge));
 	active->next = NULL;
 
 	for (scan = 0; scan < iluCurImage->Height; scan++) {

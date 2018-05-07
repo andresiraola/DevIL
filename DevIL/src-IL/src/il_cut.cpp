@@ -31,108 +31,108 @@ typedef struct CUT_HEAD
 #pragma pack(pop,  packed_struct)
 #endif
 
-ILboolean iLoadCutInternal();
+ILboolean iLoadCutInternal(ILcontext* context);
 
 //! Reads a .cut file
-ILboolean ilLoadCut(ILconst_string FileName)
+ILboolean ilLoadCut(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	CutFile;
 	ILboolean	bCut = IL_FALSE;
 
-	CutFile = iopenr(FileName);
+	CutFile = context->impl->iopenr(FileName);
 	if (CutFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bCut;
 	}
 
-	bCut = ilLoadCutF(CutFile);
-	icloser(CutFile);
+	bCut = ilLoadCutF(context, CutFile);
+	context->impl->icloser(CutFile);
 
 	return bCut;
 }
 
 
 //! Reads an already-opened .cut file
-ILboolean ilLoadCutF(ILHANDLE File)
+ILboolean ilLoadCutF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadCutInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadCutInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a .cut
-ILboolean ilLoadCutL(const void *Lump, ILuint Size)
+ILboolean ilLoadCutL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadCutInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadCutInternal(context);
 }
 
 
 //	Note:  .Cut support has not been tested yet!
 // A .cut can only have 1 bpp.
 //	We need to add support for the .pal's PSP outputs with these...
-ILboolean iLoadCutInternal()
+ILboolean iLoadCutInternal(ILcontext* context)
 {
 	CUT_HEAD	Header;
 	ILuint		Size, i = 0, j;
 	ILubyte		Count, Run;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	Header.Width = GetLittleShort();
-	Header.Height = GetLittleShort();
-	Header.Dummy = GetLittleInt();
+	Header.Width = GetLittleShort(context);
+	Header.Height = GetLittleShort(context);
+	Header.Dummy = GetLittleInt(context);
 
 	if (Header.Width == 0 || Header.Height == 0) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
-	if (!ilTexImage(Header.Width, Header.Height, 1, 1, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE, NULL)) {  // always 1 bpp
+	if (!ilTexImage(context, Header.Width, Header.Height, 1, 1, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE, NULL)) {  // always 1 bpp
 		return IL_FALSE;
 	}
-	iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
 
 	Size = Header.Width * Header.Height;
 
 	while (i < Size) {
-		Count = igetc();
+		Count = context->impl->igetc(context);
 		if (Count == 0) { // end of row
-			igetc();  // Not supposed to be here, but
-			igetc();  //  PSP is putting these two bytes here...WHY?!
+			context->impl->igetc(context);  // Not supposed to be here, but
+			context->impl->igetc(context);  //  PSP is putting these two bytes here...WHY?!
 			continue;
 		}
 		if (Count & BIT_7) {  // rle-compressed
 			ClearBits(Count, BIT_7);
-			Run = igetc();
+			Run = context->impl->igetc(context);
 			for (j = 0; j < Count; j++) {
-				iCurImage->Data[i++] = Run;
+				context->impl->iCurImage->Data[i++] = Run;
 			}
 		}
 		else {  // run of pixels
 			for (j = 0; j < Count; j++) {
-				iCurImage->Data[i++] = igetc();
+				context->impl->iCurImage->Data[i++] = context->impl->igetc(context);
 			}
 		}
 	}
 
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;  // Not sure
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;  // Not sure
 
-	/*iCurImage->Pal.Palette = SharedPal.Palette;
-	iCurImage->Pal.PalSize = SharedPal.PalSize;
-	iCurImage->Pal.PalType = SharedPal.PalType;*/
+	/*context->impl->iCurImage->Pal.Palette = SharedPal.Palette;
+	context->impl->iCurImage->Pal.PalSize = SharedPal.PalSize;
+	context->impl->iCurImage->Pal.PalType = SharedPal.PalType;*/
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 /* ?????????

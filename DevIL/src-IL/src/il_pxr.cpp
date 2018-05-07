@@ -33,84 +33,84 @@ typedef struct PIXHEAD
 #pragma pack(pop, pxr_struct)
 #endif
 
-ILboolean iLoadPxrInternal(void);
+ILboolean iLoadPxrInternal(ILcontext* context);
 
 
 //! Reads a Pxr file
-ILboolean ilLoadPxr(ILconst_string FileName)
+ILboolean ilLoadPxr(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	PxrFile;
 	ILboolean	bPxr = IL_FALSE;
 
-	PxrFile = iopenr(FileName);
+	PxrFile = context->impl->iopenr(FileName);
 	if (PxrFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bPxr;
 	}
 
-	bPxr = ilLoadPxrF(PxrFile);
-	icloser(PxrFile);
+	bPxr = ilLoadPxrF(context, PxrFile);
+	context->impl->icloser(PxrFile);
 
 	return bPxr;
 }
 
 
 //! Reads an already-opened Pxr file
-ILboolean ilLoadPxrF(ILHANDLE File)
+ILboolean ilLoadPxrF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadPxrInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadPxrInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a Pxr
-ILboolean ilLoadPxrL(const void *Lump, ILuint Size)
+ILboolean ilLoadPxrL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadPxrInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadPxrInternal(context);
 }
 
 
 // Internal function used to load the Pxr.
-ILboolean iLoadPxrInternal()
+ILboolean iLoadPxrInternal(ILcontext* context)
 {
 	ILushort	Width, Height;
 	ILubyte		Bpp;
 
 	Width = sizeof(PIXHEAD);
 
-	iseek(416, IL_SEEK_SET);
-	Height = GetLittleUShort();
-	Width = GetLittleUShort();
-	iseek(424, IL_SEEK_SET);
-	Bpp = (ILubyte)igetc();
+	context->impl->iseek(context, 416, IL_SEEK_SET);
+	Height = GetLittleUShort(context);
+	Width = GetLittleUShort(context);
+	context->impl->iseek(context, 424, IL_SEEK_SET);
+	Bpp = (ILubyte)context->impl->igetc(context);
 
 	switch (Bpp)
 	{
 		case 0x08:
-			ilTexImage(Width, Height, 1, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL);
+			ilTexImage(context, Width, Height, 1, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL);
 			break;
 		case 0x0E:
-			ilTexImage(Width, Height, 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL);
+			ilTexImage(context, Width, Height, 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL);
 			break;
 		case 0x0F:
-			ilTexImage(Width, Height, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
+			ilTexImage(context, Width, Height, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
 			break;
 		default:
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return IL_FALSE;
 	}
 
-	iseek(1024, IL_SEEK_SET);
-	iread(iCurImage->Data, 1, iCurImage->SizeOfData);
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iseek(context, 1024, IL_SEEK_SET);
+	context->impl->iread(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfData);
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
 	return IL_TRUE;
 }

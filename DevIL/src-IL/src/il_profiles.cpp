@@ -51,7 +51,7 @@
 
 #endif//IL_NO_LCMS
 
-ILboolean ILAPIENTRY ilApplyProfile(ILstring InProfile, ILstring OutProfile)
+ILboolean ILAPIENTRY ilApplyProfile(ILcontext* context, ILstring InProfile, ILstring OutProfile)
 {
 #ifndef IL_NO_LCMS
 	cmsHPROFILE		hInProfile, hOutProfile;
@@ -62,16 +62,16 @@ ILboolean ILAPIENTRY ilApplyProfile(ILstring InProfile, ILstring OutProfile)
 	char AnsiName[512];
 #endif//_UNICODE
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	switch (iCurImage->Type)
+	switch (context->impl->iCurImage->Type)
 	{
 		case IL_BYTE:
 		case IL_UNSIGNED_BYTE:
-			switch (iCurImage->Format)
+			switch (context->impl->iCurImage->Format)
 			{
 				case IL_LUMINANCE:
 					Format = TYPE_GRAY_8;
@@ -89,14 +89,14 @@ ILboolean ILAPIENTRY ilApplyProfile(ILstring InProfile, ILstring OutProfile)
 					Format = TYPE_BGRA_8;
 					break;
 				default:
-					ilSetError(IL_INTERNAL_ERROR);
+					ilSetError(context, IL_INTERNAL_ERROR);
 					return IL_FALSE;
 			}
 			break;
 
 		case IL_SHORT:
 		case IL_UNSIGNED_SHORT:
-			switch (iCurImage->Format)
+			switch (context->impl->iCurImage->Format)
 			{
 				case IL_LUMINANCE:
 					Format = TYPE_GRAY_16;
@@ -114,7 +114,7 @@ ILboolean ILAPIENTRY ilApplyProfile(ILstring InProfile, ILstring OutProfile)
 					Format = TYPE_BGRA_16;
 					break;
 				default:
-					ilSetError(IL_INTERNAL_ERROR);
+					ilSetError(context, IL_INTERNAL_ERROR);
 					return IL_FALSE;
 			}
 			break;
@@ -124,17 +124,17 @@ ILboolean ILAPIENTRY ilApplyProfile(ILstring InProfile, ILstring OutProfile)
 		case IL_UNSIGNED_INT:
 		case IL_FLOAT:
 		case IL_DOUBLE:
-			ilSetError(IL_ILLEGAL_OPERATION);
+			ilSetError(context, IL_ILLEGAL_OPERATION);
 			return IL_FALSE;
 	}
 
 
 	if (InProfile == NULL) {
-		if (!iCurImage->Profile || !iCurImage->ProfileSize) {
-			ilSetError(IL_INVALID_PARAM);
+		if (!context->impl->iCurImage->Profile || !context->impl->iCurImage->ProfileSize) {
+			ilSetError(context, IL_INVALID_PARAM);
 			return IL_FALSE;
 		}
-		hInProfile = iCurImage->Profile;
+		hInProfile = context->impl->iCurImage->Profile;
 	}
 	else {
 #ifndef _UNICODE
@@ -153,15 +153,15 @@ ILboolean ILAPIENTRY ilApplyProfile(ILstring InProfile, ILstring OutProfile)
 
 	hTransform = cmsCreateTransform(hInProfile, Format, hOutProfile, Format, INTENT_PERCEPTUAL, 0);
 
-	Temp = (ILubyte*)ialloc(iCurImage->SizeOfData);
+	Temp = (ILubyte*)ialloc(context, context->impl->iCurImage->SizeOfData);
 	if (Temp == NULL) {
 		return IL_FALSE;
 	}
 
-	cmsDoTransform(hTransform, iCurImage->Data, Temp, iCurImage->SizeOfData / 3);
+	cmsDoTransform(hTransform, context->impl->iCurImage->Data, Temp, context->impl->iCurImage->SizeOfData / 3);
 
-	ifree(iCurImage->Data);
-	iCurImage->Data = Temp;
+	ifree(context->impl->iCurImage->Data);
+	context->impl->iCurImage->Data = Temp;
 
 	cmsDeleteTransform(hTransform);
 	if (InProfile != NULL)

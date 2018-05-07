@@ -29,10 +29,10 @@ typedef struct BITFILE
 // Functions for reading bits from a file
 //BITFILE*	bopen(const char *FileName, const char *Mode);
 ILint		bclose(BITFILE *BitFile);
-BITFILE*	bfile(ILHANDLE File);
+BITFILE*	bfile(ILcontext* context, ILHANDLE File);
 ILint		btell(BITFILE *BitFile);
 ILint		bseek(BITFILE *BitFile, ILuint Offset, ILuint Mode);
-ILint		bread(void *Buffer, ILuint Size, ILuint Number, BITFILE *BitFile);
+ILint		bread(ILcontext* context, void *Buffer, ILuint Size, ILuint Number, BITFILE *BitFile);
 //ILint		bwrite(void *Buffer, ILuint Size, ILuint Number, BITFILE *BitFile);
 
 // Useful macros for manipulating bits

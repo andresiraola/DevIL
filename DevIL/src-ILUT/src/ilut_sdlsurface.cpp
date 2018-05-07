@@ -55,9 +55,9 @@ SDL_Surface *ILAPIENTRY ilutConvertToSDLSurface(unsigned int flags)
 	ILubyte		*Dest, *Data;
 	ILimage		*Image;
 
-	Image = ilutCurImage = ilGetCurImage();
+	Image = ilutCurImage = ilGetCurImage(context);
 	if (ilutCurImage == NULL) {
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return NULL;
 	}
 
@@ -90,7 +90,7 @@ SDL_Surface *ILAPIENTRY ilutConvertToSDLSurface(unsigned int flags)
 	}
 
 	if (Image->Type != IL_UNSIGNED_BYTE) {
-		// We do not have to worry about Image != iCurImage at this point, because if it was converted,
+		// We do not have to worry about Image != context->impl->iCurImage at this point, because if it was converted,
 		//  it was converted to a type of unsigned byte.
 		Image = iConvertImage(Image, Image->Format, IL_UNSIGNED_BYTE);
 		if (Image == NULL)
@@ -153,7 +153,7 @@ SDL_Surface *ILAPIENTRY ilutConvertToSDLSurface(unsigned int flags)
 				}
 				break;
 			default:
-				ilSetError(IL_INTERNAL_ERROR);  // Do anything else?
+				ilSetError(context, IL_INTERNAL_ERROR);  // Do anything else?
 		}
 	}
 
@@ -171,7 +171,7 @@ SDL_Surface* ILAPIENTRY ilutSDLSurfaceLoadImage(ILstring FileName)
 {
 	SDL_Surface *Surface;
 
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadImage(FileName)) {
 		return NULL;
 	}
@@ -186,14 +186,14 @@ SDL_Surface* ILAPIENTRY ilutSDLSurfaceLoadImage(ILstring FileName)
 // Unfinished
 ILboolean ILAPIENTRY ilutSDLSurfaceFromBitmap(SDL_Surface *Bitmap)
 {
-	ilutCurImage = ilGetCurImage();
+	ilutCurImage = ilGetCurImage(context);
 	if (ilutCurImage == NULL) {
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if (Bitmap == NULL || Bitmap->w == 0 || Bitmap->h == 0) {
-		ilSetError(ILUT_INVALID_PARAM);
+		ilSetError(context, ILUT_INVALID_PARAM);
 		return IL_FALSE;
 	}
 

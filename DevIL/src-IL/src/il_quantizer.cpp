@@ -86,7 +86,7 @@ ILuint n2(ILint s)
 
 
 // Build 3-D color histogram of counts, r/g/b, c^2
-ILboolean Hist3d(ILubyte *Ir, ILubyte *Ig, ILubyte *Ib, ILint *vwt, ILint *vmr, ILint *vmg, ILint *vmb, ILfloat *m2)
+ILboolean Hist3d(ILcontext* context, ILubyte *Ir, ILubyte *Ig, ILubyte *Ib, ILint *vwt, ILint *vmr, ILint *vmg, ILint *vmb, ILfloat *m2)
 {
 	ILint	ind, r, g, b;
 	ILint	inr, ing, inb, table[2560];
@@ -96,7 +96,7 @@ ILboolean Hist3d(ILubyte *Ir, ILubyte *Ig, ILubyte *Ib, ILint *vwt, ILint *vmr, 
 	{
 		table[i] = i * i;
 	}
-	Qadd = (ILushort*)ialloc(sizeof(ILushort) * size);
+	Qadd = (ILushort*)ialloc(context, sizeof(ILushort) * size);
 	if (Qadd == NULL)
 	{
 		return IL_FALSE;
@@ -404,7 +404,7 @@ void Mark(struct Box *cube, int label, unsigned char *tag)
 }
 
 
-ILimage *iQuantizeImage(ILimage *Image, ILuint NumCols)
+ILimage *iQuantizeImage(ILcontext* context, ILimage *Image, ILuint NumCols)
 {
 	Box		cube[MAXCOLOR];
 	ILubyte	*tag = NULL;
@@ -424,10 +424,10 @@ ILimage *iQuantizeImage(ILimage *Image, ILuint NumCols)
 	if(num_alloced_colors<256) { num_alloced_colors=256; }
 
 
-	NewImage = iCurImage;
-	iCurImage = Image;
-	TempImage = iConvertImage(iCurImage, IL_RGB, IL_UNSIGNED_BYTE);
-	iCurImage = NewImage;
+	NewImage = context->impl->iCurImage;
+	context->impl->iCurImage = Image;
+	TempImage = iConvertImage(context, context->impl->iCurImage, IL_RGB, IL_UNSIGNED_BYTE);
+	context->impl->iCurImage = NewImage;
 
 
 
@@ -443,17 +443,17 @@ ILimage *iQuantizeImage(ILimage *Image, ILuint NumCols)
 
 	//color_num = ImagePrecalculate(Image);
 
-	NewData = (ILubyte*)ialloc(Image->Width * Image->Height * Image->Depth);
-	Palette = (ILubyte*)ialloc(3 * num_alloced_colors);
+	NewData = (ILubyte*)ialloc(context, Image->Width * Image->Height * Image->Depth);
+	Palette = (ILubyte*)ialloc(context, 3 * num_alloced_colors);
 	if (!NewData || !Palette) {
 		ifree(NewData);
 		ifree(Palette);
 		return NULL;
 	}
 
-	Ir = (ILubyte*)ialloc(Width * Height * Depth);
-	Ig = (ILubyte*)ialloc(Width * Height * Depth);
-	Ib = (ILubyte*)ialloc(Width * Height * Depth);
+	Ir = (ILubyte*)ialloc(context, Width * Height * Depth);
+	Ig = (ILubyte*)ialloc(context, Width * Height * Depth);
+	Ib = (ILubyte*)ialloc(context, Width * Height * Depth);
 	if (!Ir || !Ig || !Ib) {
 		ifree(Ir);
 		ifree(Ig);
@@ -539,7 +539,7 @@ ILimage *iQuantizeImage(ILimage *Image, ILuint NumCols)
                 imemclear(mg, 33 * 33 * 33 * sizeof(ILint));
                 imemclear(mb, 33 * 33 * 33 * sizeof(ILint));
                 
-		if (!Hist3d(Ir, Ig, Ib, (ILint*)wt, (ILint*)mr, (ILint*)mg, (ILint*)mb, (ILfloat*)gm2))
+		if (!Hist3d(context, Ir, Ig, Ib, (ILint*)wt, (ILint*)mr, (ILint*)mg, (ILint*)mb, (ILfloat*)gm2))
 			goto error_label;
 
 		M3d((ILint*)wt, (ILint*)mr, (ILint*)mg, (ILint*)mb, (ILfloat*)gm2);
@@ -571,7 +571,7 @@ ILimage *iQuantizeImage(ILimage *Image, ILuint NumCols)
 			}
 		}
 
-		tag = (ILubyte*)ialloc(33 * 33 * 33 * sizeof(ILubyte));
+		tag = (ILubyte*)ialloc(context, 33 * 33 * 33 * sizeof(ILubyte));
 		if (tag == NULL)
 			goto error_label;
 		for (k = 0; (ILint)k < K; k++) {
@@ -603,7 +603,7 @@ ILimage *iQuantizeImage(ILimage *Image, ILuint NumCols)
 	else { // If colors more than 256
 		// Begin Octree quantization
 		//Quant_Octree(Image->Width, Image->Height, Image->Bpp, buffer2, NewData, Palette, K);
-		ilSetError(IL_INTERNAL_ERROR);  // Can't get much more specific than this.
+		ilSetError(context, IL_INTERNAL_ERROR);  // Can't get much more specific than this.
 		goto error_label;
 	}
 
@@ -612,11 +612,11 @@ ILimage *iQuantizeImage(ILimage *Image, ILuint NumCols)
 	ifree(Ir);
 	ilCloseImage(TempImage);
 
-	NewImage = (ILimage*)icalloc(sizeof(ILimage), 1);
+	NewImage = (ILimage*)icalloc(context, sizeof(ILimage), 1);
 	if (NewImage == NULL) {
 		return NULL;
 	}
-	ilCopyImageAttr(NewImage, Image);
+	ilCopyImageAttr(context, NewImage, Image);
 	NewImage->Bpp = 1;
 	NewImage->Bps = Image->Width;
 	NewImage->SizeOfPlane = NewImage->Bps * Image->Height;

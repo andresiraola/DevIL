@@ -24,7 +24,7 @@
 
 
 //! Checks if the file specified in FileName is a valid Targa file.
-ILboolean ilIsValidTga(ILconst_string FileName)
+ILboolean ilIsValidTga(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	TargaFile;
 	ILboolean	bTarga = IL_FALSE;
@@ -33,75 +33,75 @@ ILboolean ilIsValidTga(ILconst_string FileName)
 		!iCheckExtension(FileName, IL_TEXT("vda")) &&
 		!iCheckExtension(FileName, IL_TEXT("icb")) &&
 		!iCheckExtension(FileName, IL_TEXT("vst"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bTarga;
 	}
 	
-	TargaFile = iopenr(FileName);
+	TargaFile = context->impl->iopenr(FileName);
 	if (TargaFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bTarga;
 	}
 	
-	bTarga = ilIsValidTgaF(TargaFile);
-	icloser(TargaFile);
+	bTarga = ilIsValidTgaF(context, TargaFile);
+	context->impl->icloser(TargaFile);
 	
 	return bTarga;
 }
 
 
 //! Checks if the ILHANDLE contains a valid Targa file at the current position.
-ILboolean ilIsValidTgaF(ILHANDLE File)
+ILboolean ilIsValidTgaF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidTarga();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidTarga(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid Targa lump.
-ILboolean ilIsValidTgaL(const void *Lump, ILuint Size)
+ILboolean ilIsValidTgaL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidTarga();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidTarga(context);
 }
 
 
 // Internal function used to get the Targa header from the current file.
-ILboolean iGetTgaHead(TARGAHEAD *Header)
+ILboolean iGetTgaHead(ILcontext* context, TARGAHEAD *Header)
 {
-	Header->IDLen = (ILubyte)igetc();
-	Header->ColMapPresent = (ILubyte)igetc();
-	Header->ImageType = (ILubyte)igetc();
-	Header->FirstEntry = GetLittleShort();
-	Header->ColMapLen = GetLittleShort();
-	Header->ColMapEntSize = (ILubyte)igetc();
+	Header->IDLen = (ILubyte)context->impl->igetc(context);
+	Header->ColMapPresent = (ILubyte)context->impl->igetc(context);
+	Header->ImageType = (ILubyte)context->impl->igetc(context);
+	Header->FirstEntry = GetLittleShort(context);
+	Header->ColMapLen = GetLittleShort(context);
+	Header->ColMapEntSize = (ILubyte)context->impl->igetc(context);
 
-	Header->OriginX = GetLittleShort();
-	Header->OriginY = GetLittleShort();
-	Header->Width = GetLittleUShort();
-	Header->Height = GetLittleUShort();
-	Header->Bpp = (ILubyte)igetc();
-	Header->ImageDesc = (ILubyte)igetc();
+	Header->OriginX = GetLittleShort(context);
+	Header->OriginY = GetLittleShort(context);
+	Header->Width = GetLittleUShort(context);
+	Header->Height = GetLittleUShort(context);
+	Header->Bpp = (ILubyte)context->impl->igetc(context);
+	Header->ImageDesc = (ILubyte)context->impl->igetc(context);
 	
 	return IL_TRUE;
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidTarga()
+ILboolean iIsValidTarga(ILcontext* context)
 {
 	TARGAHEAD	Head;
 	
-	if (!iGetTgaHead(&Head))
+	if (!iGetTgaHead(context, &Head))
 		return IL_FALSE;
-	iseek(-(ILint)sizeof(TARGAHEAD), IL_SEEK_CUR);
+	context->impl->iseek(context, -(ILint)sizeof(TARGAHEAD), IL_SEEK_CUR);
 	
 	return iCheckTarga(&Head);
 }
@@ -137,85 +137,85 @@ ILboolean iCheckTarga(TARGAHEAD *Header)
 
 
 //! Reads a Targa file
-ILboolean ilLoadTarga(ILconst_string FileName)
+ILboolean ilLoadTarga(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	TargaFile;
 	ILboolean	bTarga = IL_FALSE;
 	
-	TargaFile = iopenr(FileName);
+	TargaFile = context->impl->iopenr(FileName);
 	if (TargaFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bTarga;
 	}
 
-	bTarga = ilLoadTargaF(TargaFile);
-	icloser(TargaFile);
+	bTarga = ilLoadTargaF(context, TargaFile);
+	context->impl->icloser(TargaFile);
 
 	return bTarga;
 }
 
 
 //! Reads an already-opened Targa file
-ILboolean ilLoadTargaF(ILHANDLE File)
+ILboolean ilLoadTargaF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadTargaInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadTargaInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a Targa
-ILboolean ilLoadTargaL(const void *Lump, ILuint Size)
+ILboolean ilLoadTargaL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadTargaInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadTargaInternal(context);
 }
 
 
 // Internal function used to load the Targa.
-ILboolean iLoadTargaInternal()
+ILboolean iLoadTargaInternal(ILcontext* context)
 {
 	TARGAHEAD	Header;
 	ILboolean	bTarga;
 	ILenum		iOrigin;
 	
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	
-	if (!iGetTgaHead(&Header))
+	if (!iGetTgaHead(context, &Header))
 		return IL_FALSE;
 	if (!iCheckTarga(&Header)) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 	
 	switch (Header.ImageType)
 	{
 		case TGA_NO_DATA:
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			return IL_FALSE;
 		case TGA_COLMAP_UNCOMP:
 		case TGA_COLMAP_COMP:
-			bTarga = iReadColMapTga(&Header);
+			bTarga = iReadColMapTga(context, &Header);
 			break;
 		case TGA_UNMAP_UNCOMP:
 		case TGA_UNMAP_COMP:
-			bTarga = iReadUnmapTga(&Header);
+			bTarga = iReadUnmapTga(context, &Header);
 			break;
 		case TGA_BW_UNCOMP:
 		case TGA_BW_COMP:
-			bTarga = iReadBwTga(&Header);
+			bTarga = iReadBwTga(context, &Header);
 			break;
 		default:
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			return IL_FALSE;
 	}
 	
@@ -226,100 +226,100 @@ ILboolean iLoadTargaInternal()
 	switch (iOrigin)
 	{
 		case IMAGEDESC_TOPLEFT:
-			iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+			context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 			break;
 			
 		case IMAGEDESC_TOPRIGHT:
-			iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
-			iMirror();
+			context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+			iMirror(context);
 			break;
 			
 		case IMAGEDESC_BOTLEFT:
-			iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+			context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
 			break;
 			
 		case IMAGEDESC_BOTRIGHT:
-			iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
-			iMirror();
+			context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+			iMirror(context);
 			break;
 	}
 	
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 
-ILboolean iReadColMapTga(TARGAHEAD *Header)
+ILboolean iReadColMapTga(ILcontext* context, TARGAHEAD *Header)
 {
 	char		ID[255];
 	ILuint		i;
 	ILushort	Pixel;
 	
-	if (iread(ID, 1, Header->IDLen) != Header->IDLen)
+	if (context->impl->iread(context, ID, 1, Header->IDLen) != Header->IDLen)
 		return IL_FALSE;
 	
-	if (!ilTexImage(Header->Width, Header->Height, 1, (ILubyte)(Header->Bpp >> 3), 0, IL_UNSIGNED_BYTE, NULL)) {
+	if (!ilTexImage(context, Header->Width, Header->Height, 1, (ILubyte)(Header->Bpp >> 3), 0, IL_UNSIGNED_BYTE, NULL)) {
 		return IL_FALSE;
 	}
-	if (iCurImage->Pal.Palette && iCurImage->Pal.PalSize)
-		ifree(iCurImage->Pal.Palette);
+	if (context->impl->iCurImage->Pal.Palette && context->impl->iCurImage->Pal.PalSize)
+		ifree(context->impl->iCurImage->Pal.Palette);
 	
-	iCurImage->Format = IL_COLOUR_INDEX;
-	iCurImage->Pal.PalSize = Header->ColMapLen * (Header->ColMapEntSize >> 3);
+	context->impl->iCurImage->Format = IL_COLOUR_INDEX;
+	context->impl->iCurImage->Pal.PalSize = Header->ColMapLen * (Header->ColMapEntSize >> 3);
 	
 	switch (Header->ColMapEntSize)
 	{
 		case 16:
-			iCurImage->Pal.PalType = IL_PAL_BGRA32;
-			iCurImage->Pal.PalSize = Header->ColMapLen * 4;
+			context->impl->iCurImage->Pal.PalType = IL_PAL_BGRA32;
+			context->impl->iCurImage->Pal.PalSize = Header->ColMapLen * 4;
 			break;
 		case 24:
-			iCurImage->Pal.PalType = IL_PAL_BGR24;
+			context->impl->iCurImage->Pal.PalType = IL_PAL_BGR24;
 			break;
 		case 32:
-			iCurImage->Pal.PalType = IL_PAL_BGRA32;
+			context->impl->iCurImage->Pal.PalType = IL_PAL_BGRA32;
 			break;
 		default:
 			// Should *never* reach here
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			return IL_FALSE;
 	}
 	
-	iCurImage->Pal.Palette = (ILubyte*)ialloc(iCurImage->Pal.PalSize);
-	if (iCurImage->Pal.Palette == NULL) {
+	context->impl->iCurImage->Pal.Palette = (ILubyte*)ialloc(context, context->impl->iCurImage->Pal.PalSize);
+	if (context->impl->iCurImage->Pal.Palette == NULL) {
 		return IL_FALSE;
 	}
 	
 	// Do we need to do something with FirstEntry?	Like maybe:
-	//	iread(Image->Pal + Targa->FirstEntry, 1, Image->Pal.PalSize);  ??
+	//	context->impl->iread(context, Image->Pal + Targa->FirstEntry, 1, Image->Pal.PalSize);  ??
 	if (Header->ColMapEntSize != 16)
 	{
-		if (iread(iCurImage->Pal.Palette, 1, iCurImage->Pal.PalSize) != iCurImage->Pal.PalSize)
+		if (context->impl->iread(context, context->impl->iCurImage->Pal.Palette, 1, context->impl->iCurImage->Pal.PalSize) != context->impl->iCurImage->Pal.PalSize)
 			return IL_FALSE;
 	}
 	else {
 		// 16 bit palette, so we have to break it up.
-		for (i = 0; i < iCurImage->Pal.PalSize; i += 4)
+		for (i = 0; i < context->impl->iCurImage->Pal.PalSize; i += 4)
 		{
-			Pixel = GetBigUShort();
-			if (ieof())
+			Pixel = GetBigUShort(context);
+			if (context->impl->ieof(context))
 				return IL_FALSE;
-			iCurImage->Pal.Palette[3] = (Pixel & 0x8000) >> 12;
-			iCurImage->Pal.Palette[0] = (Pixel & 0xFC00) >> 7;
-			iCurImage->Pal.Palette[1] = (Pixel & 0x03E0) >> 2;
-			iCurImage->Pal.Palette[2] = (Pixel & 0x001F) << 3;
+			context->impl->iCurImage->Pal.Palette[3] = (Pixel & 0x8000) >> 12;
+			context->impl->iCurImage->Pal.Palette[0] = (Pixel & 0xFC00) >> 7;
+			context->impl->iCurImage->Pal.Palette[1] = (Pixel & 0x03E0) >> 2;
+			context->impl->iCurImage->Pal.Palette[2] = (Pixel & 0x001F) << 3;
 		}
 	}
 	
 	if (Header->ImageType == TGA_COLMAP_COMP)
 	{
-		if (!iUncompressTgaData(iCurImage))
+		if (!iUncompressTgaData(context, context->impl->iCurImage))
 		{
 			return IL_FALSE;
 		}
 	}
 	else
 	{
-		if (iread(iCurImage->Data, 1, iCurImage->SizeOfData) != iCurImage->SizeOfData)
+		if (context->impl->iread(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfData) != context->impl->iCurImage->SizeOfData)
 		{
 			return IL_FALSE;
 		}
@@ -329,12 +329,12 @@ ILboolean iReadColMapTga(TARGAHEAD *Header)
 }
 
 
-ILboolean iReadUnmapTga(TARGAHEAD *Header)
+ILboolean iReadUnmapTga(ILcontext* context, TARGAHEAD *Header)
 {
 	ILubyte Bpp;
 	char	ID[255];
 	
-	if (iread(ID, 1, Header->IDLen) != Header->IDLen)
+	if (context->impl->iread(context, ID, 1, Header->IDLen) != Header->IDLen)
 		return IL_FALSE;
 	
 	/*if (Header->Bpp == 16)
@@ -342,41 +342,41 @@ ILboolean iReadUnmapTga(TARGAHEAD *Header)
 	else*/
 	Bpp = (ILubyte)(Header->Bpp >> 3);
 	
-	if (!ilTexImage(Header->Width, Header->Height, 1, Bpp, 0, IL_UNSIGNED_BYTE, NULL)) {
+	if (!ilTexImage(context, Header->Width, Header->Height, 1, Bpp, 0, IL_UNSIGNED_BYTE, NULL)) {
 		return IL_FALSE;
 	}
 	
-	switch (iCurImage->Bpp)
+	switch (context->impl->iCurImage->Bpp)
 	{
 		case 1:
-			iCurImage->Format = IL_COLOUR_INDEX;  // wtf?  How is this possible?
+			context->impl->iCurImage->Format = IL_COLOUR_INDEX;  // wtf?  How is this possible?
 			break;
 		case 2:  // 16-bit is not supported directly!
-				 //iCurImage->Format = IL_RGB5_A1;
-			/*iCurImage->Format = IL_RGBA;
-			iCurImage->Type = IL_UNSIGNED_SHORT_5_5_5_1_EXT;*/
-			//iCurImage->Type = IL_UNSIGNED_SHORT_5_6_5_REV;
+				 //context->impl->iCurImage->Format = IL_RGB5_A1;
+			/*context->impl->iCurImage->Format = IL_RGBA;
+			context->impl->iCurImage->Type = IL_UNSIGNED_SHORT_5_5_5_1_EXT;*/
+			//context->impl->iCurImage->Type = IL_UNSIGNED_SHORT_5_6_5_REV;
 			
 			// Remove?
-			//ilCloseImage(iCurImage);
-			//ilSetError(IL_FORMAT_NOT_SUPPORTED);
+			//ilCloseImage(context->impl->iCurImage);
+			//ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 			//return IL_FALSE;
 			
-			/*iCurImage->Bpp = 4;
-			iCurImage->Format = IL_BGRA;
-			iCurImage->Type = IL_UNSIGNED_SHORT_1_5_5_5_REV;*/
+			/*context->impl->iCurImage->Bpp = 4;
+			context->impl->iCurImage->Format = IL_BGRA;
+			context->impl->iCurImage->Type = IL_UNSIGNED_SHORT_1_5_5_5_REV;*/
 			
-			iCurImage->Format = IL_BGR;
+			context->impl->iCurImage->Format = IL_BGR;
 			
 			break;
 		case 3:
-			iCurImage->Format = IL_BGR;
+			context->impl->iCurImage->Format = IL_BGR;
 			break;
 		case 4:
-			iCurImage->Format = IL_BGRA;
+			context->impl->iCurImage->Format = IL_BGRA;
 			break;
 		default:
-			ilSetError(IL_INVALID_VALUE);
+			ilSetError(context, IL_INVALID_VALUE);
 			return IL_FALSE;
 	}
 	
@@ -387,19 +387,19 @@ ILboolean iReadUnmapTga(TARGAHEAD *Header)
 	
 	
 	if (Header->ImageType == TGA_UNMAP_COMP) {
-		if (!iUncompressTgaData(iCurImage)) {
+		if (!iUncompressTgaData(context, context->impl->iCurImage)) {
 			return IL_FALSE;
 		}
 	}
 	else {
-		if (iread(iCurImage->Data, 1, iCurImage->SizeOfData) != iCurImage->SizeOfData) {
+		if (context->impl->iread(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfData) != context->impl->iCurImage->SizeOfData) {
 			return IL_FALSE;
 		}
 	}
 	
 	// Go ahead and expand it to 24-bit.
 	if (Header->Bpp == 16) {
-		if (!i16BitTarga(iCurImage))
+		if (!i16BitTarga(context, context->impl->iCurImage))
 			return IL_FALSE;
 		return IL_TRUE;
 	}
@@ -408,27 +408,27 @@ ILboolean iReadUnmapTga(TARGAHEAD *Header)
 }
 
 
-ILboolean iReadBwTga(TARGAHEAD *Header)
+ILboolean iReadBwTga(ILcontext* context, TARGAHEAD *Header)
 {
 	char ID[255];
 	
-	if (iread(ID, 1, Header->IDLen) != Header->IDLen)
+	if (context->impl->iread(context, ID, 1, Header->IDLen) != Header->IDLen)
 		return IL_FALSE;
 	
 	// We assume that no palette is present, but it's possible...
 	//	Should we mess with it or not?
 	
-	if (!ilTexImage(Header->Width, Header->Height, 1, (ILubyte)(Header->Bpp >> 3), IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL)) {
+	if (!ilTexImage(context, Header->Width, Header->Height, 1, (ILubyte)(Header->Bpp >> 3), IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL)) {
 		return IL_FALSE;
 	}
 	
 	if (Header->ImageType == TGA_BW_COMP) {
-		if (!iUncompressTgaData(iCurImage)) {
+		if (!iUncompressTgaData(context, context->impl->iCurImage)) {
 			return IL_FALSE;
 		}
 	}
 	else {
-		if (iread(iCurImage->Data, 1, iCurImage->SizeOfData) != iCurImage->SizeOfData) {
+		if (context->impl->iread(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfData) != context->impl->iCurImage->SizeOfData) {
 			return IL_FALSE;
 		}
 	}
@@ -437,7 +437,7 @@ ILboolean iReadBwTga(TARGAHEAD *Header)
 }
 
 
-ILboolean iUncompressTgaData(ILimage *Image)
+ILboolean iUncompressTgaData(ILcontext* context, ILimage *Image)
 {
 	ILuint	BytesRead = 0, Size, RunLen, i, ToRead;
 	ILubyte Header, Color[4];
@@ -445,15 +445,15 @@ ILboolean iUncompressTgaData(ILimage *Image)
 	
 	Size = Image->Width * Image->Height * Image->Depth * Image->Bpp;
 	
-	if (iGetHint(IL_MEM_SPEED_HINT) == IL_FASTEST)
-		iPreCache(iCurImage->SizeOfData / 2);
+	if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
+		iPreCache(context, context->impl->iCurImage->SizeOfData / 2);
 	
 	while (BytesRead < Size) {
-		Header = (ILubyte)igetc();
+		Header = (ILubyte)context->impl->igetc(context);
 		if (Header & BIT_7) {
 			ClearBits(Header, BIT_7);
-			if (iread(Color, 1, Image->Bpp) != Image->Bpp) {
-				iUnCache();
+			if (context->impl->iread(context, Color, 1, Image->Bpp) != Image->Bpp) {
+				iUnCache(context);
 				return IL_FALSE;
 			}
 			RunLen = (Header+1) * Image->Bpp;
@@ -472,31 +472,31 @@ ILboolean iUncompressTgaData(ILimage *Image)
 				ToRead = Size - BytesRead;
 			else
 				ToRead = RunLen;
-			if (iread(Image->Data + BytesRead, 1, ToRead) != ToRead) {
-				iUnCache();  //@TODO: Error needed here?
+			if (context->impl->iread(context, Image->Data + BytesRead, 1, ToRead) != ToRead) {
+				iUnCache(context);  //@TODO: Error needed here?
 				return IL_FALSE;
 			}
 			BytesRead += RunLen;
 
 			if (BytesRead + RunLen > Size)
-				iseek(RunLen - ToRead, IL_SEEK_CUR);
+				context->impl->iseek(context, RunLen - ToRead, IL_SEEK_CUR);
 		}
 	}
 	
-	iUnCache();
+	iUnCache(context);
 	
 	return IL_TRUE;
 }
 
 
 // Pretty damn unoptimized
-ILboolean i16BitTarga(ILimage *Image)
+ILboolean i16BitTarga(ILcontext* context, ILimage *Image)
 {
 	ILushort	*Temp1;
 	ILubyte 	*Data, *Temp2;
 	ILuint		x, PixSize = Image->Width * Image->Height;
 	
-	Data = (ILubyte*)ialloc(Image->Width * Image->Height * 3);
+	Data = (ILubyte*)ialloc(context, Image->Width * Image->Height * 3);
 	Temp1 = (ILushort*)Image->Data;
 	Temp2 = Data;
 	
@@ -526,7 +526,7 @@ ILboolean i16BitTarga(ILimage *Image)
 		*Temp++ = s;*/
 	}
 	
-	if (!ilTexImage(Image->Width, Image->Height, 1, 3, IL_BGR, IL_UNSIGNED_BYTE, Data)) {
+	if (!ilTexImage(context, Image->Width, Image->Height, 1, 3, IL_BGR, IL_UNSIGNED_BYTE, Data)) {
 		ifree(Data);
 		return IL_FALSE;
 	}
@@ -538,26 +538,26 @@ ILboolean i16BitTarga(ILimage *Image)
 
 
 //! Writes a Targa file
-ILboolean ilSaveTarga(const ILstring FileName)
+ILboolean ilSaveTarga(ILcontext* context, const ILstring FileName)
 {
 	ILHANDLE	TargaFile;
 	ILuint		TargaSize;
 
-	if (ilGetBoolean(IL_FILE_MODE) == IL_FALSE) {
+	if (ilGetBoolean(context, IL_FILE_MODE) == IL_FALSE) {
 		if (iFileExists(FileName)) {
-			ilSetError(IL_FILE_ALREADY_EXISTS);
+			ilSetError(context, IL_FILE_ALREADY_EXISTS);
 			return IL_FALSE;
 		}
 	}
 
-	TargaFile = iopenw(FileName);
+	TargaFile = context->impl->iopenw(FileName);
 	if (TargaFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	TargaSize = ilSaveTargaF(TargaFile);
-	iclosew(TargaFile);
+	TargaSize = ilSaveTargaF(context, TargaFile);
+	context->impl->iclosew(TargaFile);
 
 	if (TargaSize == 0)
 		return IL_FALSE;
@@ -566,34 +566,34 @@ ILboolean ilSaveTarga(const ILstring FileName)
 
 
 //! Writes a Targa to an already-opened file
-ILuint ilSaveTargaF(ILHANDLE File)
+ILuint ilSaveTargaF(ILcontext* context, ILHANDLE File)
 {
 	ILuint Pos;
-	iSetOutputFile(File);
-	Pos = itellw();
-	if (iSaveTargaInternal() == IL_FALSE)
+	iSetOutputFile(context, File);
+	Pos = context->impl->itellw(context);
+	if (iSaveTargaInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 //! Writes a Targa to a memory "lump"
-ILuint ilSaveTargaL(void *Lump, ILuint Size)
+ILuint ilSaveTargaL(ILcontext* context, void *Lump, ILuint Size)
 {
-	ILuint Pos = itellw();
-	iSetOutputLump(Lump, Size);
-	if (iSaveTargaInternal() == IL_FALSE)
+	ILuint Pos = context->impl->itellw(context);
+	iSetOutputLump(context, Lump, Size);
+	if (iSaveTargaInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 // Internal function used to save the Targa.
-ILboolean iSaveTargaInternal()
+ILboolean iSaveTargaInternal(ILcontext* context)
 {
-	const char	*ID = iGetString(IL_TGA_ID_STRING);
-	const char	*AuthName = iGetString(IL_TGA_AUTHNAME_STRING);
-	const char	*AuthComment = iGetString(IL_TGA_AUTHCOMMENT_STRING);
+	const char	*ID = iGetString(context, IL_TGA_ID_STRING);
+	const char	*AuthName = iGetString(context, IL_TGA_AUTHNAME_STRING);
+	const char	*AuthComment = iGetString(context, IL_TGA_AUTHCOMMENT_STRING);
 	ILubyte 	IDLen = 0, UsePal, Type, PalEntSize;
 	ILshort 	ColMapStart = 0, PalSize;
 	ILubyte		Temp;
@@ -610,12 +610,12 @@ ILboolean iSaveTargaInternal()
 	char		*TempData;
 	ILshort		zero_short = 0;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	
-	if (iGetInt(IL_TGA_RLE) == IL_TRUE)
+	if (iGetInt(context, IL_TGA_RLE) == IL_TRUE)
 		Compress = IL_TRUE;
 	else
 		Compress = IL_FALSE;
@@ -623,15 +623,15 @@ ILboolean iSaveTargaInternal()
 	if (ID)
 		IDLen = (ILubyte)ilCharStrLen(ID);
 	
-	if (iCurImage->Pal.Palette && iCurImage->Pal.PalSize && iCurImage->Pal.PalType != IL_PAL_NONE)
+	if (context->impl->iCurImage->Pal.Palette && context->impl->iCurImage->Pal.PalSize && context->impl->iCurImage->Pal.PalType != IL_PAL_NONE)
 		UsePal = IL_TRUE;
 	else
 		UsePal = IL_FALSE;
 	
-	iwrite(&IDLen, sizeof(ILubyte), 1);
-	iwrite(&UsePal, sizeof(ILubyte), 1);
+	context->impl->iwrite(context, &IDLen, sizeof(ILubyte), 1);
+	context->impl->iwrite(context, &UsePal, sizeof(ILubyte), 1);
 
-	Format = iCurImage->Format;
+	Format = context->impl->iCurImage->Format;
 	switch (Format) {
 		case IL_COLOUR_INDEX:
 			if (Compress)
@@ -648,7 +648,7 @@ ILboolean iSaveTargaInternal()
 			break;
 		case IL_RGB:
 		case IL_RGBA:
-			ilSwapColours();
+			ilSwapColours(context);
 			if (Compress)
 				Type = 10;
 			else
@@ -662,26 +662,26 @@ ILboolean iSaveTargaInternal()
 			break;
 		default:
 			// Should convert the types here...
-			ilSetError(IL_INVALID_VALUE);
+			ilSetError(context, IL_INVALID_VALUE);
 			ifree(ID);
 			ifree(AuthName);
 			ifree(AuthComment);
 			return IL_FALSE;
 	}
 	
-	iwrite(&Type, sizeof(ILubyte), 1);
-	SaveLittleShort(ColMapStart);
+	context->impl->iwrite(context, &Type, sizeof(ILubyte), 1);
+	SaveLittleShort(context, ColMapStart);
 	
-	switch (iCurImage->Pal.PalType)
+	switch (context->impl->iCurImage->Pal.PalType)
 	{
 		case IL_PAL_NONE:
 			PalSize = 0;
 			PalEntSize = 0;
 			break;
 		case IL_PAL_BGR24:
-			PalSize = (ILshort)(iCurImage->Pal.PalSize / 3);
+			PalSize = (ILshort)(context->impl->iCurImage->Pal.PalSize / 3);
 			PalEntSize = 24;
-			TempPal = &iCurImage->Pal;
+			TempPal = &context->impl->iCurImage->Pal;
 			break;
 			
 		case IL_PAL_RGB24:
@@ -689,14 +689,14 @@ ILboolean iSaveTargaInternal()
 		case IL_PAL_RGBA32:
 		case IL_PAL_BGR32:
 		case IL_PAL_BGRA32:
-			TempPal = iConvertPal(&iCurImage->Pal, IL_PAL_BGR24);
+			TempPal = iConvertPal(context, &context->impl->iCurImage->Pal, IL_PAL_BGR24);
 			if (TempPal == NULL)
 				return IL_FALSE;
 				PalSize = (ILshort)(TempPal->PalSize / 3);
 			PalEntSize = 24;
 			break;
 		default:
-			ilSetError(IL_INVALID_VALUE);
+			ilSetError(context, IL_INVALID_VALUE);
 			ifree(ID);
 			ifree(AuthName);
 			ifree(AuthComment);
@@ -704,11 +704,11 @@ ILboolean iSaveTargaInternal()
 			PalEntSize = 0;
 			return IL_FALSE;
 	}
-	SaveLittleShort(PalSize);
-	iwrite(&PalEntSize, sizeof(ILubyte), 1);
+	SaveLittleShort(context, PalSize);
+	context->impl->iwrite(context, &PalEntSize, sizeof(ILubyte), 1);
 	
-	if (iCurImage->Bpc > 1) {
-		TempImage = iConvertImage(iCurImage, iCurImage->Format, IL_UNSIGNED_BYTE);
+	if (context->impl->iCurImage->Bpc > 1) {
+		TempImage = iConvertImage(context, context->impl->iCurImage, context->impl->iCurImage->Format, IL_UNSIGNED_BYTE);
 		if (TempImage == NULL) {
 			ifree(ID);
 			ifree(AuthName);
@@ -717,121 +717,121 @@ ILboolean iSaveTargaInternal()
 		}
 	}
 	else {
-		TempImage = iCurImage;
+		TempImage = context->impl->iCurImage;
 	}
 	
 	if (TempImage->Origin != IL_ORIGIN_LOWER_LEFT) {
-		TempData = (char*)iGetFlipped(TempImage);
+		TempData = (char*)iGetFlipped(context, TempImage);
 	}
 	else
 		TempData = (char*)TempImage->Data;
 	
 	// Write out the origin stuff.
-	iwrite(&zero_short, sizeof(ILshort), 1);
-	iwrite(&zero_short, sizeof(ILshort), 1);
+	context->impl->iwrite(context, &zero_short, sizeof(ILshort), 1);
+	context->impl->iwrite(context, &zero_short, sizeof(ILshort), 1);
 	
-	Temp = iCurImage->Bpp << 3;  // Changes to bits per pixel 
-	SaveLittleUShort((ILushort)iCurImage->Width);
-	SaveLittleUShort((ILushort)iCurImage->Height);
-	iwrite(&Temp, sizeof(ILubyte), 1);
+	Temp = context->impl->iCurImage->Bpp << 3;  // Changes to bits per pixel 
+	SaveLittleUShort(context, (ILushort)context->impl->iCurImage->Width);
+	SaveLittleUShort(context, (ILushort)context->impl->iCurImage->Height);
+	context->impl->iwrite(context, &Temp, sizeof(ILubyte), 1);
 	
 	// Still don't know what exactly this is for...
 	// It's actually the 'Image Descriptor Byte'
 	// from wiki: Image descriptor (1 byte): bits 3-0 give the alpha channel depth, bits 5-4 give direction
 	Temp = 0;
-	if (iCurImage->Bpp > 3)
+	if (context->impl->iCurImage->Bpp > 3)
 		Temp = 8;
 	if (TempImage->Origin == IL_ORIGIN_UPPER_LEFT)
 		Temp |= 0x20; //set 5th bit
-	iwrite(&Temp, sizeof(ILubyte), 1);
-	iwrite(ID, sizeof(char), IDLen);
+	context->impl->iwrite(context, &Temp, sizeof(ILubyte), 1);
+	context->impl->iwrite(context, ID, sizeof(char), IDLen);
 	ifree(ID);
-	//iwrite(ID, sizeof(ILbyte), IDLen - sizeof(ILuint));
-	//iwrite(&iCurImage->Depth, sizeof(ILuint), 1);
+	//context->impl->iwrite((ID, sizeof(ILbyte), IDLen - sizeof(ILuint));
+	//context->impl->iwrite(context, &context->impl->iCurImage->Depth, sizeof(ILuint), 1);
 	
 	// Write out the colormap
 	if (UsePal)
-		iwrite(TempPal->Palette, sizeof(ILubyte), TempPal->PalSize);
+		context->impl->iwrite(context, TempPal->Palette, sizeof(ILubyte), TempPal->PalSize);
 	// else do nothing
 	
 	if (!Compress)
-		iwrite(TempData, sizeof(ILubyte), TempImage->SizeOfData);
+		context->impl->iwrite(context, TempData, sizeof(ILubyte), TempImage->SizeOfData);
 	else {
-		Rle = (ILubyte*)ialloc(TempImage->SizeOfData + TempImage->SizeOfData / 2 + 1);	// max
+		Rle = (ILubyte*)ialloc(context, TempImage->SizeOfData + TempImage->SizeOfData / 2 + 1);	// max
 		if (Rle == NULL) {
 			ifree(AuthName);
 			ifree(AuthComment);
 			return IL_FALSE;
 		}
-		RleLen = ilRleCompress((unsigned char*)TempData, TempImage->Width, TempImage->Height,
+		RleLen = ilRleCompress(context, (unsigned char*)TempData, TempImage->Width, TempImage->Height,
 		                       TempImage->Depth, TempImage->Bpp, Rle, IL_TGACOMP, NULL);
 		
-		iwrite(Rle, 1, RleLen);
+		context->impl->iwrite(context, Rle, 1, RleLen);
 		ifree(Rle);
 	}
 	
 	// Write the extension area.
-	ExtOffset = itellw();
-	SaveLittleUShort(495);	// Number of bytes in the extension area (TGA 2.0 spec)
-	iwrite(AuthName, 1, ilCharStrLen(AuthName));
-	ipad(41 - ilCharStrLen(AuthName));
-	iwrite(AuthComment, 1, ilCharStrLen(AuthComment));
-	ipad(324 - ilCharStrLen(AuthComment));
+	ExtOffset = context->impl->itellw(context);
+	SaveLittleUShort(context, 495);	// Number of bytes in the extension area (TGA 2.0 spec)
+	context->impl->iwrite(context, AuthName, 1, ilCharStrLen(AuthName));
+	ipad(context, 41 - ilCharStrLen(AuthName));
+	context->impl->iwrite(context, AuthComment, 1, ilCharStrLen(AuthComment));
+	ipad(context, 324 - ilCharStrLen(AuthComment));
 	ifree(AuthName);
 	ifree(AuthComment);
 	
 	// Write time/date
 	iGetDateTime(&Month, &Day, &Year, &Hour, &Minute, &Second);
-	SaveLittleUShort((ILushort)Month);
-	SaveLittleUShort((ILushort)Day);
-	SaveLittleUShort((ILushort)Year);
-	SaveLittleUShort((ILushort)Hour);
-	SaveLittleUShort((ILushort)Minute);
-	SaveLittleUShort((ILushort)Second);
+	SaveLittleUShort(context, (ILushort)Month);
+	SaveLittleUShort(context, (ILushort)Day);
+	SaveLittleUShort(context, (ILushort)Year);
+	SaveLittleUShort(context, (ILushort)Hour);
+	SaveLittleUShort(context, (ILushort)Minute);
+	SaveLittleUShort(context, (ILushort)Second);
 	
 	for (i = 0; i < 6; i++) {  // Time created
-		SaveLittleUShort(0);
+		SaveLittleUShort(context, 0);
 	}
 	for (i = 0; i < 41; i++) {	// Job name/ID
-		iputc(0);
+		context->impl->iputc(context, 0);
 	}
 	for (i = 0; i < 3; i++) {  // Job time
-		SaveLittleUShort(0);
+		SaveLittleUShort(context, 0);
 	}
 	
-	iwrite(idString, 1, ilCharStrLen(idString));	// Software ID
+	context->impl->iwrite(context, idString, 1, ilCharStrLen(idString));	// Software ID
 	for (i = 0; i < 41 - ilCharStrLen(idString); i++) {
-		iputc(0);
+		context->impl->iputc(context, 0);
 	}
-	SaveLittleUShort(IL_VERSION);  // Software version
-	iputc(' ');  // Release letter (not beta anymore, so use a space)
+	SaveLittleUShort(context, IL_VERSION);  // Software version
+	context->impl->iputc(context, ' ');  // Release letter (not beta anymore, so use a space)
 	
-	SaveLittleUInt(0);	// Key colour
-	SaveLittleUInt(0);	// Pixel aspect ratio
-	SaveLittleUInt(0);	// Gamma correction offset
-	SaveLittleUInt(0);	// Colour correction offset
-	SaveLittleUInt(0);	// Postage stamp offset
-	SaveLittleUInt(0);	// Scan line offset
-	iputc(3);  // Attributes type
+	SaveLittleUInt(context, 0);	// Key colour
+	SaveLittleUInt(context, 0);	// Pixel aspect ratio
+	SaveLittleUInt(context, 0);	// Gamma correction offset
+	SaveLittleUInt(context, 0);	// Colour correction offset
+	SaveLittleUInt(context, 0);	// Postage stamp offset
+	SaveLittleUInt(context, 0);	// Scan line offset
+	context->impl->iputc(context, 3);  // Attributes type
 	
 	// Write the footer.
-	SaveLittleUInt(ExtOffset);	// No extension area
-	SaveLittleUInt(0);	// No developer directory
-	iwrite(Footer, 1, ilCharStrLen(Footer)+1);
+	SaveLittleUInt(context, ExtOffset);	// No extension area
+	SaveLittleUInt(context, 0);	// No developer directory
+	context->impl->iwrite(context, Footer, 1, ilCharStrLen(Footer)+1);
 	
 	if (TempImage->Origin != IL_ORIGIN_LOWER_LEFT) {
 		ifree(TempData);
 	}
 	if (Format == IL_RGB || Format == IL_RGBA) {
-		ilSwapColours();
+		ilSwapColours(context);
 	}
 	
-	if (TempPal != &iCurImage->Pal && TempPal != NULL) {
+	if (TempPal != &context->impl->iCurImage->Pal && TempPal != NULL) {
 		ifree(TempPal->Palette);
 		ifree(TempPal);
 	}
 	
-	if (TempImage != iCurImage)
+	if (TempImage != context->impl->iCurImage)
 		ilCloseImage(TempImage);
 
 	return IL_TRUE;
@@ -840,18 +840,18 @@ ILboolean iSaveTargaInternal()
 
 // Only to be called by ilDetermineSize.  Returns the buffer size needed to save the
 //  current image as a Targa file.
-ILuint iTargaSize(void)
+ILuint iTargaSize(ILcontext* context)
 {
 	ILuint	Size, Bpp;
 	ILubyte	IDLen = 0;
-	const char	*ID = iGetString(IL_TGA_ID_STRING);
-	const char	*AuthName = iGetString(IL_TGA_AUTHNAME_STRING);
-	const char	*AuthComment = iGetString(IL_TGA_AUTHCOMMENT_STRING);
+	const char	*ID = iGetString(context, IL_TGA_ID_STRING);
+	const char	*AuthName = iGetString(context, IL_TGA_AUTHNAME_STRING);
+	const char	*AuthComment = iGetString(context, IL_TGA_AUTHCOMMENT_STRING);
 
 	//@TODO: Support color indexed images.
-	if (iGetInt(IL_TGA_RLE) == IL_TRUE || iCurImage->Format == IL_COLOUR_INDEX) {
+	if (iGetInt(context, IL_TGA_RLE) == IL_TRUE || context->impl->iCurImage->Format == IL_COLOUR_INDEX) {
 		// Use the slower method, since we are using compression.  We do a "fake" write.
-		ilSaveTargaL(NULL, 0);
+		ilSaveTargaL(context, NULL, 0);
 	}
 
 	if (ID)
@@ -859,8 +859,8 @@ ILuint iTargaSize(void)
 
 	Size = 18 + IDLen;  // Header + ID
 
-	// Bpp may not be iCurImage->Bpp.
-	switch (iCurImage->Format)
+	// Bpp may not be context->impl->iCurImage->Bpp.
+	switch (context->impl->iCurImage->Format)
 	{
 		case IL_BGR:
 		case IL_RGB:
@@ -877,7 +877,7 @@ ILuint iTargaSize(void)
 			return 0;
 	}
 
-	Size += iCurImage->Width * iCurImage->Height * Bpp;
+	Size += context->impl->iCurImage->Width * context->impl->iCurImage->Height * Bpp;
 	Size += 532;  // Size of the extension area
 
 	return Size;

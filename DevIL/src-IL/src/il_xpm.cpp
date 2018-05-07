@@ -21,65 +21,65 @@
 //(not much).
 //#define XPM_DONT_USE_HASHTABLE
 
-ILboolean iIsValidXpm(void);
-ILboolean iLoadXpmInternal(void);
-ILint XpmGetsInternal(ILubyte *Buffer, ILint MaxLen);
+ILboolean iIsValidXpm(ILcontext* context);
+ILboolean iLoadXpmInternal(ILcontext* context);
+ILint XpmGetsInternal(ILcontext* context, ILubyte *Buffer, ILint MaxLen);
 
 //! Checks if the file specified in FileName is a valid XPM file.
-ILboolean ilIsValidXpm(ILconst_string FileName)
+ILboolean ilIsValidXpm(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	XpmFile;
 	ILboolean	bXpm = IL_FALSE;
 	
 	if (!iCheckExtension(FileName, IL_TEXT("xpm"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bXpm;
 	}
 	
-	XpmFile = iopenr(FileName);
+	XpmFile = context->impl->iopenr(FileName);
 	if (XpmFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bXpm;
 	}
 	
-	bXpm = ilIsValidXpmF(XpmFile);
-	icloser(XpmFile);
+	bXpm = ilIsValidXpmF(context, XpmFile);
+	context->impl->icloser(XpmFile);
 	
 	return bXpm;
 }
 
 
 //! Checks if the ILHANDLE contains a valid XPM file at the current position.
-ILboolean ilIsValidXpmF(ILHANDLE File)
+ILboolean ilIsValidXpmF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidXpm();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidXpm(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid XPM lump.
-ILboolean ilIsValidXpmL(const void *Lump, ILuint Size)
+ILboolean ilIsValidXpmL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidXpm();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidXpm(context);
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidXpm(void)
+ILboolean iIsValidXpm(ILcontext* context)
 {
 	ILubyte	Buffer[10];
-	ILuint	Pos = itell();
+	ILuint	Pos = context->impl->itell(context);
 
-	XpmGetsInternal(Buffer, 10);
-	iseek(Pos, IL_SEEK_SET);  // Restore position
+	XpmGetsInternal(context, Buffer, 10);
+	context->impl->iseek(context, Pos, IL_SEEK_SET);  // Restore position
 
 	if (strncmp("/* XPM */", (char*)Buffer, strlen("/* XPM */")))
 		return IL_FALSE;
@@ -88,45 +88,45 @@ ILboolean iIsValidXpm(void)
 
 
 // Reads an .xpm file
-ILboolean ilLoadXpm(ILconst_string FileName)
+ILboolean ilLoadXpm(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	XpmFile;
 	ILboolean	bXpm = IL_FALSE;
 
-	XpmFile = iopenr(FileName);
+	XpmFile = context->impl->iopenr(FileName);
 	if (XpmFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bXpm;
 	}
 
-	iSetInputFile(XpmFile);
-	bXpm = ilLoadXpmF(XpmFile);
-	icloser(XpmFile);
+	iSetInputFile(context, XpmFile);
+	bXpm = ilLoadXpmF(context, XpmFile);
+	context->impl->icloser(XpmFile);
 
 	return bXpm;
 }
 
 
 //! Reads an already-opened .xpm file
-ILboolean ilLoadXpmF(ILHANDLE File)
+ILboolean ilLoadXpmF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadXpmInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadXpmInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains an .xpm
-ILboolean ilLoadXpmL(const void *Lump, ILuint Size)
+ILboolean ilLoadXpmL(ILcontext* context, const void *Lump, ILuint Size)
  {
-	iSetInputLump(Lump, Size);
-	return iLoadXpmInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadXpmInternal(context);
 }
 
 
@@ -168,10 +168,10 @@ static ILuint XpmHash(const ILubyte* name, int len)
 }
 
 
-XPMHASHENTRY** XpmCreateHashTable()
+XPMHASHENTRY** XpmCreateHashTable(ILcontext* context)
 {
 	XPMHASHENTRY** Table =
-		(XPMHASHENTRY**)ialloc(XPM_HASH_LEN*sizeof(XPMHASHENTRY*));
+		(XPMHASHENTRY**)ialloc(context, XPM_HASH_LEN*sizeof(XPMHASHENTRY*));
 	if (Table != NULL)
 		memset(Table, 0, XPM_HASH_LEN*sizeof(XPMHASHENTRY*));
 	return Table;
@@ -195,13 +195,13 @@ void XpmDestroyHashTable(XPMHASHENTRY **Table)
 }
 
 
-void XpmInsertEntry(XPMHASHENTRY **Table, const ILubyte* Name, int Len, XpmPixel Colour)
+void XpmInsertEntry(ILcontext* context, XPMHASHENTRY **Table, const ILubyte* Name, int Len, XpmPixel Colour)
 {
 	XPMHASHENTRY* NewEntry;
 	ILuint Index;
 	Index = XpmHash(Name, Len);
 
-	NewEntry = (XPMHASHENTRY*)ialloc(sizeof(XPMHASHENTRY));
+	NewEntry = (XPMHASHENTRY*)ialloc(context, sizeof(XPMHASHENTRY));
 	if (NewEntry != NULL) {
 		NewEntry->Next = Table[Index];
 		memcpy(NewEntry->ColourName, Name, Len);
@@ -228,21 +228,21 @@ void XpmGetEntry(XPMHASHENTRY **Table, const ILubyte* Name, int Len, XpmPixel Co
 #endif //XPM_DONT_USE_HASHTABLE
 
 
-ILint XpmGetsInternal(ILubyte *Buffer, ILint MaxLen)
+ILint XpmGetsInternal(ILcontext* context, ILubyte *Buffer, ILint MaxLen)
 {
 	ILint	i = 0, Current;
 
-	if (ieof())
+	if (context->impl->ieof(context))
 		return IL_EOF;
 
-	while ((Current = igetc()) != IL_EOF && i < MaxLen - 1) {
+	while ((Current = context->impl->igetc(context)) != IL_EOF && i < MaxLen - 1) {
 		if (Current == IL_EOF)
 			return 0;
 		if (Current == '\n') //unix line ending
 			break;
 
 		if (Current == '\r') { //dos/mac line ending
-			Current = igetc();
+			Current = context->impl->igetc(context);
 			if (Current == '\n') //dos line ending
 				break;
 
@@ -261,13 +261,13 @@ ILint XpmGetsInternal(ILubyte *Buffer, ILint MaxLen)
 }
 
 
-ILint XpmGets(ILubyte *Buffer, ILint MaxLen)
+ILint XpmGets(ILcontext* context, ILubyte *Buffer, ILint MaxLen)
 {
 	ILint		Size, i, j;
 	ILboolean	NotComment = IL_FALSE, InsideComment = IL_FALSE;
 
 	do {
-		Size = XpmGetsInternal(Buffer, MaxLen);
+		Size = XpmGetsInternal(context, Buffer, MaxLen);
 		if (Size == IL_EOF)
 			return IL_EOF;
 
@@ -432,9 +432,9 @@ ILboolean XpmPredefCol(char *Buff, XpmPixel *Colour)
 
 
 #ifndef XPM_DONT_USE_HASHTABLE
-ILboolean XpmGetColour(ILubyte *Buffer, ILint Size, int Len, XPMHASHENTRY **Table)
+ILboolean XpmGetColour(ILcontext* context, ILubyte *Buffer, ILint Size, int Len, XPMHASHENTRY **Table)
 #else
-ILboolean XpmGetColour(ILubyte *Buffer, ILint Size, int Len, XpmPixel* Colours)
+ILboolean XpmGetColour(ILcontext* context, ILubyte *Buffer, ILint Size, int Len, XpmPixel* Colours)
 #endif
 {
 	ILint		i = 0, j, strLen = 0;
@@ -469,7 +469,7 @@ ILboolean XpmGetColour(ILubyte *Buffer, ILint Size, int Len, XpmPixel* Colours)
 #ifndef XPM_DONT_USE_HASHTABLE
 		memset(Colour, 0, sizeof(Colour));
 		Colour[3] = 255;
-		XpmInsertEntry(Table, Name, Len, Colour);
+		XpmInsertEntry(context, Table, Name, Len, Colour);
 #else
 		memset(Colours[Name[0]], 0, sizeof(Colour));
 		Colours[Name[0]][3] = 255;
@@ -533,7 +533,7 @@ ILboolean XpmGetColour(ILubyte *Buffer, ILint Size, int Len, XpmPixel* Colours)
 
 
 #ifndef XPM_DONT_USE_HASHTABLE
-	XpmInsertEntry(Table, Name, Len, Colour);
+	XpmInsertEntry(context, Table, Name, Len, Colour);
 #else
 	memcpy(Colours[Name[0]], Colour, sizeof(Colour));
 #endif
@@ -541,7 +541,7 @@ ILboolean XpmGetColour(ILubyte *Buffer, ILint Size, int Len, XpmPixel* Colours)
 }
 
 
-ILboolean iLoadXpmInternal()
+ILboolean iLoadXpmInternal(ILcontext* context)
 {
 #define BUFFER_SIZE 2000
 	ILubyte			Buffer[BUFFER_SIZE], *Data;
@@ -556,16 +556,16 @@ ILboolean iLoadXpmInternal()
 	ILint		Offset;
 #endif
 
-	Size = XpmGetsInternal(Buffer, BUFFER_SIZE);
+	Size = XpmGetsInternal(context, Buffer, BUFFER_SIZE);
 	if (strncmp("/* XPM */", (char*)Buffer, strlen("/* XPM */"))) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
-	Size = XpmGets(Buffer, BUFFER_SIZE);
+	Size = XpmGets(context, Buffer, BUFFER_SIZE);
 	// @TODO:  Actually check the variable name here.
 
-	Size = XpmGets(Buffer, BUFFER_SIZE);
+	Size = XpmGets(context, Buffer, BUFFER_SIZE);
 	Pos = 0;
 	Width = XpmGetInt(Buffer, Size, &Pos);
 	Height = XpmGetInt(Buffer, Size, &Pos);
@@ -575,31 +575,31 @@ ILboolean iLoadXpmInternal()
 
 #ifdef XPM_DONT_USE_HASHTABLE
 	if (CharsPerPixel != 1) {
-		ilSetError(IL_FORMAT_NOT_SUPPORTED);
+		ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 		return IL_FALSE;
 	}
 #endif
 
 	if (CharsPerPixel > XPM_MAX_CHAR_PER_PIXEL
 		|| Width*CharsPerPixel > BUFFER_SIZE) {
-		ilSetError(IL_FORMAT_NOT_SUPPORTED);
+		ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 		return IL_FALSE;
 	}
 
 #ifndef XPM_DONT_USE_HASHTABLE
-	HashTable = XpmCreateHashTable();
+	HashTable = XpmCreateHashTable(context);
 	if (HashTable == NULL)
 		return IL_FALSE;
 #else
-	Colours = ialloc(256 * sizeof(XpmPixel));
+	Colours = ialloc(context, 256 * sizeof(XpmPixel));
 	if (Colours == NULL)
 		return IL_FALSE;
 #endif
 
 	for (i = 0; i < NumColours; i++) {
-		Size = XpmGets(Buffer, BUFFER_SIZE);
+		Size = XpmGets(context, Buffer, BUFFER_SIZE);
 #ifndef XPM_DONT_USE_HASHTABLE
-		if (!XpmGetColour(Buffer, Size, CharsPerPixel, HashTable)) {
+		if (!XpmGetColour(context, Buffer, Size, CharsPerPixel, HashTable)) {
 			XpmDestroyHashTable(HashTable);
 #else
 		if (!XpmGetColour(Buffer, Size, CharsPerPixel, Colours)) {
@@ -609,7 +609,7 @@ ILboolean iLoadXpmInternal()
 		}
 	}
 	
-	if (!ilTexImage(Width, Height, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL)) {
+	if (!ilTexImage(context, Width, Height, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL)) {
 #ifndef XPM_DONT_USE_HASHTABLE
 		XpmDestroyHashTable(HashTable);
 #else
@@ -618,10 +618,10 @@ ILboolean iLoadXpmInternal()
 		return IL_FALSE;
 	}
 
-	Data = iCurImage->Data;
+	Data = context->impl->iCurImage->Data;
 
 	for (y = 0; y < Height; y++) {
-		Size = XpmGets(Buffer, BUFFER_SIZE);
+		Size = XpmGets(context, Buffer, BUFFER_SIZE);
 		for (x = 0; x < Width; x++) {
 #ifndef XPM_DONT_USE_HASHTABLE
 			XpmGetEntry(HashTable, &Buffer[1 + x*CharsPerPixel], CharsPerPixel, &Data[(x << 2)]);
@@ -634,11 +634,11 @@ ILboolean iLoadXpmInternal()
 #endif
 		}
 
-		Data += iCurImage->Bps;
+		Data += context->impl->iCurImage->Bps;
 	}
 
 	//added 20040218
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
 
 #ifndef XPM_DONT_USE_HASHTABLE

@@ -57,7 +57,7 @@ struct ilOutputHandlerMem : public nvtt::OutputHandler
 				// Should error somehow...
 				break;
 		}
-		NewData = (ILubyte*)ialloc(Size);
+		NewData = (ILubyte*)ialloc(context, Size);
 		if (NewData == NULL)
 			return;
 		Temp = NewData;
@@ -85,13 +85,13 @@ struct ilOutputHandlerMem : public nvtt::OutputHandler
 ILAPI ILubyte* ILAPIENTRY ilNVidiaCompressDXT(ILubyte *Data, ILuint Width, ILuint Height, ILuint Depth, ILenum DxtFormat, ILuint *DxtSize)
 {
 	if (Data == NULL) {  // We cannot operate on a null pointer.
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return NULL;
 	}
 
 	// The nVidia Texture Tools library does not support volume textures yet.
 	if (Depth != 1) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return NULL;
 	}
 
@@ -124,7 +124,7 @@ ILAPI ILubyte* ILAPIENTRY ilNVidiaCompressDXT(ILubyte *Data, ILuint Width, ILuin
 			compressionOptions.setFormat(Format_DXT5);
 			break;
 		default:  // Does not support DXT2 or DXT4.
-			ilSetError(IL_INVALID_PARAM);
+			ilSetError(context, IL_INVALID_PARAM);
 			break;
 	}
 
@@ -158,7 +158,7 @@ struct ilOutputHandlerFile : public nvtt::OutputHandler
 	}
 	virtual bool writeData(const void *data, int size)
 	{
-		if (iwrite(data, 1, size) == size)
+		if (context->impl->iwrite((data, 1, size) == size)
 			return true;
 		return false;
 	}
@@ -171,11 +171,11 @@ struct ilOutputHandlerFile : public nvtt::OutputHandler
 //  The data must be in unsigned byte RGBA format.  The alpha channel will be ignored if DxtType is IL_DXT1.
 ILuint ilNVidiaCompressDXTFile(ILubyte *Data, ILuint Width, ILuint Height, ILuint Depth, ILenum DxtFormat)
 {
-	ILuint FilePos = itellw();
+	ILuint FilePos = context->impl->itellw(context);
 
 	// The nVidia Texture Tools library does not support volume textures yet.
 	if (Depth != 1) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return 0;
 	}
 
@@ -205,14 +205,14 @@ ILuint ilNVidiaCompressDXTFile(ILubyte *Data, ILuint Width, ILuint Height, ILuin
 			compressionOptions.setFormat(Format_DXT5);
 			break;
 		default:  // Does not support DXT2 or DXT4.
-			ilSetError(IL_INVALID_PARAM);
+			ilSetError(context, IL_INVALID_PARAM);
 			break;
 	}
 
 	Compressor compressor;
 	compressor.process(inputOptions, compressionOptions, outputOptions);
 
-	return itellw() - FilePos;  // Return the number of characters written.
+	return context->impl->itellw(context) - FilePos;  // Return the number of characters written.
 }
 
 #else

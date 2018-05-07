@@ -15,10 +15,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-
-ILimage *iCurImage = NULL;
-
-
 /* Siigron: added this for Linux... a #define should work, but for some reason
 	it doesn't (anyone who knows why?) */
 #if !_WIN32 || (_WIN32 && __GNUC__) // Cygwin
@@ -63,11 +59,11 @@ ILimage *iCurImage = NULL;
 
 
 //! Glut's portability.txt says to use this...
-ILstring ilStrDup(ILconst_string Str)
+ILstring ilStrDup(ILcontext* context, ILconst_string Str)
 {
 	ILstring copy;
 
-	copy = (ILstring)ialloc((ilStrLen(Str) + 1) * sizeof(ILchar));
+	copy = (ILstring)ialloc(context, (ilStrLen(Str) + 1) * sizeof(ILchar));
 	if (copy == NULL)
 		return NULL;
 	iStrCpy(copy, Str);
@@ -179,12 +175,12 @@ ILboolean iFileExists(ILconst_string FileName)
 
 
 // Last time I tried, MSVC++'s fgets() was really really screwy
-ILbyte *iFgets(char *buffer, ILuint maxlen)
+ILbyte *iFgets(ILcontext* context, char *buffer, ILuint maxlen)
 {
 	ILuint	counter = 0;
 	ILint	temp = '\0';
 
-	while ((temp = igetc()) && temp != '\n' && temp != IL_EOF && counter < maxlen) {
+	while ((temp = context->impl->igetc(context)) && temp != '\n' && temp != IL_EOF && counter < maxlen) {
 		buffer[counter] = temp;
 		counter++;
 	}

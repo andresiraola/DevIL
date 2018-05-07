@@ -16,7 +16,7 @@
 //#include "ilu_states.h"
 
 
-ILboolean iBuildMipmaps(ILimage *Parent, ILuint Width, ILuint Height, ILuint Depth)
+ILboolean iBuildMipmaps(ILcontext* context, ILimage *Parent, ILuint Width, ILuint Height, ILuint Depth)
 {
 	ILuint	x1 = 0, x2 = 0, y1 = 0, y2 = 0;
 
@@ -31,22 +31,22 @@ ILboolean iBuildMipmaps(ILimage *Parent, ILuint Width, ILuint Height, ILuint Dep
 	if (Depth == 0)
 		Depth = 1;
 
-	Parent->Mipmaps = iluScale_(Parent, Width, Height, Depth);
+	Parent->Mipmaps = iluScale_(context, Parent, Width, Height, Depth);
 	if (Parent->Mipmaps == NULL)
 		return IL_FALSE;
 
-	iBuildMipmaps(Parent->Mipmaps, Parent->Mipmaps->Width >> 1, Parent->Mipmaps->Height >> 1, Parent->Mipmaps->Depth >> 1);
+	iBuildMipmaps(context, Parent->Mipmaps, Parent->Mipmaps->Width >> 1, Parent->Mipmaps->Height >> 1, Parent->Mipmaps->Depth >> 1);
 
 	return IL_TRUE;
 }
 
 
 // Note: No longer changes all textures to powers of 2.
-ILboolean ILAPIENTRY iluBuildMipmaps()
+ILboolean ILAPIENTRY iluBuildMipmaps(ILcontext* context)
 {
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -56,5 +56,5 @@ ILboolean ILAPIENTRY iluBuildMipmaps()
 		iluCurImage->Mipmaps = NULL;
 	}
 
-	return iBuildMipmaps(iluCurImage, iluCurImage->Width >> 1, iluCurImage->Height >> 1, iluCurImage->Depth >> 1);
+	return iBuildMipmaps(context, iluCurImage, iluCurImage->Width >> 1, iluCurImage->Height >> 1, iluCurImage->Depth >> 1);
 }

@@ -19,49 +19,49 @@
 #endif
 
 //! Reads an icon file.
-ILboolean ilLoadIcon(ILconst_string FileName)
+ILboolean ilLoadIcon(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	IconFile;
 	ILboolean	bIcon = IL_FALSE;
 
-	IconFile = iopenr(FileName);
+	IconFile = context->impl->iopenr(FileName);
 	if (IconFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bIcon;
 	}
 
-	bIcon = ilLoadIconF(IconFile);
-	icloser(IconFile);
+	bIcon = ilLoadIconF(context, IconFile);
+	context->impl->icloser(IconFile);
 
 	return bIcon;
 }
 
 
 //! Reads an already-opened icon file.
-ILboolean ilLoadIconF(ILHANDLE File)
+ILboolean ilLoadIconF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadIconInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadIconInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains an icon.
-ILboolean ilLoadIconL(const void *Lump, ILuint Size)
+ILboolean ilLoadIconL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadIconInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadIconInternal(context);
 }
 
 
 // Internal function used to load the icon.
-ILboolean iLoadIconInternal()
+ILboolean iLoadIconInternal(ILcontext* context)
 {
 	ICODIR		IconDir;
 	ICODIRENTRY	*DirEntries = NULL;
@@ -72,20 +72,20 @@ ILboolean iLoadIconInternal()
 	ILboolean	BaseCreated = IL_FALSE;
 	ILubyte		PNGTest[3];
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	IconDir.Reserved = GetLittleShort();
-	IconDir.Type = GetLittleShort();
-	IconDir.Count = GetLittleShort();
+	IconDir.Reserved = GetLittleShort(context);
+	IconDir.Type = GetLittleShort(context);
+	IconDir.Count = GetLittleShort(context);
 
-	if (ieof())
+	if (context->impl->ieof(context))
 		goto file_read_error;
 
-	DirEntries = (ICODIRENTRY*)ialloc(sizeof(ICODIRENTRY) * IconDir.Count);
-	IconImages = (ICOIMAGE*)ialloc(sizeof(ICOIMAGE) * IconDir.Count);
+	DirEntries = (ICODIRENTRY*)ialloc(context, sizeof(ICODIRENTRY) * IconDir.Count);
+	IconImages = (ICOIMAGE*)ialloc(context, sizeof(ICOIMAGE) * IconDir.Count);
 	if (DirEntries == NULL || IconImages == NULL) {
 		ifree(DirEntries);
 		ifree(IconImages);
@@ -97,54 +97,54 @@ ILboolean iLoadIconInternal()
 		imemclear(&IconImages[i], sizeof(ICOIMAGE));
 
 	for (i = 0; i < IconDir.Count; ++i) {
-		DirEntries[i].Width = (ILubyte)igetc();
-		DirEntries[i].Height = (ILubyte)igetc();
-		DirEntries[i].NumColours = (ILubyte)igetc();
-		DirEntries[i].Reserved = (ILubyte)igetc();
-		DirEntries[i].Planes = GetLittleShort();
-		DirEntries[i].Bpp = GetLittleShort();
-		DirEntries[i].SizeOfData = GetLittleUInt();
-		DirEntries[i].Offset = GetLittleUInt();
+		DirEntries[i].Width = (ILubyte)context->impl->igetc(context);
+		DirEntries[i].Height = (ILubyte)context->impl->igetc(context);
+		DirEntries[i].NumColours = (ILubyte)context->impl->igetc(context);
+		DirEntries[i].Reserved = (ILubyte)context->impl->igetc(context);
+		DirEntries[i].Planes = GetLittleShort(context);
+		DirEntries[i].Bpp = GetLittleShort(context);
+		DirEntries[i].SizeOfData = GetLittleUInt(context);
+		DirEntries[i].Offset = GetLittleUInt(context);
 
-		if (ieof())
+		if (context->impl->ieof(context))
 			goto file_read_error;
 	}
 
 	for (i = 0; i < IconDir.Count; i++) {
-		iseek(DirEntries[i].Offset, IL_SEEK_SET);
+		context->impl->iseek(context, DirEntries[i].Offset, IL_SEEK_SET);
 
 		// 08-22-2008: Adding test for compressed PNG data
-		igetc(); // Skip the first character...seems to vary.
-		iread(PNGTest, 3, 1);
+		context->impl->igetc(context); // Skip the first character...seems to vary.
+		context->impl->iread(context, PNGTest, 3, 1);
 		if (!strnicmp((char*)PNGTest, "PNG", 3))  // Characters 'P', 'N', 'G' for PNG header
 		{
 #ifdef IL_NO_PNG
-			ilSetError(IL_FORMAT_NOT_SUPPORTED);  // Cannot handle these without libpng.
+			ilSetError(context, IL_FORMAT_NOT_SUPPORTED);  // Cannot handle these without libpng.
 			goto file_read_error;
 #else
-			iseek(DirEntries[i].Offset, IL_SEEK_SET);
-			if (!iLoadIconPNG(&IconImages[i]))
+			context->impl->iseek(context, DirEntries[i].Offset, IL_SEEK_SET);
+			if (!iLoadIconPNG(context, &IconImages[i]))
 				goto file_read_error;
 #endif
 		}
 		else
 		{
 			// Need to go back the 4 bytes that were just read.
-			iseek(DirEntries[i].Offset, IL_SEEK_SET);
+			context->impl->iseek(context, DirEntries[i].Offset, IL_SEEK_SET);
 
-			IconImages[i].Head.Size = GetLittleInt();
-			IconImages[i].Head.Width = GetLittleInt();
-			IconImages[i].Head.Height = GetLittleInt();
-			IconImages[i].Head.Planes = GetLittleShort();
-			IconImages[i].Head.BitCount = GetLittleShort();
-			IconImages[i].Head.Compression = GetLittleInt();
-			IconImages[i].Head.SizeImage = GetLittleInt();
-			IconImages[i].Head.XPixPerMeter = GetLittleInt();
-			IconImages[i].Head.YPixPerMeter = GetLittleInt();
-			IconImages[i].Head.ColourUsed = GetLittleInt();
-			IconImages[i].Head.ColourImportant = GetLittleInt();
+			IconImages[i].Head.Size = GetLittleInt(context);
+			IconImages[i].Head.Width = GetLittleInt(context);
+			IconImages[i].Head.Height = GetLittleInt(context);
+			IconImages[i].Head.Planes = GetLittleShort(context);
+			IconImages[i].Head.BitCount = GetLittleShort(context);
+			IconImages[i].Head.Compression = GetLittleInt(context);
+			IconImages[i].Head.SizeImage = GetLittleInt(context);
+			IconImages[i].Head.XPixPerMeter = GetLittleInt(context);
+			IconImages[i].Head.YPixPerMeter = GetLittleInt(context);
+			IconImages[i].Head.ColourUsed = GetLittleInt(context);
+			IconImages[i].Head.ColourImportant = GetLittleInt(context);
 
-			if (ieof())
+			if (context->impl->ieof(context))
 				goto file_read_error;
 
 			if (IconImages[i].Head.BitCount < 8) {
@@ -159,17 +159,17 @@ ILboolean iLoadIconInternal()
 							break;
 					}
 				}
-				IconImages[i].Pal = (ILubyte*)ialloc(IconImages[i].Head.ColourUsed * 4);
+				IconImages[i].Pal = (ILubyte*)ialloc(context, IconImages[i].Head.ColourUsed * 4);
 				if (IconImages[i].Pal == NULL)
 					goto file_read_error;  // @TODO: Rename the label.
-				if (iread(IconImages[i].Pal, IconImages[i].Head.ColourUsed * 4, 1) != 1)
+				if (context->impl->iread(context, IconImages[i].Pal, IconImages[i].Head.ColourUsed * 4, 1) != 1)
 					goto file_read_error;
 			}
 			else if (IconImages[i].Head.BitCount == 8) {
-				IconImages[i].Pal = (ILubyte*)ialloc(256 * 4);
+				IconImages[i].Pal = (ILubyte*)ialloc(context, 256 * 4);
 				if (IconImages[i].Pal == NULL)
 					goto file_read_error;
-				if (iread(IconImages[i].Pal, 1, 256 * 4) != 256*4)
+				if (context->impl->iread(context, IconImages[i].Pal, 1, 256 * 4) != 256*4)
 					goto file_read_error;
 			}
 			else {
@@ -182,17 +182,17 @@ ILboolean iLoadIconInternal()
 								* (IconImages[i].Head.Height / 2);
 
 
-			IconImages[i].Data = (ILubyte*)ialloc(Size);
+			IconImages[i].Data = (ILubyte*)ialloc(context, Size);
 			if (IconImages[i].Data == NULL)
 				goto file_read_error;
-			if (iread(IconImages[i].Data, 1, Size) != Size)
+			if (context->impl->iread(context, IconImages[i].Data, 1, Size) != Size)
 				goto file_read_error;
 
 			Size = (((IconImages[i].Head.Width + 7) /8) + ANDPadSize) * (IconImages[i].Head.Height / 2);
-			IconImages[i].AND = (ILubyte*)ialloc(Size);
+			IconImages[i].AND = (ILubyte*)ialloc(context, Size);
 			if (IconImages[i].AND == NULL)
 				goto file_read_error;
-			if (iread(IconImages[i].AND, 1, Size) != Size)
+			if (context->impl->iread(context, IconImages[i].AND, 1, Size) != Size)
 				goto file_read_error;
 		}
 	}
@@ -207,18 +207,18 @@ ILboolean iLoadIconInternal()
 
 		if (!BaseCreated) {
 			if (IconImages[i].Head.Size == 0)  // PNG compressed icon
-				ilTexImage(IconImages[i].Head.Width, IconImages[i].Head.Height, 1, 4, IL_BGRA, IL_UNSIGNED_BYTE, NULL);
+				ilTexImage(context, IconImages[i].Head.Width, IconImages[i].Head.Height, 1, 4, IL_BGRA, IL_UNSIGNED_BYTE, NULL);
 			else
-				ilTexImage(IconImages[i].Head.Width, IconImages[i].Head.Height / 2, 1, 4, IL_BGRA, IL_UNSIGNED_BYTE, NULL);
-			iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
-			Image = iCurImage;
+				ilTexImage(context, IconImages[i].Head.Width, IconImages[i].Head.Height / 2, 1, 4, IL_BGRA, IL_UNSIGNED_BYTE, NULL);
+			context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+			Image = context->impl->iCurImage;
 			BaseCreated = IL_TRUE;
 		}
 		else {
 			if (IconImages[i].Head.Size == 0)  // PNG compressed icon
-				Image->Next = ilNewImage(IconImages[i].Head.Width, IconImages[i].Head.Height, 1, 4, 1);
+				Image->Next = ilNewImage(context, IconImages[i].Head.Width, IconImages[i].Head.Height, 1, 4, 1);
 			else
-				Image->Next = ilNewImage(IconImages[i].Head.Width, IconImages[i].Head.Height / 2, 1, 4, 1);
+				Image->Next = ilNewImage(context, IconImages[i].Head.Width, IconImages[i].Head.Height / 2, 1, 4, 1);
 			Image = Image->Next;
 			Image->Format = IL_BGRA;
 		}
@@ -366,7 +366,7 @@ ILboolean iLoadIconInternal()
 	ifree(IconImages);
 	ifree(DirEntries);
 
-	return ilFixImage();
+	return ilFixImage(context);
 
 file_read_error:
 	if (IconImages) {
@@ -395,19 +395,19 @@ ILint		ico_color_type;
 
 #define GAMMA_CORRECTION 1.0  // Doesn't seem to be doing anything...
 
-ILint ico_readpng_init();
-ILboolean ico_readpng_get_image(ICOIMAGE *Icon, ILdouble display_exponent);
+ILint ico_readpng_init(ILcontext* context);
+ILboolean ico_readpng_get_image(ILcontext* context, ICOIMAGE *Icon, ILdouble display_exponent);
 void ico_readpng_cleanup();
 #endif
 
-ILboolean iLoadIconPNG(ICOIMAGE *Icon)
+ILboolean iLoadIconPNG(ILcontext* context, ICOIMAGE *Icon)
 {
 #ifndef IL_NO_PNG
 	ILint init;
-	init = ico_readpng_init();
+	init = ico_readpng_init(context);
 	if (init)
 		return IL_FALSE;
-	if (!ico_readpng_get_image(Icon, GAMMA_CORRECTION))
+	if (!ico_readpng_get_image(context, Icon, GAMMA_CORRECTION))
 		return IL_FALSE;
 
 	ico_readpng_cleanup();
@@ -424,16 +424,18 @@ ILboolean iLoadIconPNG(ICOIMAGE *Icon)
 #ifndef IL_NO_PNG
 static void ico_png_read(png_structp png_ptr, png_bytep data, png_size_t length)
 {
-	(void)png_ptr;
-	iread(data, 1, (ILuint)length);
+	ILcontext* context = (ILcontext*)png_get_io_ptr(png_ptr);
+	context->impl->iread(context, data, 1, (ILuint)length);
 	return;
 }
 
 
 static void ico_png_error_func(png_structp png_ptr, png_const_charp message)
 {
+	ILcontext* context = (ILcontext*)png_get_io_ptr(png_ptr);
+
 	message;
-	ilSetError(IL_LIB_PNG_ERROR);
+	ilSetError(context, IL_LIB_PNG_ERROR);
 
 	/*
 	  changed 20040224
@@ -453,7 +455,7 @@ static void ico_png_warn_func(png_structp png_ptr, png_const_charp message)
 }
 
 
-ILint ico_readpng_init()
+ILint ico_readpng_init(ILcontext* context)
 {
 	ico_png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, ico_png_error_func, ico_png_warn_func);
 	if (!ico_png_ptr)
@@ -480,8 +482,8 @@ ILint ico_readpng_init()
 	}
 
 
-	png_set_read_fn(ico_png_ptr, NULL, ico_png_read);
-	png_set_error_fn(ico_png_ptr, NULL, ico_png_error_func, ico_png_warn_func);
+	png_set_read_fn(ico_png_ptr, context, ico_png_read);
+	png_set_error_fn(ico_png_ptr, context, ico_png_error_func, ico_png_warn_func);
 
 //	png_set_sig_bytes(ico_png_ptr, 8);	/* we already read the 8 signature bytes */
 
@@ -497,7 +499,7 @@ ILint ico_readpng_init()
 }
 
 
-ILboolean ico_readpng_get_image(ICOIMAGE *Icon, ILdouble display_exponent)
+ILboolean ico_readpng_get_image(ILcontext* context, ICOIMAGE *Icon, ILdouble display_exponent)
 {
 	png_bytepp	row_pointers = NULL;
 	png_uint_32 width, height; // Changed the type to fix AMD64 bit problems, thanks to Eric Werness
@@ -582,7 +584,7 @@ ILboolean ico_readpng_get_image(ICOIMAGE *Icon, ILdouble display_exponent)
 			format = IL_RGBA;
 			break;
 		default:
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			png_destroy_read_struct(&ico_png_ptr, &ico_info_ptr, NULL);
 			return IL_FALSE;
 	}
@@ -592,7 +594,7 @@ ILboolean ico_readpng_get_image(ICOIMAGE *Icon, ILdouble display_exponent)
 
 	Icon->Head.Width = width;
 	Icon->Head.Height = height;
-	Icon->Data = (ILubyte*)ialloc(width * height * Icon->Head.BitCount / 8);
+	Icon->Data = (ILubyte*)ialloc(context, width * height * Icon->Head.BitCount / 8);
 	if (Icon->Data == NULL)
 	{
 		png_destroy_read_struct(&ico_png_ptr, &ico_info_ptr, NULL);
@@ -606,7 +608,7 @@ ILboolean ico_readpng_get_image(ICOIMAGE *Icon, ILdouble display_exponent)
 		png_bytep trans = NULL;
 		int num_trans = -1;
 		if (!png_get_PLTE(ico_png_ptr, ico_info_ptr, &palette, &num_palette)) {
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			png_destroy_read_struct(&ico_png_ptr, &ico_info_ptr, NULL);
 			return IL_FALSE;
 		}
@@ -618,7 +620,7 @@ ILboolean ico_readpng_get_image(ICOIMAGE *Icon, ILdouble display_exponent)
 		}
 
 // @TODO: We may need to keep track of the size of the palette.
-		Icon->Pal = (ILubyte*)ialloc(num_palette * chans);
+		Icon->Pal = (ILubyte*)ialloc(context, num_palette * chans);
 
 		for (j = 0; j < num_palette; ++j) {
 			Icon->Pal[chans*j + 0] = palette[j].blue;
@@ -636,7 +638,7 @@ ILboolean ico_readpng_get_image(ICOIMAGE *Icon, ILdouble display_exponent)
 	}
 
 	//allocate row pointers
-	if ((row_pointers = (png_bytepp)ialloc(height * sizeof(png_bytep))) == NULL) {
+	if ((row_pointers = (png_bytepp)ialloc(context, height * sizeof(png_bytep))) == NULL) {
 		png_destroy_read_struct(&ico_png_ptr, &ico_info_ptr, NULL);
 		return IL_FALSE;
 	}

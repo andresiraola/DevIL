@@ -37,10 +37,10 @@
 /*----------------------------------------------------------------------------*/
 
 // No need for a separate header
-static ILboolean iLoadTiffInternal(void);
+static ILboolean iLoadTiffInternal(ILcontext* context);
 static char*     iMakeString(void);
-static TIFF*     iTIFFOpen(char *Mode);
-static ILboolean iSaveTiffInternal(/*ILconst_string Filename*/);
+static TIFF*     iTIFFOpen(ILcontext* context, char *Mode);
+static ILboolean iSaveTiffInternal(ILcontext* context/*, ILconst_string Filename*/);
 
 /*----------------------------------------------------------------------------*/
 
@@ -56,43 +56,43 @@ ILboolean ilisValidTiffExtension(ILconst_string FileName)
 /*----------------------------------------------------------------------------*/
 
 //! Checks if the file specified in FileName is a valid tiff file.
-ILboolean ilIsValidTiff(ILconst_string FileName)
+ILboolean ilIsValidTiff(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	TiffFile;
 	ILboolean	bTiff = IL_FALSE;
 
 	if (!ilisValidTiffExtension((ILstring) FileName)) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bTiff;
 	}
 
-	TiffFile = iopenr((ILstring)FileName);
+	TiffFile = context->impl->iopenr((ILstring)FileName);
 	if (TiffFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bTiff;
 	}
 
-	bTiff = ilIsValidTiffF(TiffFile);
-	icloser(TiffFile);
+	bTiff = ilIsValidTiffF(context, TiffFile);
+	context->impl->icloser(TiffFile);
 
 	return bTiff;
 }
 
 /*----------------------------------------------------------------------------*/
 
-ILboolean ilisValidTiffFunc()
+ILboolean ilisValidTiffFunc(ILcontext* context)
 {
 	ILushort Header1, Header2;
 
-	Header1 = GetLittleUShort();
+	Header1 = GetLittleUShort(context);
 
 	if (Header1 != MAGIC_HEADER1 && Header1 != MAGIC_HEADER2)
 		return IL_FALSE;
 
 	if (Header1 == MAGIC_HEADER1)
-		Header2 = GetLittleUShort();
+		Header2 = GetLittleUShort(context);
 	else
-		Header2 = GetBigUShort();
+		Header2 = GetBigUShort(context);
 
 	if (Header2 != 42)
 		return IL_FALSE;
@@ -103,15 +103,15 @@ ILboolean ilisValidTiffFunc()
 /*----------------------------------------------------------------------------*/
 
 //! Checks if the ILHANDLE contains a valid tiff file at the current position.
-ILboolean ilIsValidTiffF(ILHANDLE File)
+ILboolean ilIsValidTiffF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = ilisValidTiffFunc();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = ilisValidTiffFunc(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
@@ -119,27 +119,27 @@ ILboolean ilIsValidTiffF(ILHANDLE File)
 /*----------------------------------------------------------------------------*/
 
 //! Checks if Lump is a valid Tiff lump.
-ILboolean ilIsValidTiffL(const void *Lump, ILuint Size)
+ILboolean ilIsValidTiffL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return ilisValidTiffFunc();
+	iSetInputLump(context, Lump, Size);
+	return ilisValidTiffFunc(context);
 }
 
 /*----------------------------------------------------------------------------*/
 
 //! Reads a Tiff file
-ILboolean ilLoadTiff(ILconst_string FileName)
+ILboolean ilLoadTiff(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	TiffFile;
 	ILboolean	bTiff = IL_FALSE;
 
-	TiffFile = iopenr(FileName);
+	TiffFile = context->impl->iopenr(FileName);
 	if (TiffFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 	}
 	else {
-		bTiff = ilLoadTiffF(TiffFile);
-		icloser(TiffFile);
+		bTiff = ilLoadTiffF(context, TiffFile);
+		context->impl->icloser(TiffFile);
 	}
 
 	return bTiff;
@@ -148,15 +148,15 @@ ILboolean ilLoadTiff(ILconst_string FileName)
 /*----------------------------------------------------------------------------*/
 
 //! Reads an already-opened Tiff file
-ILboolean ilLoadTiffF(ILHANDLE File)
+ILboolean ilLoadTiffF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadTiffInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadTiffInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
@@ -164,10 +164,10 @@ ILboolean ilLoadTiffF(ILHANDLE File)
 /*----------------------------------------------------------------------------*/
 
 //! Reads from a memory "lump" that contains a Tiff
-ILboolean ilLoadTiffL(const void *Lump, ILuint Size)
+ILboolean ilLoadTiffL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadTiffInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadTiffInternal(context);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -234,12 +234,12 @@ ILboolean iLoadTiffInternal (TIFF* tif, ILimage* Image)
 	if (!Image) {
 		int type = IL_UNSIGNED_BYTE;
 		if (bitspersample == 16) type = IL_UNSIGNED_SHORT;
-		if(!ilTexImage(w, h, 1, 1, IL_LUMINANCE, type, NULL)) {
+		if(!ilTexImage(context, w, h, 1, 1, IL_LUMINANCE, type, NULL)) {
 			TIFFClose(tif);
 			return IL_FALSE;
 		}
-		iCurImage->NumNext = 0;
-		Image = iCurImage;
+		context->impl->iCurImage->NumNext = 0;
+		Image = context->impl->iCurImage;
 	}
 	else {
 		Image->Next = ilNewImage(w, h, 1, 1, 1);
@@ -248,7 +248,7 @@ ILboolean iLoadTiffInternal (TIFF* tif, ILimage* Image)
 			return IL_FALSE;
 		}
 		Image = Image->Next;
-		iCurImage->NumNext++;
+		context->impl->iCurImage->NumNext++;
 	}
 }
 */
@@ -257,7 +257,7 @@ ILboolean iLoadTiffInternal (TIFF* tif, ILimage* Image)
 
 
 // Internal function used to load the Tiff.
-ILboolean iLoadTiffInternal()
+ILboolean iLoadTiffInternal(ILcontext* context)
 {
 	TIFF	 *tif;
 	uint16	 photometric, planarconfig, orientation;
@@ -275,8 +275,8 @@ ILboolean iLoadTiffInternal()
 	// to avoid high order bits garbage when used as shorts
 	w = h = d = linesize = tilewidth = tilelength = 0;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -287,9 +287,9 @@ ILboolean iLoadTiffInternal()
 	//TIFFSetWarningHandler(warningHandler);
 	//TIFFSetErrorHandler(errorHandler);
 
-	tif = iTIFFOpen((char*)"r");
+	tif = iTIFFOpen(context, (char*)"r");
 	if (tif == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
@@ -302,16 +302,16 @@ ILboolean iLoadTiffInternal()
 		 TIFFClose(tif);
 		 return IL_FALSE;
 	}
-	Image = iCurImage;
+	Image = context->impl->iCurImage;
 	for (i = 1; i < DirCount; i++) {
-		 Image->Next = ilNewImage(1, 1, 1, 1, 1);
+		 Image->Next = ilNewImage(context, 1, 1, 1, 1, 1);
 		if (Image->Next == NULL) {
 			TIFFClose(tif);
 			return IL_FALSE;
 		}
 		Image = Image->Next;
 	}
-	iCurImage->NumNext = DirCount - 1;
+	context->impl->iCurImage->NumNext = DirCount - 1;
 	*/
 	Image = NULL;
 	for (i = 0; i < DirCount; i++) {
@@ -362,14 +362,14 @@ ILboolean iLoadTiffInternal()
 			if (!Image) {
 				int type = IL_UNSIGNED_BYTE;
 				if (bitspersample == 16) type = IL_UNSIGNED_SHORT;
-				if (!ilTexImage(w, h, 1, 1, IL_LUMINANCE, type, NULL)) {
+				if (!ilTexImage(context, w, h, 1, 1, IL_LUMINANCE, type, NULL)) {
 					TIFFClose(tif);
 					return IL_FALSE;
 				}
-				Image = iCurImage;
+				Image = context->impl->iCurImage;
 			}
 			else {
-				Image->Next = ilNewImage(w, h, 1, 1, 1);
+				Image->Next = ilNewImage(context, w, h, 1, 1, 1);
 				if (Image->Next == NULL) {
 					TIFFClose(tif);
 					return IL_FALSE;
@@ -388,7 +388,7 @@ ILboolean iLoadTiffInternal()
 				Image->Format = IL_COLOUR_INDEX;
 				Image->Pal.PalSize = (count)*3;
 				Image->Pal.PalType = IL_PAL_RGB24;
-				Image->Pal.Palette = (ILubyte*)ialloc(Image->Pal.PalSize);
+				Image->Pal.Palette = (ILubyte*)ialloc(context, Image->Pal.PalSize);
 				entry = Image->Pal.Palette;
 				for (j = 0; j < count; ++j) {
 					entry[0] = (ILubyte)(red[j] >> 8);
@@ -402,7 +402,7 @@ ILboolean iLoadTiffInternal()
 			TIFFGetField(tif, TIFFTAG_ROWSPERSTRIP, &rowsperstrip);
 			stripsize = TIFFStripSize(tif);
 
-			strip = (ILubyte*)ialloc(stripsize);
+			strip = (ILubyte*)ialloc(context, stripsize);
 
 			if (bitspersample == 8 || bitspersample == 16) {
 				ILubyte *dat = Image->Data;
@@ -417,7 +417,7 @@ ILboolean iLoadTiffInternal()
 						linesread = rowsperstrip;
 
 					if (TIFFReadEncodedStrip(tif, TIFFComputeStrip(tif, y, 0), strip, stripsize) == -1) {
-						ilSetError(IL_LIB_TIFF_ERROR);
+						ilSetError(context, IL_LIB_TIFF_ERROR);
 						ifree(strip);
 						TIFFClose(tif);
 						return IL_FALSE;
@@ -455,7 +455,7 @@ ILboolean iLoadTiffInternal()
 						linesread = rowsperstrip;
 
 					if (TIFFReadEncodedStrip(tif, TIFFComputeStrip(tif, y, 0), strip, stripsize) == -1) {
-						ilSetError(IL_LIB_TIFF_ERROR);
+						ilSetError(context, IL_LIB_TIFF_ERROR);
 						ifree(strip);
 						TIFFClose(tif);
 						return IL_FALSE;
@@ -507,14 +507,14 @@ ILboolean iLoadTiffInternal()
 			if (!Image) {
 				int type = IL_UNSIGNED_BYTE;
 				if (bitspersample == 16) type = IL_UNSIGNED_SHORT;
-				if(!ilTexImage(w, h, 1, 3, IL_RGB, type, NULL)) {
+				if(!ilTexImage(context, w, h, 1, 3, IL_RGB, type, NULL)) {
 					TIFFClose(tif);
 					return IL_FALSE;
 				}
-				Image = iCurImage;
+				Image = context->impl->iCurImage;
 			}
 			else {
-				Image->Next = ilNewImage(w, h, 1, 1, 1);
+				Image->Next = ilNewImage(context, w, h, 1, 1, 1);
 				if(Image->Next == NULL) {
 					TIFFClose(tif);
 					return IL_FALSE;
@@ -525,7 +525,7 @@ ILboolean iLoadTiffInternal()
 			TIFFGetField(tif, TIFFTAG_ROWSPERSTRIP, &rowsperstrip);
 			stripsize = TIFFStripSize(tif);
 
-			strip = (ILubyte*)ialloc(stripsize);
+			strip = (ILubyte*)ialloc(context, stripsize);
 
 			dat = Image->Data;
 			for (y = 0; y < h; y += rowsperstrip) {
@@ -539,7 +539,7 @@ ILboolean iLoadTiffInternal()
 					linesread = rowsperstrip;
 
 				if (TIFFReadEncodedStrip(tif, TIFFComputeStrip(tif, y, 0), strip, stripsize) == -1) {
-					ilSetError(IL_LIB_TIFF_ERROR);
+					ilSetError(context, IL_LIB_TIFF_ERROR);
 					ifree(strip);
 					TIFFClose(tif);
 					return IL_FALSE;
@@ -567,14 +567,14 @@ ILboolean iLoadTiffInternal()
 		else {
 				//not direclty supported format
 			if(!Image) {
-				if(!ilTexImage(w, h, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL)) {
+				if(!ilTexImage(context, w, h, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL)) {
 					TIFFClose(tif);
 					return IL_FALSE;
 				}
-				Image = iCurImage;
+				Image = context->impl->iCurImage;
 			}
 			else {
-				Image->Next = ilNewImage(w, h, 1, 4, 1);
+				Image->Next = ilNewImage(context, w, h, 1, 4, 1);
 				if(Image->Next == NULL) {
 					TIFFClose(tif);
 					return IL_FALSE;
@@ -605,7 +605,7 @@ ILboolean iLoadTiffInternal()
 			//2003-09-04: keep flag 1 for official version for now
 			if (!TIFFReadRGBAImage(tif, Image->Width, Image->Height, (uint32*)Image->Data, 0)) {
 				TIFFClose(tif);
-				ilSetError(IL_LIB_TIFF_ERROR);
+				ilSetError(context, IL_LIB_TIFF_ERROR);
 				return IL_FALSE;
 			}
 			Image->Origin = IL_ORIGIN_LOWER_LEFT;  // eiu...dunno if this is right
@@ -621,22 +621,22 @@ ILboolean iLoadTiffInternal()
 			 are handled right now, keep it :)
 			 */
 			//TODO: put switch into the loop??
-			TempImage = iCurImage;
-			iCurImage = Image; //ilConvertImage() converts iCurImage
+			TempImage = context->impl->iCurImage;
+			context->impl->iCurImage = Image; //ilConvertImage() converts context->impl->iCurImage
 			switch (samplesperpixel)
 			{
 				case 1:
 					//added 2003-08-31 to keep palettized tiffs colored
 					if(photometric != 3)
-						ilConvertImage(IL_LUMINANCE, IL_UNSIGNED_BYTE);
+						ilConvertImage(context, IL_LUMINANCE, IL_UNSIGNED_BYTE);
 					else //strip alpha as tiff supports no alpha palettes
-						ilConvertImage(IL_RGB, IL_UNSIGNED_BYTE);
+						ilConvertImage(context, IL_RGB, IL_UNSIGNED_BYTE);
 					break;
 					
 				case 3:
 					//TODO: why the ifdef??
 #ifdef __LITTLE_ENDIAN__
-					ilConvertImage(IL_RGB, IL_UNSIGNED_BYTE);
+					ilConvertImage(context, IL_RGB, IL_UNSIGNED_BYTE);
 #endif			
 					break; 
 					
@@ -656,14 +656,14 @@ ILboolean iLoadTiffInternal()
 					*/
 					break;
 			}
-			iCurImage = TempImage;
+			context->impl->iCurImage = TempImage;
 			
 		} //else not directly supported format
 
 		if (TIFFGetField(tif, TIFFTAG_ICCPROFILE, &ProfileLen, &Buffer)) {
 			if (Image->Profile && Image->ProfileSize)
 				ifree(Image->Profile);
-			Image->Profile = (ILubyte*)ialloc(ProfileLen);
+			Image->Profile = (ILubyte*)ialloc(context, ProfileLen);
 			if (Image->Profile == NULL) {
 				TIFFClose(tif);
 				return IL_FALSE;
@@ -713,7 +713,7 @@ ILboolean iLoadTiffInternal()
 
 	TIFFClose(tif);
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -726,8 +726,8 @@ ILboolean iLoadTiffInternal()
 static tsize_t 
 _tiffFileReadProc(thandle_t fd, tdata_t pData, tsize_t tSize)
 {
-	fd;
-	return iread(pData, 1, (ILuint)tSize);
+	ILcontext* context = (ILcontext*)fd;
+	return context->impl->iread(context, pData, 1, (ILuint)tSize);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -748,8 +748,8 @@ _tiffFileReadProcW(thandle_t fd, tdata_t pData, tsize_t tSize)
 static tsize_t 
 _tiffFileWriteProc(thandle_t fd, tdata_t pData, tsize_t tSize)
 {
-	fd;
-	return iwrite(pData, 1, (ILuint)tSize);
+	ILcontext* context = (ILcontext*)fd;
+	return context->impl->iwrite(context, pData, 1, (ILuint)tSize);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -757,13 +757,14 @@ _tiffFileWriteProc(thandle_t fd, tdata_t pData, tsize_t tSize)
 static toff_t
 _tiffFileSeekProc(thandle_t fd, toff_t tOff, int whence)
 {
-	fd;
+	ILcontext* context = (ILcontext*)fd;
+
 	/* we use this as a special code, so avoid accepting it */
 	if (tOff == 0xFFFFFFFF)
 		return 0xFFFFFFFF;
 
-	iseek((ILint)tOff, whence);
-	return itell();
+	context->impl->iseek(context, (ILint)tOff, whence);
+	return context->impl->itell(context);
 	//return tOff;
 }
 
@@ -776,8 +777,9 @@ _tiffFileSeekProcW(thandle_t fd, toff_t tOff, int whence)
 	if (tOff == 0xFFFFFFFF)
 		return 0xFFFFFFFF;
 
-	iseekw((ILint)tOff, whence);
-	return itellw();
+	ILcontext* context = (ILcontext*)fd;
+	context->impl->iseekw(context, (ILint)tOff, whence);
+	return context->impl->itellw(context);
 	//return tOff;
 }
 
@@ -795,11 +797,13 @@ _tiffFileCloseProc(thandle_t fd)
 static toff_t
 _tiffFileSizeProc(thandle_t fd)
 {
+	ILcontext* context = (ILcontext*)fd;
+
 	ILint Offset, Size;
-	Offset = itell();
-	iseek(0, IL_SEEK_END);
-	Size = itell();
-	iseek(Offset, IL_SEEK_SET);
+	Offset = context->impl->itell(context);
+	context->impl->iseek(context, 0, IL_SEEK_END);
+	Size = context->impl->itell(context);
+	context->impl->iseek(context, Offset, IL_SEEK_SET);
 
 	fd;
 
@@ -811,11 +815,12 @@ _tiffFileSizeProc(thandle_t fd)
 static toff_t
 _tiffFileSizeProcW(thandle_t fd)
 {
+	ILcontext* context = (ILcontext*)fd;
 	ILint Offset, Size;
-	Offset = itellw();
-	iseekw(0, IL_SEEK_END);
-	Size = itellw();
-	iseekw(Offset, IL_SEEK_SET);
+	Offset = context->impl->itellw(context);
+	context->impl->iseekw(context, 0, IL_SEEK_END);
+	Size = context->impl->itellw(context);
+	context->impl->iseekw(context, Offset, IL_SEEK_SET);
 
 	return Size;
 }
@@ -846,20 +851,20 @@ _tiffDummyUnmapProc(thandle_t fd, tdata_t base, toff_t size)
 
 /*----------------------------------------------------------------------------*/
 
-TIFF *iTIFFOpen(char *Mode)
+TIFF *iTIFFOpen(ILcontext* context, char *Mode)
 {
 	TIFF *tif;
 
 	if (Mode[0] == 'w')
 		tif = TIFFClientOpen("TIFFMemFile", Mode,
-							NULL,
+							(thandle_t)context,
 							_tiffFileReadProcW, _tiffFileWriteProc,
 							_tiffFileSeekProcW, _tiffFileCloseProc,
 							_tiffFileSizeProcW, _tiffDummyMapProc,
 							_tiffDummyUnmapProc);
 	else
 		tif = TIFFClientOpen("TIFFMemFile", Mode,
-							NULL,
+							(thandle_t)context,
 							_tiffFileReadProc, _tiffFileWriteProc,
 							_tiffFileSeekProc, _tiffFileCloseProc,
 							_tiffFileSizeProc, _tiffDummyMapProc,
@@ -872,26 +877,26 @@ TIFF *iTIFFOpen(char *Mode)
 
 
 //! Writes a Tiff file
-ILboolean ilSaveTiff(const ILstring FileName)
+ILboolean ilSaveTiff(ILcontext* context, const ILstring FileName)
 {
 	ILHANDLE	TiffFile;
 	ILuint		TiffSize;
 
-	if (ilGetBoolean(IL_FILE_MODE) == IL_FALSE) {
+	if (ilGetBoolean(context, IL_FILE_MODE) == IL_FALSE) {
 		if (iFileExists(FileName)) {
-			ilSetError(IL_FILE_ALREADY_EXISTS);
+			ilSetError(context, IL_FILE_ALREADY_EXISTS);
 			return IL_FALSE;
 		}
 	}
 
-	TiffFile = iopenw(FileName);
+	TiffFile = context->impl->iopenw(FileName);
 	if (TiffFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	TiffSize = ilSaveTiffF(TiffFile);
-	iclosew(TiffFile);
+	TiffSize = ilSaveTiffF(context, TiffFile);
+	context->impl->iclosew(TiffFile);
 
 	if (TiffSize == 0)
 		return IL_FALSE;
@@ -900,32 +905,32 @@ ILboolean ilSaveTiff(const ILstring FileName)
 
 
 //! Writes a Tiff to an already-opened file
-ILuint ilSaveTiffF(ILHANDLE File)
+ILuint ilSaveTiffF(ILcontext* context, ILHANDLE File)
 {
 	ILuint Pos;
-	iSetOutputFile(File);
-	Pos = itellw();
-	if (iSaveTiffInternal() == IL_FALSE)
+	iSetOutputFile(context, File);
+	Pos = context->impl->itellw(context);
+	if (iSaveTiffInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 //! Writes a Tiff to a memory "lump"
-ILuint ilSaveTiffL(void *Lump, ILuint Size)
+ILuint ilSaveTiffL(ILcontext* context, void *Lump, ILuint Size)
 {
-	ILuint Pos = itellw();
-	iSetOutputLump(Lump, Size);
-	if (iSaveTiffInternal() == IL_FALSE)
+	ILuint Pos = context->impl->itellw(context);
+	iSetOutputLump(context, Lump, Size);
+	if (iSaveTiffInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 // @TODO:  Accept palettes!
 
 // Internal function used to save the Tiff.
-ILboolean iSaveTiffInternal(/*ILconst_string Filename*/)
+ILboolean iSaveTiffInternal(ILcontext* context/*, ILconst_string Filename*/)
 {
 	ILenum	Format;
 	ILenum	Compression;
@@ -937,8 +942,8 @@ ILboolean iSaveTiffInternal(/*ILconst_string Filename*/)
 	ILboolean SwapColors;
 	ILubyte *OldData;
 
-	if(iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if(context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -950,23 +955,23 @@ ILboolean iSaveTiffInternal(/*ILconst_string Filename*/)
 	TIFFSetWarningHandler(warningHandler);
 	TIFFSetErrorHandler(errorHandler);
 #endif
-	if (iGetHint(IL_COMPRESSION_HINT) == IL_USE_COMPRESSION)
+	if (iGetHint(context, IL_COMPRESSION_HINT) == IL_USE_COMPRESSION)
 		Compression = COMPRESSION_LZW;
 	else
 		Compression = COMPRESSION_NONE;
 
-	if (iCurImage->Format == IL_COLOUR_INDEX) {
-		if (ilGetBppPal(iCurImage->Pal.PalType) == 4)  // Preserve the alpha.
-			TempImage = iConvertImage(iCurImage, IL_RGBA, IL_UNSIGNED_BYTE);
+	if (context->impl->iCurImage->Format == IL_COLOUR_INDEX) {
+		if (ilGetBppPal(context->impl->iCurImage->Pal.PalType) == 4)  // Preserve the alpha.
+			TempImage = iConvertImage(context, context->impl->iCurImage, IL_RGBA, IL_UNSIGNED_BYTE);
 		else
-			TempImage = iConvertImage(iCurImage, IL_RGB, IL_UNSIGNED_BYTE);
+			TempImage = iConvertImage(context, context->impl->iCurImage, IL_RGB, IL_UNSIGNED_BYTE);
 		
 		if (TempImage == NULL) {
 			return IL_FALSE;
 		}
 	}
 	else {
-		TempImage = iCurImage;
+		TempImage = context->impl->iCurImage;
 	}
 
 	/*#ifndef _UNICODE
@@ -976,16 +981,16 @@ ILboolean iSaveTiffInternal(/*ILconst_string Filename*/)
 	#endif*/
 
 	// Control writing functions ourself.
-	File = iTIFFOpen((char*)"w");
+	File = iTIFFOpen(context, (char*)"w");
 	if (File == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
 #ifdef _UNICODE
 	sprintf(Description, "Tiff generated by %Ls", ilGetString(IL_VERSION_NUM));
 #else// _UNICODE
-	sprintf(Description, "Tiff generated by %s", ilGetString(IL_VERSION_NUM));
+	sprintf(Description, "Tiff generated by %s", ilGetString(context, IL_VERSION_NUM));
 #endif// _UNICODE
 
 	TIFFSetField(File, TIFFTAG_IMAGEWIDTH, TempImage->Width);
@@ -998,31 +1003,31 @@ ILboolean iSaveTiffInternal(/*ILconst_string Filename*/)
 		TIFFSetField(File, TIFFTAG_MATTEING, 1);
 	TIFFSetField(File, TIFFTAG_PLANARCONFIG, PLANARCONFIG_CONTIG);
 	TIFFSetField(File, TIFFTAG_ROWSPERSTRIP, 1);
-	TIFFSetField(File, TIFFTAG_SOFTWARE, ilGetString(IL_VERSION_NUM));  //@TODO: Will probably not work properly under Windows if Unicode
+	TIFFSetField(File, TIFFTAG_SOFTWARE, ilGetString(context, IL_VERSION_NUM));  //@TODO: Will probably not work properly under Windows if Unicode
 	/*TIFFSetField(File, TIFFTAG_DOCUMENTNAME,
-		iGetString(IL_TIF_DOCUMENTNAME_STRING) ?
-		iGetString(IL_TIF_DOCUMENTNAME_STRING) : FileName);
+		iGetString(context, IL_TIF_DOCUMENTNAME_STRING) ?
+		iGetString(context, IL_TIF_DOCUMENTNAME_STRING) : FileName);
 */
-	str = iGetString(IL_TIF_DOCUMENTNAME_STRING);
+	str = iGetString(context, IL_TIF_DOCUMENTNAME_STRING);
 	if (str) {
 		TIFFSetField(File, TIFFTAG_DOCUMENTNAME, str);
 		ifree(str);
 	}
 
 
-	str = iGetString(IL_TIF_AUTHNAME_STRING);
-	if (iGetString(IL_TIF_AUTHNAME_STRING)) {
+	str = iGetString(context, IL_TIF_AUTHNAME_STRING);
+	if (iGetString(context, IL_TIF_AUTHNAME_STRING)) {
 		TIFFSetField(File, TIFFTAG_ARTIST, str);
 		ifree(str);
 	}
 
-	str = iGetString(IL_TIF_HOSTCOMPUTER_STRING);
+	str = iGetString(context, IL_TIF_HOSTCOMPUTER_STRING);
 	if (str) {
 		TIFFSetField(File, TIFFTAG_HOSTCOMPUTER, str);
 		ifree(str);
 	}
 
-	str = iGetString(IL_TIF_HOSTCOMPUTER_STRING);
+	str = iGetString(context, IL_TIF_HOSTCOMPUTER_STRING);
 	if (str) {
 		TIFFSetField(File, TIFFTAG_IMAGEDESCRIPTION, str);
 		ifree(str);
@@ -1036,7 +1041,7 @@ ILboolean iSaveTiffInternal(/*ILconst_string Filename*/)
 	// and set it always to normal view
 	TIFFSetField(File, TIFFTAG_ORIENTATION, ORIENTATION_TOPLEFT);
 	if (TempImage->Origin != IL_ORIGIN_UPPER_LEFT) {
-		ILubyte* Data = iGetFlipped(TempImage);
+		ILubyte* Data = iGetFlipped(context, TempImage);
 		OldData = TempImage->Data;
 		TempImage->Data = Data;
 	}
@@ -1051,33 +1056,33 @@ ILboolean iSaveTiffInternal(/*ILconst_string Filename*/)
 	Format = TempImage->Format;
 	SwapColors = (Format == IL_BGR || Format == IL_BGRA);
 	if (SwapColors)
- 		ilSwapColours();
+ 		ilSwapColours(context);
 
 	for (ixLine = 0; ixLine < TempImage->Height; ++ixLine) {
 		if (TIFFWriteScanline(File, TempImage->Data + ixLine * TempImage->Bps, ixLine, 0) < 0) {
 			TIFFClose(File);
-			ilSetError(IL_LIB_TIFF_ERROR);
+			ilSetError(context, IL_LIB_TIFF_ERROR);
 			if (SwapColors)
-				ilSwapColours();
+				ilSwapColours(context);
 			if (TempImage->Data != OldData) {
 				ifree( TempImage->Data );
 				TempImage->Data = OldData;
 			}
-			if (TempImage != iCurImage)
+			if (TempImage != context->impl->iCurImage)
 				ilCloseImage(TempImage);
 			return IL_FALSE;
 		}
 	}
 
 	if (SwapColors)
- 		ilSwapColours();
+ 		ilSwapColours(context);
 
 	if (TempImage->Data != OldData) {
 		ifree(TempImage->Data);
 		TempImage->Data = OldData;
 	}
 
-	if (TempImage != iCurImage)
+	if (TempImage != context->impl->iCurImage)
 		ilCloseImage(TempImage);
 
 	TIFFClose(File);

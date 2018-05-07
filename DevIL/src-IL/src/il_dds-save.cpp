@@ -19,26 +19,26 @@
 #ifndef IL_NO_DDS
 
 //! Writes a Dds file
-ILboolean ilSaveDds(const ILstring FileName)
+ILboolean ilSaveDds(ILcontext* context, const ILstring FileName)
 {
 	ILHANDLE	DdsFile;
 	ILuint		DdsSize;
 
-	if (ilGetBoolean(IL_FILE_MODE) == IL_FALSE) {
+	if (ilGetBoolean(context, IL_FILE_MODE) == IL_FALSE) {
 		if (iFileExists(FileName)) {
-			ilSetError(IL_FILE_ALREADY_EXISTS);
+			ilSetError(context, IL_FILE_ALREADY_EXISTS);
 			return IL_FALSE;
 		}
 	}
 
-	DdsFile = iopenw(FileName);
+	DdsFile = context->impl->iopenw(FileName);
 	if (DdsFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	DdsSize = ilSaveDdsF(DdsFile);
-	iclosew(DdsFile);
+	DdsSize = ilSaveDdsF(context, DdsFile);
+	context->impl->iclosew(DdsFile);
 
 	if (DdsSize == 0)
 		return IL_FALSE;
@@ -47,31 +47,31 @@ ILboolean ilSaveDds(const ILstring FileName)
 
 
 //! Writes a Dds to an already-opened file
-ILuint ilSaveDdsF(ILHANDLE File)
+ILuint ilSaveDdsF(ILcontext* context, ILHANDLE File)
 {
 	ILuint Pos;
-	iSetOutputFile(File);
-	Pos = itellw();
-	if (iSaveDdsInternal() == IL_FALSE)
+	iSetOutputFile(context, File);
+	Pos = context->impl->itellw(context);
+	if (iSaveDdsInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 //! Writes a Dds to a memory "lump"
-ILuint ilSaveDdsL(void *Lump, ILuint Size)
+ILuint ilSaveDdsL(ILcontext* context, void *Lump, ILuint Size)
 {
 	ILuint Pos;
-	iSetOutputLump(Lump, Size);
-	Pos = itellw();
-	if (iSaveDdsInternal() == IL_FALSE)
+	iSetOutputLump(context, Lump, Size);
+	Pos = context->impl->itellw(context);
+	if (iSaveDdsInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 //! Checks if an image is a cubemap
-ILuint GetCubemapInfo(ILimage* image, ILint* faces)
+ILuint GetCubemapInfo(ILcontext* context, ILimage* image, ILint* faces)
 {
 	ILint	indices[] = { -1, -1, -1,  -1, -1, -1 }, i;
 	ILimage	*img;
@@ -80,12 +80,12 @@ ILuint GetCubemapInfo(ILimage* image, ILint* faces)
 	if (image == NULL)
 		return 0;
 
-	iGetIntegervImage(image, IL_NUM_IMAGES, (ILint*) &srcImagesCount);
+	iGetIntegervImage(context, image, IL_NUM_IMAGES, (ILint*) &srcImagesCount);
 	if (srcImagesCount != 5) //write only complete cubemaps (TODO?)
 		return 0;
 
 	img = image;
-	iGetIntegervImage(image, IL_NUM_MIPMAPS, (ILint*) &srcMipmapCount);
+	iGetIntegervImage(context, image, IL_NUM_MIPMAPS, (ILint*) &srcMipmapCount);
 	mipmapCount = srcMipmapCount;
 
 	for (i = 0; i < 6; ++i) {
@@ -110,7 +110,7 @@ ILuint GetCubemapInfo(ILimage* image, ILint* faces)
 				indices[i] = 5;
 				break;
 		}
-        iGetIntegervImage(img, IL_NUM_MIPMAPS, (ILint*) &srcMipmapCount);
+        iGetIntegervImage(context, img, IL_NUM_MIPMAPS, (ILint*) &srcMipmapCount);
 		if (srcMipmapCount != mipmapCount)
 			return 0; //equal # of mipmaps required
 
@@ -133,7 +133,7 @@ ILuint GetCubemapInfo(ILimage* image, ILint* faces)
 
 
 // Internal function used to save the Dds.
-ILboolean iSaveDdsInternal()
+ILboolean iSaveDdsInternal(ILcontext* context)
 {
 	ILenum	DXTCFormat;
 	ILuint	counter, numMipMaps, image, numFaces, i;
@@ -141,40 +141,40 @@ ILboolean iSaveDdsInternal()
 	ILint	CubeTable[6] = { 0 };
 	ILuint	CubeFlags;
 
-	CubeFlags = GetCubemapInfo(iCurImage, CubeTable);
+	CubeFlags = GetCubemapInfo(context, context->impl->iCurImage, CubeTable);
 
-	image = ilGetInteger(IL_CUR_IMAGE);
-	DXTCFormat = iGetInt(IL_DXTC_FORMAT);
-	WriteHeader(iCurImage, DXTCFormat, CubeFlags);
+	image = ilGetInteger(context, IL_CUR_IMAGE);
+	DXTCFormat = iGetInt(context, IL_DXTC_FORMAT);
+	WriteHeader(context, context->impl->iCurImage, DXTCFormat, CubeFlags);
 
 	if (CubeFlags != 0)
-		numFaces = ilGetInteger(IL_NUM_FACES); // Should always be 5 for now
+		numFaces = ilGetInteger(context, IL_NUM_FACES); // Should always be 5 for now
 	else
 		numFaces = 0;
 
-	numMipMaps = ilGetInteger(IL_NUM_MIPMAPS); //this assumes all faces have same # of mipmaps
+	numMipMaps = ilGetInteger(context, IL_NUM_MIPMAPS); //this assumes all faces have same # of mipmaps
 
 	for (i = 0; i <= numFaces; ++i) {
 		for (counter = 0; counter <= numMipMaps; counter++) {
-			ilBindImage(image);
-			ilActiveImage(CubeTable[i]);
-			ilActiveMipmap(counter);
+			ilBindImage(context, image);
+			ilActiveImage(context, CubeTable[i]);
+			ilActiveMipmap(context, counter);
 
-			if (iCurImage->Origin != IL_ORIGIN_UPPER_LEFT) {
-				CurData = iCurImage->Data;
-				iCurImage->Data = iGetFlipped(iCurImage);
-				if (iCurImage->Data == NULL) {
-					iCurImage->Data = CurData;
+			if (context->impl->iCurImage->Origin != IL_ORIGIN_UPPER_LEFT) {
+				CurData = context->impl->iCurImage->Data;
+				context->impl->iCurImage->Data = iGetFlipped(context, context->impl->iCurImage);
+				if (context->impl->iCurImage->Data == NULL) {
+					context->impl->iCurImage->Data = CurData;
 					return IL_FALSE;
 				}
 			}
 
-			if (!Compress(iCurImage, DXTCFormat))
+			if (!Compress(context, context->impl->iCurImage, DXTCFormat))
 				return IL_FALSE;
 
-			if (iCurImage->Origin != IL_ORIGIN_UPPER_LEFT) {
-				ifree(iCurImage->Data);
-				iCurImage->Data = CurData;
+			if (context->impl->iCurImage->Origin != IL_ORIGIN_UPPER_LEFT) {
+				ifree(context->impl->iCurImage->Data);
+				context->impl->iCurImage->Data = CurData;
 			}
 		}
 
@@ -185,7 +185,7 @@ ILboolean iSaveDdsInternal()
 
 
 // @TODO:  Finish this, as it is incomplete.
-ILboolean WriteHeader(ILimage *Image, ILenum DXTCFormat, ILuint CubeFlags)
+ILboolean WriteHeader(ILcontext* context, ILimage *Image, ILenum DXTCFormat, ILuint CubeFlags)
 {
 	ILuint i, FourCC, Flags1 = 0, Flags2 = 0, ddsCaps1 = 0,
 	LinearSize, BlockSize, ddsCaps2 = 0;
@@ -232,15 +232,15 @@ ILboolean WriteHeader(ILimage *Image, ILenum DXTCFormat, ILuint CubeFlags)
 			break;
 		default:
 			// Error!
-			ilSetError(IL_INTERNAL_ERROR);  // Should never happen, though.
+			ilSetError(context, IL_INTERNAL_ERROR);  // Should never happen, though.
 			return IL_FALSE;
 	}
 
-	iwrite("DDS ", 1, 4);
-	SaveLittleUInt(124);		// Size1
-	SaveLittleUInt(Flags1);		// Flags1
-	SaveLittleUInt(Image->Height);
-	SaveLittleUInt(Image->Width);
+	context->impl->iwrite(context, "DDS ", 1, 4);
+	SaveLittleUInt(context, 124);		// Size1
+	SaveLittleUInt(context, Flags1);		// Flags1
+	SaveLittleUInt(context, Image->Height);
+	SaveLittleUInt(context, Image->Width);
 
 	if (DXTCFormat == IL_DXT1 || DXTCFormat == IL_DXT1A || DXTCFormat == IL_ATI1N) {
 		BlockSize = 8;
@@ -262,46 +262,46 @@ ILboolean WriteHeader(ILimage *Image, ILenum DXTCFormat, ILuint CubeFlags)
 	}
 	*/
 
-	SaveLittleUInt(LinearSize);	// LinearSize (TODO: change this when uncompressed formats are supported)
+	SaveLittleUInt(context, LinearSize);	// LinearSize (TODO: change this when uncompressed formats are supported)
 
 	if (Image->Depth > 1) {
-		SaveLittleUInt(Image->Depth);			// Depth
+		SaveLittleUInt(context, Image->Depth);			// Depth
 		ddsCaps2 |= DDS_VOLUME;
 	}
 	else
-		SaveLittleUInt(0);						// Depth
+		SaveLittleUInt(context, 0);						// Depth
 
-	SaveLittleUInt(ilGetInteger(IL_NUM_MIPMAPS) + 1);  // MipMapCount
-	SaveLittleUInt(0);			// AlphaBitDepth
+	SaveLittleUInt(context, ilGetInteger(context, IL_NUM_MIPMAPS) + 1);  // MipMapCount
+	SaveLittleUInt(context, 0);			// AlphaBitDepth
 
 	for (i = 0; i < 10; i++)
-		SaveLittleUInt(0);		// Not used
+		SaveLittleUInt(context, 0);		// Not used
 
-	SaveLittleUInt(32);			// Size2
-	SaveLittleUInt(Flags2);		// Flags2
-	SaveLittleUInt(FourCC);		// FourCC
-	SaveLittleUInt(0);			// RGBBitCount
-	SaveLittleUInt(0);			// RBitMask
-	SaveLittleUInt(0);			// GBitMask
-	SaveLittleUInt(0);			// BBitMask
-	SaveLittleUInt(0);			// RGBAlphaBitMask
+	SaveLittleUInt(context, 32);			// Size2
+	SaveLittleUInt(context, Flags2);		// Flags2
+	SaveLittleUInt(context, FourCC);		// FourCC
+	SaveLittleUInt(context, 0);			// RGBBitCount
+	SaveLittleUInt(context, 0);			// RBitMask
+	SaveLittleUInt(context, 0);			// GBitMask
+	SaveLittleUInt(context, 0);			// BBitMask
+	SaveLittleUInt(context, 0);			// RGBAlphaBitMask
 	ddsCaps1 |= DDS_TEXTURE;
 	//changed 20040516: set mipmap flag on mipmap images
 	//(non-compressed .dds files still not supported,
 	//though)
-	if (ilGetInteger(IL_NUM_MIPMAPS) > 0)
+	if (ilGetInteger(context, IL_NUM_MIPMAPS) > 0)
 		ddsCaps1 |= DDS_MIPMAP | DDS_COMPLEX;
 	if (CubeFlags != 0) {
 		ddsCaps1 |= DDS_COMPLEX;
 		ddsCaps2 |= CubeFlags;
 	}
 
-	SaveLittleUInt(ddsCaps1);	// ddsCaps1
+	SaveLittleUInt(context, ddsCaps1);	// ddsCaps1
 
-	SaveLittleUInt(ddsCaps2);	// ddsCaps2
-	SaveLittleUInt(0);			// ddsCaps3
-	SaveLittleUInt(0);			// ddsCaps4
-	SaveLittleUInt(0);			// TextureStage
+	SaveLittleUInt(context, ddsCaps2);	// ddsCaps2
+	SaveLittleUInt(context, 0);			// ddsCaps3
+	SaveLittleUInt(context, 0);			// ddsCaps4
+	SaveLittleUInt(context, 0);			// TextureStage
 
 	return IL_TRUE;
 }
@@ -309,15 +309,15 @@ ILboolean WriteHeader(ILimage *Image, ILenum DXTCFormat, ILuint CubeFlags)
 #endif//IL_NO_DDS
 
 
-ILuint ILAPIENTRY ilGetDXTCData(void *Buffer, ILuint BufferSize, ILenum DXTCFormat)
+ILuint ILAPIENTRY ilGetDXTCData(ILcontext* context, void *Buffer, ILuint BufferSize, ILenum DXTCFormat)
 {
 	ILubyte	*CurData = NULL;
 	ILuint	retVal;
 	ILint	BlockNum;
 
 	if (Buffer == NULL) {  // Return the number that will be written with a subsequent call.
-		BlockNum = ((iCurImage->Width + 3)/4) * ((iCurImage->Height + 3)/4)
-					* iCurImage->Depth;
+		BlockNum = ((context->impl->iCurImage->Width + 3)/4) * ((context->impl->iCurImage->Height + 3)/4)
+					* context->impl->iCurImage->Depth;
 
 		switch (DXTCFormat)
 		{
@@ -331,32 +331,32 @@ ILuint ILAPIENTRY ilGetDXTCData(void *Buffer, ILuint BufferSize, ILenum DXTCForm
 			case IL_RXGB:
 				return BlockNum * 16;
 			default:
-				ilSetError(IL_FORMAT_NOT_SUPPORTED);
+				ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 				return 0;
 		}
 	}
 
-	if (DXTCFormat == iCurImage->DxtcFormat && iCurImage->DxtcSize && iCurImage->DxtcData) {
-		memcpy(Buffer, iCurImage->DxtcData, IL_MIN(BufferSize, iCurImage->DxtcSize));
-		return IL_MIN(BufferSize, iCurImage->DxtcSize);
+	if (DXTCFormat == context->impl->iCurImage->DxtcFormat && context->impl->iCurImage->DxtcSize && context->impl->iCurImage->DxtcData) {
+		memcpy(Buffer, context->impl->iCurImage->DxtcData, IL_MIN(BufferSize, context->impl->iCurImage->DxtcSize));
+		return IL_MIN(BufferSize, context->impl->iCurImage->DxtcSize);
 	}
 
-	if (iCurImage->Origin != IL_ORIGIN_UPPER_LEFT) {
-		CurData = iCurImage->Data;
-		iCurImage->Data = iGetFlipped(iCurImage);
-		if (iCurImage->Data == NULL) {
-			iCurImage->Data = CurData;
+	if (context->impl->iCurImage->Origin != IL_ORIGIN_UPPER_LEFT) {
+		CurData = context->impl->iCurImage->Data;
+		context->impl->iCurImage->Data = iGetFlipped(context, context->impl->iCurImage);
+		if (context->impl->iCurImage->Data == NULL) {
+			context->impl->iCurImage->Data = CurData;
 			return 0;
 		}
 	}
 
 	//@TODO: Is this the best way to do this?
-	iSetOutputLump(Buffer, BufferSize);
-	retVal = Compress(iCurImage, DXTCFormat);
+	iSetOutputLump(context, Buffer, BufferSize);
+	retVal = Compress(context, context->impl->iCurImage, DXTCFormat);
 
-	if (iCurImage->Origin != IL_ORIGIN_UPPER_LEFT) {
-		ifree(iCurImage->Data);
-		iCurImage->Data = CurData;
+	if (context->impl->iCurImage->Origin != IL_ORIGIN_UPPER_LEFT) {
+		ifree(context->impl->iCurImage->Data);
+		context->impl->iCurImage->Data = CurData;
 	}
 
 	return retVal;
@@ -379,14 +379,14 @@ ILushort As16Bit(ILint r, ILint g, ILint b)
 }
 
 
-ILushort *CompressTo565(ILimage *Image)
+ILushort *CompressTo565(ILcontext* context, ILimage *Image)
 {
 	ILimage		*TempImage;
 	ILushort	*Data;
 	ILuint		i, j;
 
 	if ((Image->Type != IL_UNSIGNED_BYTE && Image->Type != IL_BYTE) || Image->Format == IL_COLOUR_INDEX) {
-		TempImage = iConvertImage(iCurImage, IL_BGRA, IL_UNSIGNED_BYTE);  // @TODO: Needs to be BGRA.
+		TempImage = iConvertImage(context, context->impl->iCurImage, IL_BGRA, IL_UNSIGNED_BYTE);  // @TODO: Needs to be BGRA.
 		if (TempImage == NULL)
 			return NULL;
 	}
@@ -394,7 +394,7 @@ ILushort *CompressTo565(ILimage *Image)
 		TempImage = Image;
 	}
 
-	Data = (ILushort*)ialloc(iCurImage->Width * iCurImage->Height * 2 * iCurImage->Depth);
+	Data = (ILushort*)ialloc(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height * 2 * context->impl->iCurImage->Depth);
 	if (Data == NULL) {
 		if (TempImage != Image)
 			ilCloseImage(TempImage);
@@ -461,7 +461,7 @@ ILushort *CompressTo565(ILimage *Image)
 			break;
 
 		case IL_ALPHA:
-			memset(Data, 0, iCurImage->Width * iCurImage->Height * 2 * iCurImage->Depth);
+			memset(Data, 0, context->impl->iCurImage->Width * context->impl->iCurImage->Height * 2 * context->impl->iCurImage->Depth);
 			break;
 	}
 
@@ -472,14 +472,14 @@ ILushort *CompressTo565(ILimage *Image)
 }
 
 
-ILubyte *CompressTo88(ILimage *Image)
+ILubyte *CompressTo88(ILcontext* context, ILimage *Image)
 {
 	ILimage		*TempImage;
 	ILubyte		*Data;
 	ILuint		i, j;
 
 	if ((Image->Type != IL_UNSIGNED_BYTE && Image->Type != IL_BYTE) || Image->Format == IL_COLOUR_INDEX) {
-		TempImage = iConvertImage(iCurImage, IL_BGR, IL_UNSIGNED_BYTE);  // @TODO: Needs to be BGRA.
+		TempImage = iConvertImage(context, context->impl->iCurImage, IL_BGR, IL_UNSIGNED_BYTE);  // @TODO: Needs to be BGRA.
 		if (TempImage == NULL)
 			return NULL;
 	}
@@ -487,7 +487,7 @@ ILubyte *CompressTo88(ILimage *Image)
 		TempImage = Image;
 	}
 
-	Data = (ILubyte*)ialloc(iCurImage->Width * iCurImage->Height * 2 * iCurImage->Depth);
+	Data = (ILubyte*)ialloc(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height * 2 * context->impl->iCurImage->Depth);
 	if (Data == NULL) {
 		if (TempImage != Image)
 			ilCloseImage(TempImage);
@@ -539,7 +539,7 @@ ILubyte *CompressTo88(ILimage *Image)
 	return Data;
 }
 
-void CompressToRXGB(ILimage *Image, ILushort** xgb, ILubyte** r)
+void CompressToRXGB(ILcontext* context, ILimage *Image, ILushort** xgb, ILubyte** r)
 {
 	ILimage		*TempImage;
 	ILuint		i, j;
@@ -550,7 +550,7 @@ void CompressToRXGB(ILimage *Image, ILushort** xgb, ILubyte** r)
 	*r = NULL;
 
 	if ((Image->Type != IL_UNSIGNED_BYTE && Image->Type != IL_BYTE) || Image->Format == IL_COLOUR_INDEX) {
-		TempImage = iConvertImage(iCurImage, IL_BGR, IL_UNSIGNED_BYTE);  // @TODO: Needs to be BGRA.
+		TempImage = iConvertImage(context, context->impl->iCurImage, IL_BGR, IL_UNSIGNED_BYTE);  // @TODO: Needs to be BGRA.
 		if (TempImage == NULL)
 			return;
 	}
@@ -558,8 +558,8 @@ void CompressToRXGB(ILimage *Image, ILushort** xgb, ILubyte** r)
 		TempImage = Image;
 	}
 
-	*xgb = (ILushort*)ialloc(iCurImage->Width * iCurImage->Height * 2 * iCurImage->Depth);
-	*r = (ILubyte*)ialloc(iCurImage->Width * iCurImage->Height * iCurImage->Depth);
+	*xgb = (ILushort*)ialloc(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height * 2 * context->impl->iCurImage->Depth);
+	*r = (ILubyte*)ialloc(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height * context->impl->iCurImage->Depth);
 	if (*xgb == NULL || *r == NULL) {
 		if (TempImage != Image)
 			ilCloseImage(TempImage);
@@ -626,7 +626,7 @@ void CompressToRXGB(ILimage *Image, ILushort** xgb, ILubyte** r)
 }
 
 
-ILuint Compress(ILimage *Image, ILenum DXTCFormat)
+ILuint Compress(ILcontext* context, ILimage *Image, ILenum DXTCFormat)
 {
 	ILushort	*Data, Block[16], ex0, ex1, *Runner16, t0, t1;
 	ILuint		x, y, z, i, BitMask, DXTCSize;//, Rms1, Rms2;
@@ -636,7 +636,7 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 	ILubyte		*Data3Dc, *Runner8, *ByteData, *BlockData;
 
 	if (DXTCFormat == IL_3DC) {
-		Data3Dc = CompressTo88(Image);
+		Data3Dc = CompressTo88(context, Image);
 		if (Data3Dc == NULL)
 			return 0;
 
@@ -648,16 +648,16 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 					Get3DcBlock(AlphaBlock, Runner8, Image, x, y, 0);
 					ChooseAlphaEndpoints(AlphaBlock, &a0, &a1);
 					GenAlphaBitMask(a0, a1, AlphaBlock, AlphaBitMask, NULL);
-					iputc(a0);
-					iputc(a1);
-					iwrite(AlphaBitMask, 1, 6);
+					context->impl->iputc(context, a0);
+					context->impl->iputc(context, a1);
+					context->impl->iwrite(context, AlphaBitMask, 1, 6);
 
 					Get3DcBlock(AlphaBlock, Runner8, Image, x, y, 1);
 					ChooseAlphaEndpoints(AlphaBlock, &a0, &a1);
 					GenAlphaBitMask(a0, a1, AlphaBlock, AlphaBitMask, NULL);
-					iputc(a0);
-					iputc(a1);
-					iwrite(AlphaBitMask, 1, 6);
+					context->impl->iputc(context, a0);
+					context->impl->iputc(context, a1);
+					context->impl->iwrite(context, AlphaBitMask, 1, 6);
 
 					Count += 16;
 				}
@@ -672,7 +672,7 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 		ILimage *TempImage;
 
 		if (Image->Bpp != 1) {
-			TempImage = iConvertImage(iCurImage, IL_LUMINANCE, IL_UNSIGNED_BYTE);
+			TempImage = iConvertImage(context, context->impl->iCurImage, IL_LUMINANCE, IL_UNSIGNED_BYTE);
 			if (TempImage == NULL)
 				return 0;
 		}
@@ -688,9 +688,9 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 					GetAlphaBlock(AlphaBlock, Runner8, Image, x, y);
 					ChooseAlphaEndpoints(AlphaBlock, &a0, &a1);
 					GenAlphaBitMask(a0, a1, AlphaBlock, AlphaBitMask, NULL);
-					iputc(a0);
-					iputc(a1);
-					iwrite(AlphaBitMask, 1, 6);
+					context->impl->iputc(context, a0);
+					context->impl->iputc(context, a1);
+					context->impl->iwrite(context, AlphaBitMask, 1, 6);
 					Count += 8;
 				}
 			}
@@ -704,11 +704,11 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 	{
 		// We want to try nVidia compression first, because it is the fastest.
 #ifdef IL_USE_DXTC_NVIDIA
-		if (ilIsEnabled(IL_NVIDIA_COMPRESS) && Image->Depth == 1) {  // See if we need to use the nVidia Texture Tools library.
+		if (ilIsEnabled(context, IL_NVIDIA_COMPRESS) && Image->Depth == 1) {  // See if we need to use the nVidia Texture Tools library.
 			if (DXTCFormat == IL_DXT1 || DXTCFormat == IL_DXT1A || DXTCFormat == IL_DXT3 || DXTCFormat == IL_DXT5) {
 				// NVTT needs data as BGRA 32-bit.
 				if (Image->Format != IL_BGRA || Image->Type != IL_UNSIGNED_BYTE) {  // No need to convert if already this format/type.
-					ByteData = ilConvertBuffer(Image->SizeOfData, Image->Format, IL_BGRA, Image->Type, IL_UNSIGNED_BYTE, NULL, Image->Data);
+					ByteData = ilConvertBuffer(context, Image->SizeOfData, Image->Format, IL_BGRA, Image->Type, IL_UNSIGNED_BYTE, NULL, Image->Data);
 					if (ByteData == NULL)
 						return 0;
 				}
@@ -729,11 +729,11 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 
 		// libsquish generates better quality output than DevIL does, so we try it next.
 #ifdef IL_USE_DXTC_SQUISH
-		if (ilIsEnabled(IL_SQUISH_COMPRESS) && Image->Depth == 1) {  // See if we need to use the nVidia Texture Tools library.
+		if (ilIsEnabled(context, IL_SQUISH_COMPRESS) && Image->Depth == 1) {  // See if we need to use the nVidia Texture Tools library.
 			if (DXTCFormat == IL_DXT1 || DXTCFormat == IL_DXT1A || DXTCFormat == IL_DXT3 || DXTCFormat == IL_DXT5) {
 				// libsquish needs data as RGBA 32-bit.
 				if (Image->Format != IL_RGBA || Image->Type != IL_UNSIGNED_BYTE) {  // No need to convert if already this format/type.
-					ByteData = (ILubyte*)ilConvertBuffer(Image->SizeOfData, Image->Format, IL_RGBA, Image->Type, IL_UNSIGNED_BYTE, NULL, Image->Data);
+					ByteData = (ILubyte*)ilConvertBuffer(context, Image->SizeOfData, Image->Format, IL_RGBA, Image->Type, IL_UNSIGNED_BYTE, NULL, Image->Data);
 					if (ByteData == NULL)
 						return 0;
 				}
@@ -745,7 +745,7 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 				if (BlockData == NULL)
 					return 0;
 
-				if (iwrite(BlockData, 1, DXTCSize) != DXTCSize) {
+				if (context->impl->iwrite((BlockData, 1, DXTCSize) != DXTCSize) {
 					if (ByteData != Image->Data)
 						ifree(ByteData);
 					ifree(BlockData);
@@ -762,18 +762,18 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 #endif//IL_USE_DXTC_SQUISH
 
 		if (DXTCFormat != IL_RXGB) {
-			Data = CompressTo565(Image);
+			Data = CompressTo565(context, Image);
 			if (Data == NULL)
 				return 0;
 
-			Alpha = ilGetAlpha(IL_UNSIGNED_BYTE);
+			Alpha = ilGetAlpha(context, IL_UNSIGNED_BYTE);
 			if (Alpha == NULL) {
 				ifree(Data);
 				return 0;
 			}
 		}
 		else {
-			CompressToRXGB(Image, &Data, &Alpha);
+			CompressToRXGB(context, Image, &Data, &Alpha);
 			if (Data == NULL || Alpha == NULL) {
 				if (Data != NULL)
 					ifree(Data);
@@ -805,13 +805,13 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 							GetBlock(Block, Runner16, Image, x, y);
 							ChooseEndpoints(Block, &ex0, &ex1);
 							CorrectEndDXT1(&ex0, &ex1, HasAlpha);
-							SaveLittleUShort(ex0);
-							SaveLittleUShort(ex1);
+							SaveLittleUShort(context, ex0);
+							SaveLittleUShort(context, ex1);
 							if (HasAlpha)
 								BitMask = GenBitMask(ex0, ex1, 3, Block, AlphaBlock, NULL);
 							else
 								BitMask = GenBitMask(ex0, ex1, 4, Block, NULL, NULL);
-							SaveLittleUInt(BitMask);
+							SaveLittleUInt(context, BitMask);
 							Count += 8;
 						}
 					}
@@ -826,16 +826,16 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 					for (x = 0; x < Image->Width; x += 4) {
 						GetAlphaBlock(AlphaBlock, Alpha, Image, x, y);
 						for (i = 0; i < 16; i += 2) {
-							iputc((ILubyte)(((AlphaBlock[i] >> 4) << 4) | (AlphaBlock[i+1] >> 4)));
+							context->impl->iputc(context, (ILubyte)(((AlphaBlock[i] >> 4) << 4) | (AlphaBlock[i+1] >> 4)));
 						}
 
 						GetBlock(Block, Data, Image, x, y);
 						PreMult(Block, AlphaBlock);
 						ChooseEndpoints(Block, &ex0, &ex1);
-						SaveLittleUShort(ex0);
-						SaveLittleUShort(ex1);
+						SaveLittleUShort(context, ex0);
+						SaveLittleUShort(context, ex1);
 						BitMask = GenBitMask(ex0, ex1, 4, Block, NULL, NULL);
-						SaveLittleUInt(BitMask);
+						SaveLittleUInt(context, BitMask);
 					}		
 				}
 				break;*/
@@ -846,7 +846,7 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 						for (x = 0; x < Image->Width; x += 4) {
 							GetAlphaBlock(AlphaBlock, Runner8, Image, x, y);
 							for (i = 0; i < 16; i += 2) {
-								iputc((ILubyte)(((AlphaBlock[i+1] >> 4) << 4) | (AlphaBlock[i] >> 4)));
+								context->impl->iputc(context, (ILubyte)(((AlphaBlock[i+1] >> 4) << 4) | (AlphaBlock[i] >> 4)));
 							}
 
 							GetBlock(Block, Runner16, Image, x, y);
@@ -854,10 +854,10 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 							ex0 = IL_MAX(t0, t1);
 							ex1 = IL_MIN(t0, t1);
 							CorrectEndDXT1(&ex0, &ex1, 0);
-							SaveLittleUShort(ex0);
-							SaveLittleUShort(ex1);
+							SaveLittleUShort(context, ex0);
+							SaveLittleUShort(context, ex1);
 							BitMask = GenBitMask(ex0, ex1, 4, Block, NULL, NULL);
-							SaveLittleUInt(BitMask);
+							SaveLittleUInt(context, BitMask);
 							Count += 16;
 						}
 					}
@@ -884,19 +884,19 @@ ILuint Compress(ILimage *Image, ILenum DXTCFormat)
 								a1 = a0;
 								a0 = Rms2;
 							}*/
-							iputc(a0);
-							iputc(a1);
-							iwrite(AlphaBitMask, 1, 6);
+							context->impl->iputc(context, a0);
+							context->impl->iputc(context, a1);
+							context->impl->iwrite(context, AlphaBitMask, 1, 6);
 
 							GetBlock(Block, Runner16, Image, x, y);
 							ChooseEndpoints(Block, &t0, &t1);
 							ex0 = IL_MAX(t0, t1);
 							ex1 = IL_MIN(t0, t1);
 							CorrectEndDXT1(&ex0, &ex1, 0);
-							SaveLittleUShort(ex0);
-							SaveLittleUShort(ex1);
+							SaveLittleUShort(context, ex0);
+							SaveLittleUShort(context, ex1);
 							BitMask = GenBitMask(ex0, ex1, 4, Block, NULL, NULL);
-							SaveLittleUInt(BitMask);
+							SaveLittleUInt(context, BitMask);
 							Count += 16;
 						}
 					}
@@ -1245,21 +1245,21 @@ void PreMult(ILushort *Data, ILubyte *Alpha)
 
 //! Compresses data to a DXT format using different methods.
 //  The data must be in unsigned byte RGBA or BGRA format.  Only DXT1, DXT3 and DXT5 are supported.
-ILAPI ILubyte* ILAPIENTRY ilCompressDXT(ILubyte *Data, ILuint Width, ILuint Height, ILuint Depth, ILenum DXTCFormat, ILuint *DXTCSize)
+ILAPI ILubyte* ILAPIENTRY ilCompressDXT(ILcontext* context, ILubyte *Data, ILuint Width, ILuint Height, ILuint Depth, ILenum DXTCFormat, ILuint *DXTCSize)
 {
-	ILimage *TempImage, *CurImage = iCurImage;
+	ILimage *TempImage, *CurImage = context->impl->iCurImage;
 	ILuint	BuffSize;
 	ILubyte	*Buffer;
 
 	if ((DXTCFormat != IL_DXT1 && DXTCFormat != IL_DXT1A && DXTCFormat != IL_DXT3 && DXTCFormat != IL_DXT5)
 		|| Data == NULL || Width == 0 || Height == 0 || Depth == 0) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return NULL;
 	}
 
 	// We want to try nVidia compression first, because it is the fastest.
 #ifdef IL_USE_DXTC_NVIDIA
-	if (ilIsEnabled(IL_NVIDIA_COMPRESS) && Depth == 1) {  // See if we need to use the nVidia Texture Tools library.
+	if (ilIsEnabled(context, IL_NVIDIA_COMPRESS) && Depth == 1) {  // See if we need to use the nVidia Texture Tools library.
 		// NVTT needs data as BGRA 32-bit.
 		// Here's where all the compression and writing goes on.
 		return ilNVidiaCompressDXT(Data, Width, Height, 1, DXTCFormat, DXTCSize);
@@ -1268,7 +1268,7 @@ ILAPI ILubyte* ILAPIENTRY ilCompressDXT(ILubyte *Data, ILuint Width, ILuint Heig
 
 	// libsquish generates better quality output than DevIL does, so we try it next.
 #ifdef IL_USE_DXTC_SQUISH
-	if (ilIsEnabled(IL_SQUISH_COMPRESS) && Depth == 1) {  // See if we need to use the nVidia Texture Tools library.
+	if (ilIsEnabled(context, IL_SQUISH_COMPRESS) && Depth == 1) {  // See if we need to use the nVidia Texture Tools library.
 		if (DXTCFormat == IL_DXT1 || DXTCFormat == IL_DXT1A || DXTCFormat == IL_DXT3 || DXTCFormat == IL_DXT5) {
 			// libsquish needs data as RGBA 32-bit.
 			// Get compressed data here.
@@ -1277,7 +1277,7 @@ ILAPI ILubyte* ILAPIENTRY ilCompressDXT(ILubyte *Data, ILuint Width, ILuint Heig
 	}
 #endif//IL_USE_DXTC_SQUISH
 
-	TempImage = (ILimage*)ialloc(sizeof(ILimage));
+	TempImage = (ILimage*)ialloc(context, sizeof(ILimage));
 	memset(TempImage, 0, sizeof(ILimage));
 	TempImage->Width = Width;
 	TempImage->Height = Height;
@@ -1291,21 +1291,21 @@ ILAPI ILubyte* ILAPIENTRY ilCompressDXT(ILubyte *Data, ILuint Width, ILuint Heig
 	TempImage->Origin = IL_ORIGIN_UPPER_LEFT;
 	TempImage->Data = Data;
 
-	BuffSize = ilGetDXTCData(NULL, 0, DXTCFormat);
+	BuffSize = ilGetDXTCData(context, NULL, 0, DXTCFormat);
 	if (BuffSize == 0)
 		return NULL;
-	Buffer = (ILubyte*)ialloc(BuffSize);
+	Buffer = (ILubyte*)ialloc(context, BuffSize);
 	if (Buffer == NULL)
 		return NULL;
 
-	if (ilGetDXTCData(Buffer, BuffSize, DXTCFormat) != BuffSize) {
+	if (ilGetDXTCData(context, Buffer, BuffSize, DXTCFormat) != BuffSize) {
 		ifree(Buffer);
 		return NULL;
 	}
 	*DXTCSize = BuffSize;
 
-	// Restore backup of iCurImage.
-	iCurImage = CurImage;
+	// Restore backup of context->impl->iCurImage.
+	context->impl->iCurImage = CurImage;
 	TempImage->Data = NULL;
 	ilCloseImage(TempImage);
 

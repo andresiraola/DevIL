@@ -143,8 +143,8 @@ typedef struct DPX_TELEVISION_HEAD
 
 
 // For checking and reading
-ILboolean iIsValidDpx(void);
+ILboolean iIsValidDpx(ILcontext* context);
 //ILboolean iCheckDpx(DPXHEAD *Header);
-ILboolean iLoadDpxInternal(void);
+ILboolean iLoadDpxInternal(ILcontext* context);
 
 #endif//PCX_H

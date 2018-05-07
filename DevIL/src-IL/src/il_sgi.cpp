@@ -20,26 +20,26 @@ static char *FName = NULL;
 /*----------------------------------------------------------------------------*/
 
 /*! Checks if the file specified in FileName is a valid .sgi file. */
-ILboolean ilIsValidSgi(ILconst_string FileName)
+ILboolean ilIsValidSgi(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	SgiFile;
 	ILboolean	bSgi = IL_FALSE;
 
 	if (!iCheckExtension(FileName, IL_TEXT("sgi"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bSgi;
 	}
 
 	FName = (char*)FileName;
 
-	SgiFile = iopenr(FileName);
+	SgiFile = context->impl->iopenr(FileName);
 	if (SgiFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bSgi;
 	}
 
-	bSgi = ilIsValidSgiF(SgiFile);
-	icloser(SgiFile);
+	bSgi = ilIsValidSgiF(context, SgiFile);
+	context->impl->icloser(SgiFile);
 
 	return bSgi;
 }
@@ -47,15 +47,15 @@ ILboolean ilIsValidSgi(ILconst_string FileName)
 /*----------------------------------------------------------------------------*/
 
 /*! Checks if the ILHANDLE contains a valid .sgi file at the current position.*/
-ILboolean ilIsValidSgiF(ILHANDLE File)
+ILboolean ilIsValidSgiF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidSgi();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidSgi(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
@@ -63,31 +63,31 @@ ILboolean ilIsValidSgiF(ILHANDLE File)
 /*----------------------------------------------------------------------------*/
 
 //! Checks if Lump is a valid .sgi lump.
-ILboolean ilIsValidSgiL(const void *Lump, ILuint Size)
+ILboolean ilIsValidSgiL(ILcontext* context, const void *Lump, ILuint Size)
 {
 	FName = NULL;
-	iSetInputLump(Lump, Size);
-	return iIsValidSgi();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidSgi(context);
 }
 
 /*----------------------------------------------------------------------------*/
 
 // Internal function used to get the .sgi header from the current file.
-ILboolean iGetSgiHead(iSgiHeader *Header)
+ILboolean iGetSgiHead(ILcontext* context, iSgiHeader *Header)
 {
-	Header->MagicNum = GetBigUShort();
-	Header->Storage = (ILbyte)igetc();
-	Header->Bpc = (ILbyte)igetc();
-	Header->Dim = GetBigUShort();
-	Header->XSize = GetBigUShort();
-	Header->YSize = GetBigUShort();
-	Header->ZSize = GetBigUShort();
-	Header->PixMin = GetBigInt();
-	Header->PixMax = GetBigInt();
-	Header->Dummy1 = GetBigInt();
-	iread(Header->Name, 1, 80);
-	Header->ColMap = GetBigInt();
-	iread(Header->Dummy, 1, 404);
+	Header->MagicNum = GetBigUShort(context);
+	Header->Storage = (ILbyte)context->impl->igetc(context);
+	Header->Bpc = (ILbyte)context->impl->igetc(context);
+	Header->Dim = GetBigUShort(context);
+	Header->XSize = GetBigUShort(context);
+	Header->YSize = GetBigUShort(context);
+	Header->ZSize = GetBigUShort(context);
+	Header->PixMin = GetBigInt(context);
+	Header->PixMax = GetBigInt(context);
+	Header->Dummy1 = GetBigInt(context);
+	context->impl->iread(context, Header->Name, 1, 80);
+	Header->ColMap = GetBigInt(context);
+	context->impl->iread(context, Header->Dummy, 1, 404);
 
 	return IL_TRUE;
 }
@@ -95,13 +95,13 @@ ILboolean iGetSgiHead(iSgiHeader *Header)
 /*----------------------------------------------------------------------------*/
 
 /* Internal function to get the header and check it. */
-ILboolean iIsValidSgi()
+ILboolean iIsValidSgi(ILcontext* context)
 {
 	iSgiHeader	Head;
 
-	if (!iGetSgiHead(&Head))
+	if (!iGetSgiHead(context, &Head))
 		return IL_FALSE;
-	iseek(-(ILint)sizeof(iSgiHeader), IL_SEEK_CUR);  // Go ahead and restore to previous state
+	context->impl->iseek(context, -(ILint)sizeof(iSgiHeader), IL_SEEK_CUR);  // Go ahead and restore to previous state
 
 	return iCheckSgi(&Head);
 }
@@ -126,19 +126,19 @@ ILboolean iCheckSgi(iSgiHeader *Header)
 /*----------------------------------------------------------------------------*/
 
 /*! Reads a SGI file */
-ILboolean ilLoadSgi(ILconst_string FileName)
+ILboolean ilLoadSgi(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	SgiFile;
 	ILboolean	bSgi = IL_FALSE;
 
-	SgiFile = iopenr(FileName);
+	SgiFile = context->impl->iopenr(FileName);
 	if (SgiFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bSgi;
 	}
 
-	bSgi = ilLoadSgiF(SgiFile);
-	icloser(SgiFile);
+	bSgi = ilLoadSgiF(context, SgiFile);
+	context->impl->icloser(SgiFile);
 
 	return bSgi;
 }
@@ -146,15 +146,15 @@ ILboolean ilLoadSgi(ILconst_string FileName)
 /*----------------------------------------------------------------------------*/
 
 /*! Reads an already-opened SGI file */
-ILboolean ilLoadSgiF(ILHANDLE File)
+ILboolean ilLoadSgiF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadSgiInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadSgiInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
@@ -162,29 +162,29 @@ ILboolean ilLoadSgiF(ILHANDLE File)
 /*----------------------------------------------------------------------------*/
 
 /*! Reads from a memory "lump" that contains a SGI image */
-ILboolean ilLoadSgiL(const void *Lump, ILuint Size)
+ILboolean ilLoadSgiL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadSgiInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadSgiInternal(context);
 }
 
 /*----------------------------------------------------------------------------*/
 
 /* Internal function used to load the SGI image */
-ILboolean iLoadSgiInternal()
+ILboolean iLoadSgiInternal(ILcontext* context)
 {
 	iSgiHeader	Header;
 	ILboolean	bSgi;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	if (!iGetSgiHead(&Header))
+	if (!iGetSgiHead(context, &Header))
 		return IL_FALSE;
 	if (!iCheckSgi(&Header)) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
@@ -196,20 +196,20 @@ ILboolean iLoadSgiInternal()
 		Header.ZSize = 1;
 	
 	if (Header.Storage == SGI_RLE) {  // RLE
-		bSgi = iReadRleSgi(&Header);
+		bSgi = iReadRleSgi(context, &Header);
 	}
 	else {  // Non-RLE  //(Header.Storage == SGI_VERBATIM)
-		bSgi = iReadNonRleSgi(&Header);
+		bSgi = iReadNonRleSgi(context, &Header);
 	}
 
 	if (!bSgi)
 		return IL_FALSE;
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 /*----------------------------------------------------------------------------*/
 
-ILboolean iReadRleSgi(iSgiHeader *Head)
+ILboolean iReadRleSgi(ILcontext* context, iSgiHeader *Head)
 {
 	#ifdef __LITTLE_ENDIAN__
 	ILuint ixTable;
@@ -219,17 +219,17 @@ ILboolean iReadRleSgi(iSgiHeader *Head)
 	ILuint		*OffTable=NULL, *LenTable=NULL, TableSize, Cur;
 	ILubyte		**TempData=NULL;
 
-	if (!iNewSgi(Head))
+	if (!iNewSgi(context, Head))
 		return IL_FALSE;
 
 	TableSize = Head->YSize * Head->ZSize;
-	OffTable = (ILuint*)ialloc(TableSize * sizeof(ILuint));
-	LenTable = (ILuint*)ialloc(TableSize * sizeof(ILuint));
+	OffTable = (ILuint*)ialloc(context, TableSize * sizeof(ILuint));
+	LenTable = (ILuint*)ialloc(context, TableSize * sizeof(ILuint));
 	if (OffTable == NULL || LenTable == NULL)
 		goto cleanup_error;
-	if (iread(OffTable, TableSize * sizeof(ILuint), 1) != 1)
+	if (context->impl->iread(context, OffTable, TableSize * sizeof(ILuint), 1) != 1)
 		goto cleanup_error;
-	if (iread(LenTable, TableSize * sizeof(ILuint), 1) != 1)
+	if (context->impl->iread(context, LenTable, TableSize * sizeof(ILuint), 1) != 1)
 		goto cleanup_error;
 
 #ifdef __LITTLE_ENDIAN__
@@ -242,12 +242,12 @@ ILboolean iReadRleSgi(iSgiHeader *Head)
 
 	// We have to create a temporary buffer for the image, because SGI
 	//	images are plane-separated.
-	TempData = (ILubyte**)ialloc(Head->ZSize * sizeof(ILubyte*));
+	TempData = (ILubyte**)ialloc(context, Head->ZSize * sizeof(ILubyte*));
 	if (TempData == NULL)
 		goto cleanup_error;
 	imemclear(TempData, Head->ZSize * sizeof(ILubyte*));  // Just in case ialloc fails then cleanup_error.
 	for (ixPlane = 0; ixPlane < Head->ZSize; ixPlane++) {
-		TempData[ixPlane] = (ILubyte*)ialloc(Head->XSize * Head->YSize * Head->Bpc);
+		TempData[ixPlane] = (ILubyte*)ialloc(context, Head->XSize * Head->YSize * Head->Bpc);
 		if (TempData[ixPlane] == NULL)
 			goto cleanup_error;
 	}
@@ -261,10 +261,10 @@ ILboolean iReadRleSgi(iSgiHeader *Head)
 			RleLen = LenTable[ixHeight + ixPlane * Head->YSize];
 			
 			// Seeks to the offset table position
-			iseek(RleOff, IL_SEEK_SET);
-			if (iGetScanLine((TempData[ixPlane]) + (ixHeight * Head->XSize * Head->Bpc),
+			context->impl->iseek(context, RleOff, IL_SEEK_SET);
+			if (iGetScanLine(context, (TempData[ixPlane]) + (ixHeight * Head->XSize * Head->Bpc),
 				Head, RleLen) != Head->XSize * Head->Bpc) {
-					ilSetError(IL_ILLEGAL_FILE_VALUE);
+					ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 					goto cleanup_error;
 			}
 		}
@@ -279,18 +279,18 @@ ILboolean iReadRleSgi(iSgiHeader *Head)
 	}*/
 	
 	// Assemble the image from its planes
-	for (ixPixel = 0; ixPixel < iCurImage->SizeOfData;
+	for (ixPixel = 0; ixPixel < context->impl->iCurImage->SizeOfData;
 		ixPixel += Head->ZSize * Head->Bpc, ChanInt += Head->Bpc) {
 		for (ixPlane = 0; (ILint)ixPlane < Head->ZSize * Head->Bpc;	ixPlane += Head->Bpc) {
-			iCurImage->Data[ixPixel + ixPlane] = TempData[ixPlane][ChanInt];
+			context->impl->iCurImage->Data[ixPixel + ixPlane] = TempData[ixPlane][ChanInt];
 			if (Head->Bpc == 2)
-				iCurImage->Data[ixPixel + ixPlane + 1] = TempData[ixPlane][ChanInt + 1];
+				context->impl->iCurImage->Data[ixPixel + ixPlane + 1] = TempData[ixPlane][ChanInt + 1];
 		}
 	}
 
 	#ifdef __LITTLE_ENDIAN__
 	if (Head->Bpc == 2)
-		sgiSwitchData(iCurImage->Data, iCurImage->SizeOfData);
+		sgiSwitchData(context->impl->iCurImage->Data, context->impl->iCurImage->SizeOfData);
 	#endif
 
 	ifree(OffTable);
@@ -318,7 +318,7 @@ cleanup_error:
 
 /*----------------------------------------------------------------------------*/
 
-ILint iGetScanLine(ILubyte *ScanLine, iSgiHeader *Head, ILuint Length)
+ILint iGetScanLine(ILcontext* context, ILubyte *ScanLine, iSgiHeader *Head, ILuint Length)
 {
 	ILushort Pixel, Count;  // For current pixel
 	ILuint	 BppRead = 0, CurPos = 0, Bps = Head->XSize * Head->Bpc;
@@ -326,7 +326,7 @@ ILint iGetScanLine(ILubyte *ScanLine, iSgiHeader *Head, ILuint Length)
 	while (BppRead < Length && CurPos < Bps)
 	{
 		Pixel = 0;
-		if (iread(&Pixel, Head->Bpc, 1) != 1)
+		if (context->impl->iread(context, &Pixel, Head->Bpc, 1) != 1)
 			return -1;
 		
 #ifndef __LITTLE_ENDIAN__
@@ -336,14 +336,14 @@ ILint iGetScanLine(ILubyte *ScanLine, iSgiHeader *Head, ILuint Length)
 		if (!(Count = (Pixel & 0x7f)))  // If 0, line ends
 			return CurPos;
 		if (Pixel & 0x80) {  // If top bit set, then it is a "run"
-			if (iread(ScanLine, Head->Bpc, Count) != Count)
+			if (context->impl->iread(context, ScanLine, Head->Bpc, Count) != Count)
 				return -1;
 			BppRead += Head->Bpc * Count + Head->Bpc;
 			ScanLine += Head->Bpc * Count;
 			CurPos += Head->Bpc * Count;
 		}
 		else {
-			if (iread(&Pixel, Head->Bpc, 1) != 1)
+			if (context->impl->iread(context, &Pixel, Head->Bpc, 1) != 1)
 				return -1;
 #ifndef __LITTLE_ENDIAN__
 			iSwapUShort(&Pixel);
@@ -373,35 +373,35 @@ ILint iGetScanLine(ILubyte *ScanLine, iSgiHeader *Head, ILuint Length)
 /*----------------------------------------------------------------------------*/
 
 // Much easier to read - just assemble from planes, no decompression
-ILboolean iReadNonRleSgi(iSgiHeader *Head)
+ILboolean iReadNonRleSgi(ILcontext* context, iSgiHeader *Head)
 {
 	ILuint		i, c;
 	// ILint		ChanInt = 0; Unused
 	ILint 		ChanSize;
 	ILboolean	Cache = IL_FALSE;
 
-	if (!iNewSgi(Head)) {
+	if (!iNewSgi(context, Head)) {
 		return IL_FALSE;
 	}
 
-	if (iGetHint(IL_MEM_SPEED_HINT) == IL_FASTEST) {
+	if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST) {
 		Cache = IL_TRUE;
 		ChanSize = Head->XSize * Head->YSize * Head->Bpc;
-		iPreCache(ChanSize);
+		iPreCache(context, ChanSize);
 	}
 
-	for (c = 0; c < iCurImage->Bpp; c++) {
-		for (i = c; i < iCurImage->SizeOfData; i += iCurImage->Bpp) {
-			if (iread(iCurImage->Data + i, 1, 1) != 1) {
+	for (c = 0; c < context->impl->iCurImage->Bpp; c++) {
+		for (i = c; i < context->impl->iCurImage->SizeOfData; i += context->impl->iCurImage->Bpp) {
+			if (context->impl->iread(context, context->impl->iCurImage->Data + i, 1, 1) != 1) {
 				if (Cache)
-					iUnCache();
+					iUnCache(context);
 				return IL_FALSE;
 			}
 		}
 	}
 
 	if (Cache)
-		iUnCache();
+		iUnCache(context);
 
 	return IL_TRUE;
 }
@@ -440,29 +440,29 @@ void sgiSwitchData(ILubyte *Data, ILuint SizeOfData)
 /*----------------------------------------------------------------------------*/
 
 // Just an internal convenience function for reading SGI files
-ILboolean iNewSgi(iSgiHeader *Head)
+ILboolean iNewSgi(ILcontext* context, iSgiHeader *Head)
 {
-	if (!ilTexImage(Head->XSize, Head->YSize, Head->Bpc, (ILubyte)Head->ZSize, 0, IL_UNSIGNED_BYTE, NULL)) {
+	if (!ilTexImage(context, Head->XSize, Head->YSize, Head->Bpc, (ILubyte)Head->ZSize, 0, IL_UNSIGNED_BYTE, NULL)) {
 		return IL_FALSE;
 	}
-	iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
 
 	switch (Head->ZSize)
 	{
 		case 1:
-			iCurImage->Format = IL_LUMINANCE;
+			context->impl->iCurImage->Format = IL_LUMINANCE;
 			break;
 		/*case 2:
-			iCurImage->Format = IL_LUMINANCE_ALPHA; 
+			context->impl->iCurImage->Format = IL_LUMINANCE_ALPHA; 
 			break;*/
 		case 3:
-			iCurImage->Format = IL_RGB;
+			context->impl->iCurImage->Format = IL_RGB;
 			break;
 		case 4:
-			iCurImage->Format = IL_RGBA;
+			context->impl->iCurImage->Format = IL_RGBA;
 			break;
 		default:
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			return IL_FALSE;
 	}
 
@@ -470,22 +470,22 @@ ILboolean iNewSgi(iSgiHeader *Head)
 	{
 		case 1:
 			if (Head->PixMin < 0)
-				iCurImage->Type = IL_BYTE;
+				context->impl->iCurImage->Type = IL_BYTE;
 			else
-				iCurImage->Type = IL_UNSIGNED_BYTE;
+				context->impl->iCurImage->Type = IL_UNSIGNED_BYTE;
 			break;
 		case 2:
 			if (Head->PixMin < 0)
-				iCurImage->Type = IL_SHORT;
+				context->impl->iCurImage->Type = IL_SHORT;
 			else
-				iCurImage->Type = IL_UNSIGNED_SHORT;
+				context->impl->iCurImage->Type = IL_UNSIGNED_SHORT;
 			break;
 		default:
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			return IL_FALSE;
 	}
 
-	iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
 
 	return IL_TRUE;
 }
@@ -493,26 +493,26 @@ ILboolean iNewSgi(iSgiHeader *Head)
 /*----------------------------------------------------------------------------*/
 
 //! Writes a SGI file
-ILboolean ilSaveSgi(const ILstring FileName)
+ILboolean ilSaveSgi(ILcontext* context, const ILstring FileName)
 {
 	ILHANDLE	SgiFile;
 	ILuint		SgiSize;
 
-	if (ilGetBoolean(IL_FILE_MODE) == IL_FALSE) {
+	if (ilGetBoolean(context, IL_FILE_MODE) == IL_FALSE) {
 		if (iFileExists(FileName)) {
-			ilSetError(IL_FILE_ALREADY_EXISTS);
+			ilSetError(context, IL_FILE_ALREADY_EXISTS);
 			return IL_FALSE;
 		}
 	}
 
-	SgiFile = iopenw(FileName);
+	SgiFile = context->impl->iopenw(FileName);
 	if (SgiFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	SgiSize = ilSaveSgiF(SgiFile);
-	iclosew(SgiFile);
+	SgiSize = ilSaveSgiF(context, SgiFile);
+	context->impl->iclosew(SgiFile);
 
 	if (SgiSize == 0)
 		return IL_FALSE;
@@ -521,33 +521,33 @@ ILboolean ilSaveSgi(const ILstring FileName)
 
 
 //! Writes a Sgi to an already-opened file
-ILuint ilSaveSgiF(ILHANDLE File)
+ILuint ilSaveSgiF(ILcontext* context, ILHANDLE File)
 {
 	ILuint Pos;
-	iSetOutputFile(File);
-	Pos = itellw();
-	if (iSaveSgiInternal() == IL_FALSE)
+	iSetOutputFile(context, File);
+	Pos = context->impl->itellw(context);
+	if (iSaveSgiInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 //! Writes a Sgi to a memory "lump"
-ILuint ilSaveSgiL(void *Lump, ILuint Size)
+ILuint ilSaveSgiL(ILcontext* context, void *Lump, ILuint Size)
 {
 	ILuint Pos;
-	iSetOutputLump(Lump, Size);
-	Pos = itellw();
-	if (iSaveSgiInternal() == IL_FALSE)
+	iSetOutputLump(context, Lump, Size);
+	Pos = context->impl->itellw(context);
+	if (iSaveSgiInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
-ILenum DetermineSgiType(ILenum Type)
+ILenum DetermineSgiType(ILcontext* context, ILenum Type)
 {
 	if (Type > IL_UNSIGNED_SHORT) {
-		if (iCurImage->Type == IL_INT)
+		if (context->impl->iCurImage->Type == IL_INT)
 			return IL_SHORT;
 		return IL_UNSIGNED_SHORT;
 	}
@@ -559,110 +559,110 @@ ILenum DetermineSgiType(ILenum Type)
 // Rle does NOT work yet.
 
 // Internal function used to save the Sgi.
-ILboolean iSaveSgiInternal()
+ILboolean iSaveSgiInternal(ILcontext* context)
 {
 	ILuint		i, c;
 	ILboolean	Compress;
-	ILimage		*Temp = iCurImage;
+	ILimage		*Temp = context->impl->iCurImage;
 	ILubyte		*TempData;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	if (iCurImage->Format != IL_LUMINANCE
+	if (context->impl->iCurImage->Format != IL_LUMINANCE
 	    //while the sgi spec doesn't directly forbid rgb files with 2
 	    //channels, they are quite uncommon and most apps don't support
 	    //them. so convert lum_a images to rgba before writing.
-	    //&& iCurImage->Format != IL_LUMINANCE_ALPHA
-	    && iCurImage->Format != IL_RGB
-	    && iCurImage->Format != IL_RGBA) {
-		if (iCurImage->Format == IL_BGRA || iCurImage->Format == IL_LUMINANCE_ALPHA)
-			Temp = iConvertImage(iCurImage, IL_RGBA, DetermineSgiType(iCurImage->Type));
+	    //&& context->impl->iCurImage->Format != IL_LUMINANCE_ALPHA
+	    && context->impl->iCurImage->Format != IL_RGB
+	    && context->impl->iCurImage->Format != IL_RGBA) {
+		if (context->impl->iCurImage->Format == IL_BGRA || context->impl->iCurImage->Format == IL_LUMINANCE_ALPHA)
+			Temp = iConvertImage(context, context->impl->iCurImage, IL_RGBA, DetermineSgiType(context, context->impl->iCurImage->Type));
 		else
-			Temp = iConvertImage(iCurImage, IL_RGB, DetermineSgiType(iCurImage->Type));
+			Temp = iConvertImage(context, context->impl->iCurImage, IL_RGB, DetermineSgiType(context, context->impl->iCurImage->Type));
 	}
-	else if (iCurImage->Type > IL_UNSIGNED_SHORT) {
-		Temp = iConvertImage(iCurImage, iCurImage->Format, DetermineSgiType(iCurImage->Type));
+	else if (context->impl->iCurImage->Type > IL_UNSIGNED_SHORT) {
+		Temp = iConvertImage(context, context->impl->iCurImage, context->impl->iCurImage->Format, DetermineSgiType(context, context->impl->iCurImage->Type));
 	}
 	
 	//compression of images with 2 bytes per channel doesn't work yet
-	Compress = iGetInt(IL_SGI_RLE) && Temp->Bpc == 1;
+	Compress = iGetInt(context, IL_SGI_RLE) && Temp->Bpc == 1;
 
 	if (Temp == NULL)
 		return IL_FALSE;
 
-	SaveBigUShort(SGI_MAGICNUM);  // 'Magic' number
+	SaveBigUShort(context, SGI_MAGICNUM);  // 'Magic' number
 	if (Compress)
-		iputc(1);
+		context->impl->iputc(context, 1);
 	else
-		iputc(0);
+		context->impl->iputc(context, 0);
 
 	if (Temp->Type == IL_UNSIGNED_BYTE)
-		iputc(1);
+		context->impl->iputc(context, 1);
 	else if (Temp->Type == IL_UNSIGNED_SHORT)
-		iputc(2);
+		context->impl->iputc(context, 2);
 	// Need to error here if not one of the two...
 
 	if (Temp->Format == IL_LUMINANCE || Temp->Format == IL_COLOUR_INDEX)
-		SaveBigUShort(2);
+		SaveBigUShort(context, 2);
 	else
-		SaveBigUShort(3);
+		SaveBigUShort(context, 3);
 
-	SaveBigUShort((ILushort)Temp->Width);
-	SaveBigUShort((ILushort)Temp->Height);
-	SaveBigUShort((ILushort)Temp->Bpp);
+	SaveBigUShort(context, (ILushort)Temp->Width);
+	SaveBigUShort(context, (ILushort)Temp->Height);
+	SaveBigUShort(context, (ILushort)Temp->Bpp);
 
 	switch (Temp->Type)
 	{
 		case IL_BYTE:
-			SaveBigInt(SCHAR_MIN);	// Minimum pixel value
-			SaveBigInt(SCHAR_MAX);	// Maximum pixel value
+			SaveBigInt(context, SCHAR_MIN);	// Minimum pixel value
+			SaveBigInt(context, SCHAR_MAX);	// Maximum pixel value
 			break;
 		case IL_UNSIGNED_BYTE:
-			SaveBigInt(0);			// Minimum pixel value
-			SaveBigInt(UCHAR_MAX);	// Maximum pixel value
+			SaveBigInt(context, 0);			// Minimum pixel value
+			SaveBigInt(context, UCHAR_MAX);	// Maximum pixel value
 			break;
 		case IL_SHORT:
-			SaveBigInt(SHRT_MIN);	// Minimum pixel value
-			SaveBigInt(SHRT_MAX);	// Maximum pixel value
+			SaveBigInt(context, SHRT_MIN);	// Minimum pixel value
+			SaveBigInt(context, SHRT_MAX);	// Maximum pixel value
 			break;
 		case IL_UNSIGNED_SHORT:
-			SaveBigInt(0);			// Minimum pixel value
-			SaveBigInt(USHRT_MAX);	// Maximum pixel value
+			SaveBigInt(context, 0);			// Minimum pixel value
+			SaveBigInt(context, USHRT_MAX);	// Maximum pixel value
 			break;
 	}
 
-	SaveBigInt(0);  // Dummy value
+	SaveBigInt(context, 0);  // Dummy value
 
 	if (FName) {
 		c = ilCharStrLen(FName);
 		c = c < 79 ? 79 : c;
-		iwrite(FName, 1, c);
+		context->impl->iwrite(context, FName, 1, c);
 		c = 80 - c;
 		for (i = 0; i < c; i++) {
-			iputc(0);
+			context->impl->iputc(context, 0);
 		}
 	}
 	else {
 		for (i = 0; i < 80; i++) {
-			iputc(0);
+			context->impl->iputc(context, 0);
 		}
 	}
 
-	SaveBigUInt(0);  // Colormap
+	SaveBigUInt(context, 0);  // Colormap
 
 	// Padding
 	for (i = 0; i < 101; i++) {
-		SaveLittleInt(0);
+		SaveLittleInt(context, 0);
 	}
 
 
-	if (iCurImage->Origin == IL_ORIGIN_UPPER_LEFT) {
-		TempData = iGetFlipped(Temp);
+	if (context->impl->iCurImage->Origin == IL_ORIGIN_UPPER_LEFT) {
+		TempData = iGetFlipped(context, Temp);
 		if (TempData == NULL) {
-			if (Temp!= iCurImage)
+			if (Temp!= context->impl->iCurImage)
 				ilCloseImage(Temp);
 			return IL_FALSE;
 		}
@@ -675,18 +675,18 @@ ILboolean iSaveSgiInternal()
 	if (!Compress) {
 		for (c = 0; c < Temp->Bpp; c++) {
 			for (i = c; i < Temp->SizeOfData; i += Temp->Bpp) {
-				iputc(TempData[i]);  // Have to save each colour plane separately.
+				context->impl->iputc(context, TempData[i]);  // Have to save each colour plane separately.
 			}
 		}
 	}
 	else {
-		iSaveRleSgi(TempData, Temp->Width, Temp->Height, Temp->Bpp, Temp->Bps);
+		iSaveRleSgi(context, TempData, Temp->Width, Temp->Height, Temp->Bpp, Temp->Bps);
 	}
 
 
 	if (TempData != Temp->Data)
 		ifree(TempData);
-	if (Temp != iCurImage)
+	if (Temp != context->impl->iCurImage)
 		ilCloseImage(Temp);
 
 	return IL_TRUE;
@@ -694,7 +694,7 @@ ILboolean iSaveSgiInternal()
 
 /*----------------------------------------------------------------------------*/
 
-ILboolean iSaveRleSgi(ILubyte *Data, ILuint w, ILuint h, ILuint numChannels,
+ILboolean iSaveRleSgi(ILcontext* context, ILubyte *Data, ILuint w, ILuint h, ILuint numChannels,
 		ILuint bps)
 {
 	//works only for sgi files with only 1 bpc
@@ -704,10 +704,10 @@ ILboolean iSaveRleSgi(ILubyte *Data, ILuint w, ILuint h, ILuint numChannels,
 	ILuint	*StartTable = NULL, *LenTable = NULL;
 	ILuint	TableOff, DataOff = 0;
 
-	ScanLine = (ILubyte*)ialloc(w);
-	CompLine = (ILubyte*)ialloc(w * 2 + 1);  // Absolute worst case.
-	StartTable = (ILuint*)ialloc(h * numChannels * sizeof(ILuint));
-	LenTable = (ILuint*)icalloc(h * numChannels, sizeof(ILuint));
+	ScanLine = (ILubyte*)ialloc(context, w);
+	CompLine = (ILubyte*)ialloc(context, w * 2 + 1);  // Absolute worst case.
+	StartTable = (ILuint*)ialloc(context, h * numChannels * sizeof(ILuint));
+	LenTable = (ILuint*)icalloc(context, h * numChannels, sizeof(ILuint));
 	if (!ScanLine || !CompLine || !StartTable || !LenTable) {
 		ifree(ScanLine);
 		ifree(CompLine);
@@ -717,11 +717,11 @@ ILboolean iSaveRleSgi(ILubyte *Data, ILuint w, ILuint h, ILuint numChannels,
 	}
 
 	// These just contain dummy values at this point.
-	TableOff = itellw();
-	iwrite(StartTable, sizeof(ILuint), h * numChannels);
-	iwrite(LenTable, sizeof(ILuint), h * numChannels);
+	TableOff = context->impl->itellw(context);
+	context->impl->iwrite(context, StartTable, sizeof(ILuint), h * numChannels);
+	context->impl->iwrite(context, LenTable, sizeof(ILuint), h * numChannels);
 
-	DataOff = itellw();
+	DataOff = context->impl->itellw(context);
 	for (c = 0; c < numChannels; c++) {
 		for (y = 0; y < h; y++) {
 			i = y * bps + c;
@@ -729,12 +729,12 @@ ILboolean iSaveRleSgi(ILubyte *Data, ILuint w, ILuint h, ILuint numChannels,
 				ScanLine[j] = Data[i];
 			}
 
-			ilRleCompressLine(ScanLine, w, 1, CompLine, LenTable + h * c + y, IL_SGICOMP);
-			iwrite(CompLine, 1, *(LenTable + h * c + y));
+			ilRleCompressLine(context, ScanLine, w, 1, CompLine, LenTable + h * c + y, IL_SGICOMP);
+			context->impl->iwrite(context, CompLine, 1, *(LenTable + h * c + y));
 		}
 	}
 
-	iseekw(TableOff, IL_SEEK_SET);
+	context->impl->iseekw(context, TableOff, IL_SEEK_SET);
 
 	j = h * numChannels;
 	for (y = 0; y < j; y++) {
@@ -746,8 +746,8 @@ ILboolean iSaveRleSgi(ILubyte *Data, ILuint w, ILuint h, ILuint numChannels,
 #endif
 	}
 
-	iwrite(StartTable, sizeof(ILuint), h * numChannels);
-	iwrite(LenTable, sizeof(ILuint), h * numChannels);
+	context->impl->iwrite(context, StartTable, sizeof(ILuint), h * numChannels);
+	context->impl->iwrite(context, LenTable, sizeof(ILuint), h * numChannels);
 
 	ifree(ScanLine);
 	ifree(CompLine);

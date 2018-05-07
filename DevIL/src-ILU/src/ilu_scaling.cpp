@@ -286,7 +286,7 @@ double fwidth;				/* filter width (support) */
 	}
 
 	/* apply filter to zoom horizontally from src to tmp */
-	raster = (Pixel*)icalloc(src->xsize, sizeof(Pixel));
+	raster = (Pixel*)icalloc(context, src->xsize, sizeof(Pixel));
 	for(k = 0; k < tmp->ysize; ++k) {
 		get_row(raster, src, k);
 		for(i = 0; i < tmp->xsize; ++i) {

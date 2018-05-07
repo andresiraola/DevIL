@@ -65,14 +65,14 @@ typedef struct CHANNEL
 #define PIC_AUXILIARY_1_CHANNEL	0x02	// XXX: Not implemented
 #define PIC_AUXILIARY_2_CHANNEL	0x01	// XXX: Not implemented
 
-ILboolean iIsValidPic(void);
+ILboolean iIsValidPic(ILcontext* context);
 ILboolean iCheckPic(PIC_HEAD *Header);
-ILboolean iLoadPicInternal(void);
-ILboolean readScanlines(ILuint *image, ILint width, ILint height, CHANNEL *channel, ILuint alpha);
-ILuint    readScanline(ILubyte *scan, ILint width, CHANNEL *channel,  ILint bytes);
-ILboolean channelReadRaw(ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
-ILboolean channelReadPure(ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
-ILboolean channelReadMixed(ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
+ILboolean iLoadPicInternal(ILcontext* context);
+ILboolean readScanlines(ILcontext* context, ILuint *image, ILint width, ILint height, CHANNEL *channel, ILuint alpha);
+ILuint    readScanline(ILcontext* context, ILubyte *scan, ILint width, CHANNEL *channel,  ILint bytes);
+ILboolean channelReadRaw(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
+ILboolean channelReadPure(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
+ILboolean channelReadMixed(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
 
 
 

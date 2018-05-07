@@ -37,19 +37,19 @@ typedef struct PSDHEAD
 
 ILushort	ChannelNum;
 
-ILboolean	iIsValidPsd(void);
+ILboolean	iIsValidPsd(ILcontext* context);
 ILboolean	iCheckPsd(PSDHEAD *Header);
-ILboolean	iLoadPsdInternal(void);
-ILboolean	ReadPsd(PSDHEAD *Head);
-ILboolean	ReadGrey(PSDHEAD *Head);
-ILboolean	ReadIndexed(PSDHEAD *Head);
-ILboolean	ReadRGB(PSDHEAD *Head);
-ILboolean	ReadCMYK(PSDHEAD *Head);
-ILuint		*GetCompChanLen(PSDHEAD *Head);
-ILboolean	PsdGetData(PSDHEAD *Head, void *Buffer, ILboolean Compressed);
-ILboolean	ParseResources(ILuint ResourceSize, ILubyte *Resources);
-ILboolean	GetSingleChannel(PSDHEAD *Head, ILubyte *Buffer, ILboolean Compressed);
-ILboolean	iSavePsdInternal(void);
+ILboolean	iLoadPsdInternal(ILcontext* context);
+ILboolean	ReadPsd(ILcontext* context, PSDHEAD *Head);
+ILboolean	ReadGrey(ILcontext* context, PSDHEAD *Head);
+ILboolean	ReadIndexed(ILcontext* context, PSDHEAD *Head);
+ILboolean	ReadRGB(ILcontext* context, PSDHEAD *Head);
+ILboolean	ReadCMYK(ILcontext* context, PSDHEAD *Head);
+ILuint		*GetCompChanLen(ILcontext* context, PSDHEAD *Head);
+ILboolean	PsdGetData(ILcontext* context, PSDHEAD *Head, void *Buffer, ILboolean Compressed);
+ILboolean	ParseResources(ILcontext* context, ILuint ResourceSize, ILubyte *Resources);
+ILboolean	GetSingleChannel(ILcontext* context, PSDHEAD *Head, ILubyte *Buffer, ILboolean Compressed);
+ILboolean	iSavePsdInternal(ILcontext* context);
 
 
 

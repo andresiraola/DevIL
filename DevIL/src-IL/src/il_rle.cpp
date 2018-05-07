@@ -10,7 +10,7 @@
 #include "il_internal.h"
 #include "il_rle.h"
 
-ILboolean ilRleCompressLine(ILubyte *p, ILuint n, ILubyte bpp,
+ILboolean ilRleCompressLine(ILcontext* context, ILubyte *p, ILuint n, ILubyte bpp,
 			ILubyte *q, ILuint *DestWidth, ILenum CompressMode) {
 	
 	ILint		DiffCount;		// pixel count until two identical
@@ -30,7 +30,7 @@ ILboolean ilRleCompressLine(ILubyte *p, ILuint n, ILubyte bpp,
 			MaxRun = BMP_MAX_RUN;
 			break;
 		default:
-			ilSetError(IL_INVALID_PARAM);
+			ilSetError(context, IL_INVALID_PARAM);
 			return IL_FALSE;
 	}
 
@@ -129,7 +129,7 @@ ILboolean ilRleCompressLine(ILubyte *p, ILuint n, ILubyte bpp,
 
 
 // Compresses an entire image using run-length encoding
-ILuint ilRleCompress(ILubyte *Data, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp,
+ILuint ilRleCompress(ILcontext* context, ILubyte *Data, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp,
 		ILubyte *Dest, ILenum CompressMode, ILuint *ScanTable) {
 	ILuint DestW = 0, i, j, LineLen, Bps = Width * Bpp, SizeOfPlane = Width * Height * Bpp;
 
@@ -139,7 +139,7 @@ ILuint ilRleCompress(ILubyte *Data, ILuint Width, ILuint Height, ILuint Depth, I
 		for( i = 0; i < Height; i++ ) {
 			if( ScanTable )
 				*ScanTable++ = DestW;
-			ilRleCompressLine(Data + j * SizeOfPlane + i * Bps, Width, Bpp, Dest + DestW, &LineLen, CompressMode);
+			ilRleCompressLine(context, Data + j * SizeOfPlane + i * Bps, Width, Bpp, Dest + DestW, &LineLen, CompressMode);
 			DestW += LineLen;
 		}
 	}

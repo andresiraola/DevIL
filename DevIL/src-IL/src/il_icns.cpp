@@ -35,59 +35,59 @@
 
 
 //! Checks if the file specified in FileName is a valid .icns file.
-ILboolean ilIsValidIcns(ILconst_string FileName)
+ILboolean ilIsValidIcns(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	IcnsFile;
 	ILboolean	bIcns = IL_FALSE;
 
 	if (!iCheckExtension(FileName, IL_TEXT("icns"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bIcns;
 	}
 
-	IcnsFile = iopenr(FileName);
+	IcnsFile = context->impl->iopenr(FileName);
 	if (IcnsFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bIcns;
 	}
 
-	bIcns = ilIsValidIcnsF(IcnsFile);
-	icloser(IcnsFile);
+	bIcns = ilIsValidIcnsF(context, IcnsFile);
+	context->impl->icloser(IcnsFile);
 
 	return bIcns;
 }
 
 
 //! Checks if the ILHANDLE contains a valid .icns file at the current position.
-ILboolean ilIsValidIcnsF(ILHANDLE File)
+ILboolean ilIsValidIcnsF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidIcns();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidIcns(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid .icns lump.
-ILboolean ilIsValidIcnsL(const void *Lump, ILuint Size)
+ILboolean ilIsValidIcnsL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidIcns();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidIcns(context);
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidIcns()
+ILboolean iIsValidIcns(ILcontext* context)
 {
 	ICNSHEAD	Header;
 
-	iread(Header.Head, 1, 4);
-	iseek(-4, IL_SEEK_CUR);  // Go ahead and restore to previous state
+	context->impl->iread(context, Header.Head, 1, 4);
+	context->impl->iseek(context, -4, IL_SEEK_CUR);  // Go ahead and restore to previous state
 
 	if (strncmp(Header.Head, "icns", 4))  // First 4 bytes have to be 'icns'.
 		return IL_FALSE;
@@ -97,49 +97,49 @@ ILboolean iIsValidIcns()
 
 
 //! Reads an icon file.
-ILboolean ilLoadIcns(ILconst_string FileName)
+ILboolean ilLoadIcns(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	IcnsFile;
 	ILboolean	bIcns = IL_FALSE;
 
-	IcnsFile = iopenr(FileName);
+	IcnsFile = context->impl->iopenr(FileName);
 	if (IcnsFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bIcns;
 	}
 
-	bIcns = ilLoadIcnsF(IcnsFile);
-	icloser(IcnsFile);
+	bIcns = ilLoadIcnsF(context, IcnsFile);
+	context->impl->icloser(IcnsFile);
 
 	return bIcns;
 }
 
 
 //! Reads an already-opened icon file.
-ILboolean ilLoadIcnsF(ILHANDLE File)
+ILboolean ilLoadIcnsF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadIcnsInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadIcnsInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains an icon.
-ILboolean ilLoadIcnsL(const void *Lump, ILuint Size)
+ILboolean ilLoadIcnsL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadIcnsInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadIcnsInternal(context);
 }
 
 
 // Internal function used to load the icon.
-ILboolean iLoadIcnsInternal()
+ILboolean iLoadIcnsInternal(ILcontext* context)
 {
 	ICNSHEAD	Header;
 	ICNSDATA	Entry;
@@ -147,88 +147,88 @@ ILboolean iLoadIcnsInternal()
 	ILboolean	BaseCreated = IL_FALSE;
 
 
-	if (iCurImage == NULL)
+	if (context->impl->iCurImage == NULL)
 	{
-		ilSetError(IL_ILLEGAL_OPERATION);
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	iread(Header.Head, 4, 1);
-	Header.Size = GetBigInt();
+	context->impl->iread(context, Header.Head, 4, 1);
+	Header.Size = GetBigInt(context);
 
 	if (strncmp(Header.Head, "icns", 4))  // First 4 bytes have to be 'icns'.
 		return IL_FALSE;
 
-	while ((ILint)itell() < Header.Size && !ieof())
+	while ((ILint)context->impl->itell(context) < Header.Size && !context->impl->ieof(context))
 	{
-		iread(Entry.ID, 4, 1);
-		Entry.Size = GetBigInt();
+		context->impl->iread(context, Entry.ID, 4, 1);
+		Entry.Size = GetBigInt(context);
 
 		if (!strncmp(Entry.ID, "it32", 4))  // 128x128 24-bit
 		{
-			if (iIcnsReadData(&BaseCreated, IL_FALSE, 128, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_FALSE, 128, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 		else if (!strncmp(Entry.ID, "t8mk", 4))  // 128x128 alpha mask
 		{
-			if (iIcnsReadData(&BaseCreated, IL_TRUE, 128, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_TRUE, 128, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 		else if (!strncmp(Entry.ID, "ih32", 4))  // 48x48 24-bit
 		{
-			if (iIcnsReadData(&BaseCreated, IL_FALSE, 48, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_FALSE, 48, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 		else if (!strncmp(Entry.ID, "h8mk", 4))  // 48x48 alpha mask
 		{
-			if (iIcnsReadData(&BaseCreated, IL_TRUE, 48, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_TRUE, 48, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 		else if (!strncmp(Entry.ID, "il32", 4))  // 32x32 24-bit
 		{
-			if (iIcnsReadData(&BaseCreated, IL_FALSE, 32, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_FALSE, 32, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 		else if (!strncmp(Entry.ID, "l8mk", 4))  // 32x32 alpha mask
 		{
-			if (iIcnsReadData(&BaseCreated, IL_TRUE, 32, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_TRUE, 32, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 		else if (!strncmp(Entry.ID, "is32", 4))  // 16x16 24-bit
 		{
-			if (iIcnsReadData(&BaseCreated, IL_FALSE, 16, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_FALSE, 16, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 		else if (!strncmp(Entry.ID, "s8mk", 4))  // 16x16 alpha mask
 		{
-			if (iIcnsReadData(&BaseCreated, IL_TRUE, 16, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_TRUE, 16, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 #ifndef IL_NO_JP2
 		else if (!strncmp(Entry.ID, "ic09", 4))  // 512x512 JPEG2000 encoded - Uses JasPer
 		{
-			if (iIcnsReadData(&BaseCreated, IL_FALSE, 512, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_FALSE, 512, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 		else if (!strncmp(Entry.ID, "ic08", 4))  // 256x256 JPEG2000 encoded - Uses JasPer
 		{
-			if (iIcnsReadData(&BaseCreated, IL_FALSE, 256, &Entry, &Image) == IL_FALSE)
+			if (iIcnsReadData(context, &BaseCreated, IL_FALSE, 256, &Entry, &Image) == IL_FALSE)
 				goto icns_error;
 		}
 #endif//IL_NO_JP2
 		else  // Not a valid format or one that we can use
 		{
-			iseek(Entry.Size - 8, IL_SEEK_CUR);
+			context->impl->iseek(context, Entry.Size - 8, IL_SEEK_CUR);
 		}
 	}
 
-	return ilFixImage();
+	return ilFixImage(context);
 
 icns_error:
 	return IL_FALSE;
 }
 
-ILboolean iIcnsReadData(ILboolean *BaseCreated, ILboolean IsAlpha, ILint Width, ICNSDATA *Entry, ILimage **Image)
+ILboolean iIcnsReadData(ILcontext* context, ILboolean *BaseCreated, ILboolean IsAlpha, ILint Width, ICNSDATA *Entry, ILimage **Image)
 {
 	ILint		Position = 0, RLEPos = 0, Channel, i;
 	ILubyte		RLERead, *Data = NULL;
@@ -238,9 +238,9 @@ ILboolean iIcnsReadData(ILboolean *BaseCreated, ILboolean IsAlpha, ILint Width, 
 	// The .icns format stores the alpha and RGB as two separate images, so this
 	//  checks to see if one exists for that particular size.  Unfortunately,
 	//	there is no guarantee that they are in any particular order.
-	if (*BaseCreated && iCurImage != NULL)
+	if (*BaseCreated && context->impl->iCurImage != NULL)
 	{
-		TempImage = iCurImage;
+		TempImage = context->impl->iCurImage;
 		while (TempImage != NULL)
 		{
 			if ((ILuint)Width == TempImage->Width)
@@ -252,7 +252,7 @@ ILboolean iIcnsReadData(ILboolean *BaseCreated, ILboolean IsAlpha, ILint Width, 
 		}
 	}
 
-	Data = (ILubyte*)ialloc(Entry->Size - 8);
+	Data = (ILubyte*)ialloc(context, Entry->Size - 8);
 	if (Data == NULL)
 		return IL_FALSE;
 
@@ -260,14 +260,14 @@ ILboolean iIcnsReadData(ILboolean *BaseCreated, ILboolean IsAlpha, ILint Width, 
 	{
 		if (!*BaseCreated)  // Create base image
 		{
-			ilTexImage(Width, Width, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
-			iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
-			*Image = iCurImage;
+			ilTexImage(context, Width, Width, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
+			context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+			*Image = context->impl->iCurImage;
 			*BaseCreated = IL_TRUE;
 		}
 		else  // Create next image in list
 		{
-			(*Image)->Next = ilNewImage(Width, Width, 1, 4, 1);
+			(*Image)->Next = ilNewImage(context, Width, Width, 1, 4, 1);
 			*Image = (*Image)->Next;
 			(*Image)->Format = IL_RGBA;
 			(*Image)->Origin = IL_ORIGIN_UPPER_LEFT;
@@ -278,7 +278,7 @@ ILboolean iIcnsReadData(ILboolean *BaseCreated, ILboolean IsAlpha, ILint Width, 
 
 	if (IsAlpha)  // Alpha is never compressed.
 	{
-		iread(Data, Entry->Size - 8, 1);  // Size includes the header
+		context->impl->iread(context, Data, Entry->Size - 8, 1);  // Size includes the header
 		if (Entry->Size - 8 != Width * Width)
 		{
 			ifree(Data);
@@ -293,21 +293,21 @@ ILboolean iIcnsReadData(ILboolean *BaseCreated, ILboolean IsAlpha, ILint Width, 
 	else if (Width == 256 || Width == 512)  // JPEG2000 encoded - uses JasPer
 	{
 #ifndef IL_NO_JP2
-		iread(Data, Entry->Size - 8, 1);  // Size includes the header
-		if (ilLoadJp2LInternal(Data, Entry->Size - 8, TempImage) == IL_FALSE)
+		context->impl->iread(context, Data, Entry->Size - 8, 1);  // Size includes the header
+		if (ilLoadJp2LInternal(context, Data, Entry->Size - 8, TempImage) == IL_FALSE)
 		{
 			ifree(Data);
-			ilSetError(IL_LIB_JP2_ERROR);
+			ilSetError(context, IL_LIB_JP2_ERROR);
 			return IL_TRUE;
 		}
 #else  // Cannot handle this size.
-		ilSetError(IL_LIB_JP2_ERROR);  //@TODO: Handle this better...just skip the data.
+		ilSetError(context, IL_LIB_JP2_ERROR);  //@TODO: Handle this better...just skip the data.
 		return IL_FALSE;
 #endif//IL_NO_JP2
 	}
 	else  // RGB data
 	{
-		iread(Data, Entry->Size - 8, 1);  // Size includes the header
+		context->impl->iread(context, Data, Entry->Size - 8, 1);  // Size includes the header
 		if (Width == 128)
 			RLEPos += 4;  // There are an extra 4 bytes here of zeros.
 		//@TODO: Should we check to make sure they are all 0?

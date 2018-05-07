@@ -37,70 +37,70 @@ ILpal			Pal;
 
 
 //! Checks if the file specified in FileName is a valid Psp file.
-ILboolean ilIsValidPsp(ILconst_string FileName)
+ILboolean ilIsValidPsp(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	PspFile;
 	ILboolean	bPsp = IL_FALSE;
 
 	if (!iCheckExtension(FileName, IL_TEXT("psp"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bPsp;
 	}
 
-	PspFile = iopenr(FileName);
+	PspFile = context->impl->iopenr(FileName);
 	if (PspFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bPsp;
 	}
 
-	bPsp = ilIsValidPspF(PspFile);
-	icloser(PspFile);
+	bPsp = ilIsValidPspF(context, PspFile);
+	context->impl->icloser(PspFile);
 
 	return bPsp;
 }
 
 
 //! Checks if the ILHANDLE contains a valid Psp file at the current position.
-ILboolean ilIsValidPspF(ILHANDLE File)
+ILboolean ilIsValidPspF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidPsp();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidPsp(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid Psp lump.
-ILboolean ilIsValidPspL(const void *Lump, ILuint Size)
+ILboolean ilIsValidPspL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidPsp();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidPsp(context);
 }
 
 
 // Internal function used to get the Psp header from the current file.
-ILboolean iGetPspHead()
+ILboolean iGetPspHead(ILcontext* context)
 {
-	if (iread(Header.FileSig, 1, 32) != 32)
+	if (context->impl->iread(context, Header.FileSig, 1, 32) != 32)
 		return IL_FALSE;
-	Header.MajorVersion = GetLittleUShort();
-	Header.MinorVersion = GetLittleUShort();
+	Header.MajorVersion = GetLittleUShort(context);
+	Header.MinorVersion = GetLittleUShort(context);
 
 	return IL_TRUE;
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidPsp()
+ILboolean iIsValidPsp(ILcontext* context)
 {
-	if (!iGetPspHead())
+	if (!iGetPspHead(context))
 		return IL_FALSE;
-	iseek(-(ILint)sizeof(PSPHEAD), IL_SEEK_CUR);
+	context->impl->iseek(context, -(ILint)sizeof(PSPHEAD), IL_SEEK_CUR);
 
 	return iCheckPsp();
 }
@@ -122,52 +122,52 @@ ILboolean iCheckPsp()
 
 
 //! Reads a PSP file
-ILboolean ilLoadPsp(ILconst_string FileName)
+ILboolean ilLoadPsp(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	PSPFile;
 	ILboolean	bPsp = IL_FALSE;
 
-	PSPFile = iopenr(FileName);
+	PSPFile = context->impl->iopenr(FileName);
 	if (PSPFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bPsp;
 	}
 
-	bPsp = ilLoadPspF(PSPFile);
-	icloser(PSPFile);
+	bPsp = ilLoadPspF(context, PSPFile);
+	context->impl->icloser(PSPFile);
 
 	return bPsp;
 }
 
 
 //! Reads an already-opened PSP file
-ILboolean ilLoadPspF(ILHANDLE File)
+ILboolean ilLoadPspF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadPspInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadPspInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a PSP
-ILboolean ilLoadPspL(const void *Lump, ILuint Size)
+ILboolean ilLoadPspL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadPspInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadPspInternal(context);
 }
 
 
 // Internal function used to load the PSP.
-ILboolean iLoadPspInternal()
+ILboolean iLoadPspInternal(ILcontext* context)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -175,66 +175,66 @@ ILboolean iLoadPspInternal()
 	Alpha = NULL;
 	Pal.Palette = NULL;
 
-	if (!iGetPspHead())
+	if (!iGetPspHead(context))
 		return IL_FALSE;
 	if (!iCheckPsp()) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
-	if (!ReadGenAttributes())
+	if (!ReadGenAttributes(context))
 		return IL_FALSE;
-	if (!ParseChunks())
+	if (!ParseChunks(context))
 		return IL_FALSE;
-	if (!AssembleImage())
+	if (!AssembleImage(context))
 		return IL_FALSE;
 
 	Cleanup();
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 
-ILboolean ReadGenAttributes()
+ILboolean ReadGenAttributes(ILcontext* context)
 {
 	BLOCKHEAD		AttHead;
 	ILint			Padding;
 	ILuint			ChunkLen;
 
-	if (iread(&AttHead, sizeof(AttHead), 1) != 1)
+	if (context->impl->iread(context, &AttHead, sizeof(AttHead), 1) != 1)
 		return IL_FALSE;
 	UShort(&AttHead.BlockID);
 	UInt(&AttHead.BlockLen);
 
 	if (AttHead.HeadID[0] != 0x7E || AttHead.HeadID[1] != 0x42 ||
 		AttHead.HeadID[2] != 0x4B || AttHead.HeadID[3] != 0x00) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 	if (AttHead.BlockID != PSP_IMAGE_BLOCK) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
-	ChunkLen = GetLittleUInt();
+	ChunkLen = GetLittleUInt(context);
 	if (Header.MajorVersion != 3)
 		ChunkLen -= 4;
-	if (iread(&AttChunk, IL_MIN(sizeof(AttChunk), ChunkLen), 1) != 1)
+	if (context->impl->iread(context, &AttChunk, IL_MIN(sizeof(AttChunk), ChunkLen), 1) != 1)
 		return IL_FALSE;
 
 	// Can have new entries in newer versions of the spec (4.0).
 	Padding = (ChunkLen) - sizeof(AttChunk);
 	if (Padding > 0)
-		iseek(Padding, IL_SEEK_CUR);
+		context->impl->iseek(context, Padding, IL_SEEK_CUR);
 
 	// @TODO:  Anything but 24 not supported yet...
 	if (AttChunk.BitDepth != 24 && AttChunk.BitDepth != 8) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
 	// @TODO;  Add support for compression...
 	if (AttChunk.Compression != PSP_COMP_NONE && AttChunk.Compression != PSP_COMP_RLE) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
@@ -244,18 +244,18 @@ ILboolean ReadGenAttributes()
 }
 
 
-ILboolean ParseChunks()
+ILboolean ParseChunks(ILcontext* context)
 {
 	BLOCKHEAD	Block;
 	ILuint		Pos;
 
 	do {
-		if (iread(&Block, 1, sizeof(Block)) != sizeof(Block)) {
-			ilGetError();  // Get rid of the erroneous IL_FILE_READ_ERROR.
+		if (context->impl->iread(context, &Block, 1, sizeof(Block)) != sizeof(Block)) {
+			ilGetError(context);  // Get rid of the erroneous IL_FILE_READ_ERROR.
 			return IL_TRUE;
 		}
 		if (Header.MajorVersion == 3)
-			Block.BlockLen = GetLittleUInt();
+			Block.BlockLen = GetLittleUInt(context);
 		else
 			UInt(&Block.BlockLen);
 
@@ -266,22 +266,22 @@ ILboolean ParseChunks()
 		UShort(&Block.BlockID);
 		UInt(&Block.BlockLen);
 
-		Pos = itell();
+		Pos = context->impl->itell(context);
 
 		switch (Block.BlockID)
 		{
 			case PSP_LAYER_START_BLOCK:
-				if (!ReadLayerBlock(Block.BlockLen))
+				if (!ReadLayerBlock(context, Block.BlockLen))
 					return IL_FALSE;
 				break;
 
 			case PSP_ALPHA_BANK_BLOCK:
-				if (!ReadAlphaBlock(Block.BlockLen))
+				if (!ReadAlphaBlock(context, Block.BlockLen))
 					return IL_FALSE;
 				break;
 
 			case PSP_COLOR_BLOCK:
-				if (!ReadPalette(Block.BlockLen))
+				if (!ReadPalette(context, Block.BlockLen))
 					return IL_FALSE;
 				break;
 
@@ -291,7 +291,7 @@ ILboolean ParseChunks()
 		}
 
 		// Skip to next block just in case we didn't read the entire block.
-		iseek(Pos + Block.BlockLen, IL_SEEK_SET);
+		context->impl->iseek(context, Pos + Block.BlockLen, IL_SEEK_SET);
 
 		// @TODO: Do stuff here.
 
@@ -301,7 +301,7 @@ ILboolean ParseChunks()
 }
 
 
-ILboolean ReadLayerBlock(ILuint BlockLen)
+ILboolean ReadLayerBlock(ILcontext* context, ILuint BlockLen)
 {
 	BLOCKHEAD			Block;
 	LAYERINFO_CHUNK		LayerInfo;
@@ -312,10 +312,10 @@ ILboolean ReadLayerBlock(ILuint BlockLen)
 	BlockLen;
 
 	// Layer sub-block header
-	if (iread(&Block, 1, sizeof(Block)) != sizeof(Block))
+	if (context->impl->iread(context, &Block, 1, sizeof(Block)) != sizeof(Block))
 		return IL_FALSE;
 	if (Header.MajorVersion == 3)
-		Block.BlockLen = GetLittleUInt();
+		Block.BlockLen = GetLittleUInt(context);
 	else
 		UInt(&Block.BlockLen);
 
@@ -328,36 +328,36 @@ ILboolean ReadLayerBlock(ILuint BlockLen)
 
 
 	if (Header.MajorVersion == 3) {
-		iseek(256, IL_SEEK_CUR);  // We don't care about the name of the layer.
-		iread(&LayerInfo, sizeof(LayerInfo), 1);
-		if (iread(&Bitmap, sizeof(Bitmap), 1) != 1)
+		context->impl->iseek(context, 256, IL_SEEK_CUR);  // We don't care about the name of the layer.
+		context->impl->iread(context, &LayerInfo, sizeof(LayerInfo), 1);
+		if (context->impl->iread(context, &Bitmap, sizeof(Bitmap), 1) != 1)
 			return IL_FALSE;
 	}
 	else {  // Header.MajorVersion >= 4
-		ChunkSize = GetLittleUInt();
-		NumChars = GetLittleUShort();
-		iseek(NumChars, IL_SEEK_CUR);  // We don't care about the layer's name.
+		ChunkSize = GetLittleUInt(context);
+		NumChars = GetLittleUShort(context);
+		context->impl->iseek(context, NumChars, IL_SEEK_CUR);  // We don't care about the layer's name.
 
 		ChunkSize -= (2 + 4 + NumChars);
 
-		if (iread(&LayerInfo, IL_MIN(sizeof(LayerInfo), ChunkSize), 1) != 1)
+		if (context->impl->iread(context, &LayerInfo, IL_MIN(sizeof(LayerInfo), ChunkSize), 1) != 1)
 			return IL_FALSE;
 
 		// Can have new entries in newer versions of the spec (5.0).
 		Padding = (ChunkSize) - sizeof(LayerInfo);
 		if (Padding > 0)
-			iseek(Padding, IL_SEEK_CUR);
+			context->impl->iseek(context, Padding, IL_SEEK_CUR);
 
-		ChunkSize = GetLittleUInt();
-		if (iread(&Bitmap, sizeof(Bitmap), 1) != 1)
+		ChunkSize = GetLittleUInt(context);
+		if (context->impl->iread(context, &Bitmap, sizeof(Bitmap), 1) != 1)
 			return IL_FALSE;
 		Padding = (ChunkSize - 4) - sizeof(Bitmap);
 		if (Padding > 0)
-			iseek(Padding, IL_SEEK_CUR);
+			context->impl->iseek(context, Padding, IL_SEEK_CUR);
 	}
 
 
-	Channels = (ILubyte**)ialloc(sizeof(ILubyte*) * Bitmap.NumChannels);
+	Channels = (ILubyte**)ialloc(context, sizeof(ILubyte*) * Bitmap.NumChannels);
 	if (Channels == NULL) {
 		return IL_FALSE;
 	}
@@ -365,7 +365,7 @@ ILboolean ReadLayerBlock(ILuint BlockLen)
 	NumChannels = Bitmap.NumChannels;
 
 	for (i = 0; i < NumChannels; i++) {
-		Channels[i] = GetChannel();
+		Channels[i] = GetChannel(context);
 		if (Channels[i] == NULL) {
 			for (j = 0; j < i; j++)
 				ifree(Channels[j]);
@@ -377,7 +377,7 @@ ILboolean ReadLayerBlock(ILuint BlockLen)
 }
 
 
-ILboolean ReadAlphaBlock(ILuint BlockLen)
+ILboolean ReadAlphaBlock(ILcontext* context, ILuint BlockLen)
 {
 	BLOCKHEAD		Block;
 	ALPHAINFO_CHUNK	AlphaInfo;
@@ -386,21 +386,21 @@ ILboolean ReadAlphaBlock(ILuint BlockLen)
 	ILuint			ChunkSize, Padding;
 
 	if (Header.MajorVersion == 3) {
-		NumAlpha = GetLittleUShort();
+		NumAlpha = GetLittleUShort(context);
 	}
 	else {
-		ChunkSize = GetLittleUInt();
-		NumAlpha = GetLittleUShort();
+		ChunkSize = GetLittleUInt(context);
+		NumAlpha = GetLittleUShort(context);
 		Padding = (ChunkSize - 4 - 2);
 		if (Padding > 0)
-			iseek(Padding, IL_SEEK_CUR);
+			context->impl->iseek(context, Padding, IL_SEEK_CUR);
 	}
 
 	// Alpha channel header
-	if (iread(&Block, 1, sizeof(Block)) != sizeof(Block))
+	if (context->impl->iread(context, &Block, 1, sizeof(Block)) != sizeof(Block))
 		return IL_FALSE;
 	if (Header.MajorVersion == 3)
-		Block.BlockLen = GetLittleUInt();
+		Block.BlockLen = GetLittleUInt(context);
 	else
 		UInt(&Block.BlockLen);
 
@@ -413,37 +413,37 @@ ILboolean ReadAlphaBlock(ILuint BlockLen)
 
 
 	if (Header.MajorVersion >= 4) {
-		ChunkSize = GetLittleUInt();
-		StringSize = GetLittleUShort();
-		iseek(StringSize, IL_SEEK_CUR);
-		if (iread(&AlphaInfo, sizeof(AlphaInfo), 1) != 1)
+		ChunkSize = GetLittleUInt(context);
+		StringSize = GetLittleUShort(context);
+		context->impl->iseek(context, StringSize, IL_SEEK_CUR);
+		if (context->impl->iread(context, &AlphaInfo, sizeof(AlphaInfo), 1) != 1)
 			return IL_FALSE;
 		Padding = (ChunkSize - 4 - 2 - StringSize - sizeof(AlphaInfo));
 		if (Padding > 0)
-			iseek(Padding, IL_SEEK_CUR);
+			context->impl->iseek(context, Padding, IL_SEEK_CUR);
 
-		ChunkSize = GetLittleUInt();
-		if (iread(&AlphaChunk, sizeof(AlphaChunk), 1) != 1)
+		ChunkSize = GetLittleUInt(context);
+		if (context->impl->iread(context, &AlphaChunk, sizeof(AlphaChunk), 1) != 1)
 			return IL_FALSE;
 		Padding = (ChunkSize - 4 - sizeof(AlphaChunk));
 		if (Padding > 0)
-			iseek(Padding, IL_SEEK_CUR);
+			context->impl->iseek(context, Padding, IL_SEEK_CUR);
 	}
 	else {
-		iseek(256, IL_SEEK_CUR);
-		iread(&AlphaInfo, sizeof(AlphaInfo), 1);
-		if (iread(&AlphaChunk, sizeof(AlphaChunk), 1) != 1)
+		context->impl->iseek(context, 256, IL_SEEK_CUR);
+		context->impl->iread(context, &AlphaInfo, sizeof(AlphaInfo), 1);
+		if (context->impl->iread(context, &AlphaChunk, sizeof(AlphaChunk), 1) != 1)
 			return IL_FALSE;
 	}
 
 
-	/*Alpha = (ILubyte*)ialloc(AlphaInfo.AlphaRect.x2 * AlphaInfo.AlphaRect.y2);
+	/*Alpha = (ILubyte*)ialloc(context, AlphaInfo.AlphaRect.x2 * AlphaInfo.AlphaRect.y2);
 	if (Alpha == NULL) {
 		return IL_FALSE;
 	}*/
 
 
-	Alpha = GetChannel();
+	Alpha = GetChannel(context);
 	if (Alpha == NULL)
 		return IL_FALSE;
 
@@ -451,55 +451,55 @@ ILboolean ReadAlphaBlock(ILuint BlockLen)
 }
 
 
-ILubyte *GetChannel()
+ILubyte *GetChannel(ILcontext* context)
 {
 	BLOCKHEAD		Block;
 	CHANNEL_CHUNK	Channel;
 	ILubyte			*CompData, *Data;
 	ILuint			ChunkSize, Padding;
 
-	if (iread(&Block, 1, sizeof(Block)) != sizeof(Block))
+	if (context->impl->iread(context, &Block, 1, sizeof(Block)) != sizeof(Block))
 		return NULL;
 	if (Header.MajorVersion == 3)
-		Block.BlockLen = GetLittleUInt();
+		Block.BlockLen = GetLittleUInt(context);
 	else
 		UInt(&Block.BlockLen);
 
 	if (Block.HeadID[0] != 0x7E || Block.HeadID[1] != 0x42 ||
 		Block.HeadID[2] != 0x4B || Block.HeadID[3] != 0x00) {
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			return NULL;
 	}
 	if (Block.BlockID != PSP_CHANNEL_BLOCK) {
-		ilSetError(IL_ILLEGAL_FILE_VALUE);
+		ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 		return NULL;
 	}
 
 
 	if (Header.MajorVersion >= 4) {
-		ChunkSize = GetLittleUInt();
-		if (iread(&Channel, sizeof(Channel), 1) != 1)
+		ChunkSize = GetLittleUInt(context);
+		if (context->impl->iread(context, &Channel, sizeof(Channel), 1) != 1)
 			return NULL;
 
 		Padding = (ChunkSize - 4) - sizeof(Channel);
 		if (Padding > 0)
-			iseek(Padding, IL_SEEK_CUR);
+			context->impl->iseek(context, Padding, IL_SEEK_CUR);
 	}
 	else {
-		if (iread(&Channel, sizeof(Channel), 1) != 1)
+		if (context->impl->iread(context, &Channel, sizeof(Channel), 1) != 1)
 			return NULL;
 	}
 
 
-	CompData = (ILubyte*)ialloc(Channel.CompLen);
-	Data = (ILubyte*)ialloc(AttChunk.Width * AttChunk.Height);
+	CompData = (ILubyte*)ialloc(context, Channel.CompLen);
+	Data = (ILubyte*)ialloc(context, AttChunk.Width * AttChunk.Height);
 	if (CompData == NULL || Data == NULL) {
 		ifree(Data);
 		ifree(CompData);
 		return NULL;
 	}
 
-	if (iread(CompData, 1, Channel.CompLen) != Channel.CompLen) {
+	if (context->impl->iread(context, CompData, 1, Channel.CompLen) != Channel.CompLen) {
 		ifree(CompData);
 		ifree(Data);
 		return NULL;
@@ -523,7 +523,7 @@ ILubyte *GetChannel()
 		default:
 			ifree(CompData);
 			ifree(Data);
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return NULL;
 	}
 
@@ -590,28 +590,28 @@ ILboolean UncompRLE(ILubyte *CompData, ILubyte *Data, ILuint CompLen)
 }
 
 
-ILboolean ReadPalette(ILuint BlockLen)
+ILboolean ReadPalette(ILcontext* context, ILuint BlockLen)
 {
 	ILuint ChunkSize, PalCount, Padding;
 
 	if (Header.MajorVersion >= 4) {
-		ChunkSize = GetLittleUInt();
-		PalCount = GetLittleUInt();
+		ChunkSize = GetLittleUInt(context);
+		PalCount = GetLittleUInt(context);
 		Padding = (ChunkSize - 4 - 4);
 		if (Padding > 0)
-			iseek(Padding, IL_SEEK_CUR);
+			context->impl->iseek(context, Padding, IL_SEEK_CUR);
 	}
 	else {
-		PalCount = GetLittleUInt();
+		PalCount = GetLittleUInt(context);
 	}
 
 	Pal.PalSize = PalCount * 4;
 	Pal.PalType = IL_PAL_BGRA32;
-	Pal.Palette = (ILubyte*)ialloc(Pal.PalSize);
+	Pal.Palette = (ILubyte*)ialloc(context, Pal.PalSize);
 	if (Pal.Palette == NULL)
 		return IL_FALSE;
 
-	if (iread(Pal.Palette, Pal.PalSize, 1) != 1) {
+	if (context->impl->iread(context, Pal.Palette, Pal.PalSize, 1) != 1) {
 		ifree(Pal.Palette);
 		return IL_FALSE;
 	}
@@ -620,66 +620,66 @@ ILboolean ReadPalette(ILuint BlockLen)
 }
 
 
-ILboolean AssembleImage()
+ILboolean AssembleImage(ILcontext* context)
 {
 	ILuint Size, i, j;
 
 	Size = AttChunk.Width * AttChunk.Height;
 
 	if (NumChannels == 1) {
-		ilTexImage(AttChunk.Width, AttChunk.Height, 1, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL);
+		ilTexImage(context, AttChunk.Width, AttChunk.Height, 1, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL);
 		for (i = 0; i < Size; i++) {
-			iCurImage->Data[i] = Channels[0][i];
+			context->impl->iCurImage->Data[i] = Channels[0][i];
 		}
 
 		if (Pal.Palette) {
-			iCurImage->Format = IL_COLOUR_INDEX;
-			iCurImage->Pal.PalSize = Pal.PalSize;
-			iCurImage->Pal.PalType = Pal.PalType;
-			iCurImage->Pal.Palette = Pal.Palette;
+			context->impl->iCurImage->Format = IL_COLOUR_INDEX;
+			context->impl->iCurImage->Pal.PalSize = Pal.PalSize;
+			context->impl->iCurImage->Pal.PalType = Pal.PalType;
+			context->impl->iCurImage->Pal.Palette = Pal.Palette;
 		}
 	}
 	else {
 		if (Alpha) {
-			ilTexImage(AttChunk.Width, AttChunk.Height, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
+			ilTexImage(context, AttChunk.Width, AttChunk.Height, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
 			for (i = 0, j = 0; i < Size; i++, j += 4) {
-				iCurImage->Data[j  ] = Channels[0][i];
-				iCurImage->Data[j+1] = Channels[1][i];
-				iCurImage->Data[j+2] = Channels[2][i];
-				iCurImage->Data[j+3] = Alpha[i];
+				context->impl->iCurImage->Data[j  ] = Channels[0][i];
+				context->impl->iCurImage->Data[j+1] = Channels[1][i];
+				context->impl->iCurImage->Data[j+2] = Channels[2][i];
+				context->impl->iCurImage->Data[j+3] = Alpha[i];
 			}
 		}
 
 		else if (NumChannels == 4) {
 
-			ilTexImage(AttChunk.Width, AttChunk.Height, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
+			ilTexImage(context, AttChunk.Width, AttChunk.Height, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
 
 			for (i = 0, j = 0; i < Size; i++, j += 4) {
 
-				iCurImage->Data[j  ] = Channels[0][i];
+				context->impl->iCurImage->Data[j  ] = Channels[0][i];
 
-				iCurImage->Data[j+1] = Channels[1][i];
+				context->impl->iCurImage->Data[j+1] = Channels[1][i];
 
-				iCurImage->Data[j+2] = Channels[2][i];
+				context->impl->iCurImage->Data[j+2] = Channels[2][i];
 
-				iCurImage->Data[j+3] = Channels[3][i];
+				context->impl->iCurImage->Data[j+3] = Channels[3][i];
 
 			}
 
 		}
 		else if (NumChannels == 3) {
-			ilTexImage(AttChunk.Width, AttChunk.Height, 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL);
+			ilTexImage(context, AttChunk.Width, AttChunk.Height, 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL);
 			for (i = 0, j = 0; i < Size; i++, j += 3) {
-				iCurImage->Data[j  ] = Channels[0][i];
-				iCurImage->Data[j+1] = Channels[1][i];
-				iCurImage->Data[j+2] = Channels[2][i];
+				context->impl->iCurImage->Data[j  ] = Channels[0][i];
+				context->impl->iCurImage->Data[j+1] = Channels[1][i];
+				context->impl->iCurImage->Data[j+2] = Channels[2][i];
 			}
 		}
 		else
 			return IL_FALSE;
 	}
 
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
 	return IL_TRUE;
 }

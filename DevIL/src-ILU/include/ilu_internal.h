@@ -78,8 +78,8 @@ ILint ilRound(ILfloat Num);
 
 
 
-ILuint	iluScaleAdvanced(ILuint Width, ILuint Height, ILenum Filter);
-ILubyte	*iScanFill(void);
+ILuint	iluScaleAdvanced(ILcontext* context, ILuint Width, ILuint Height, ILenum Filter);
+ILubyte	*iScanFill(ILcontext* context);
 
 
 #endif//INTERNAL_H

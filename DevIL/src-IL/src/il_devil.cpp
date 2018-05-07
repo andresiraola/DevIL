@@ -16,11 +16,11 @@
 #include <limits.h>
 
 
-ILAPI ILboolean ILAPIENTRY ilInitImage(ILimage *Image, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
+ILAPI ILboolean ILAPIENTRY ilInitImage(ILcontext* context, ILimage *Image, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
 {
 	ILubyte BpcType = ilGetBpcType(Type);
 	if (BpcType == 0) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return IL_FALSE;
 	}
 
@@ -45,7 +45,7 @@ ILAPI ILboolean ILAPIENTRY ilInitImage(ILimage *Image, ILuint Width, ILuint Heig
 	Image->DxtcFormat  = IL_DXT_NO_COMP;
 	Image->DxtcData    = NULL;
 
-	Image->Data = (ILubyte*)ialloc(Image->SizeOfData);
+	Image->Data = (ILubyte*)ialloc(context, Image->SizeOfData);
 	if (Image->Data == NULL) {
 		return IL_FALSE;
 	}
@@ -60,7 +60,7 @@ ILAPI ILboolean ILAPIENTRY ilInitImage(ILimage *Image, ILuint Width, ILuint Heig
 
 
 // Creates a new ILimage based on the specifications given
-ILAPI ILimage* ILAPIENTRY ilNewImage(ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILubyte Bpc)
+ILAPI ILimage* ILAPIENTRY ilNewImage(ILcontext* context, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILubyte Bpc)
 {
 	ILimage *Image;
 
@@ -68,12 +68,12 @@ ILAPI ILimage* ILAPIENTRY ilNewImage(ILuint Width, ILuint Height, ILuint Depth, 
 		return NULL;
 	}
 
-	Image = (ILimage*)ialloc(sizeof(ILimage));
+	Image = (ILimage*)ialloc(context, sizeof(ILimage));
 	if (Image == NULL) {
 		return NULL;
 	}
 
-	if (!ilInitImage(Image, Width, Height, Depth, Bpp, ilGetFormatBpp(Bpp), ilGetTypeBpc(Bpc), NULL)) {
+	if (!ilInitImage(context, Image, Width, Height, Depth, Bpp, ilGetFormatBpp(Bpp), ilGetTypeBpc(Bpc), NULL)) {
 		if (Image->Data != NULL) {
 			ifree(Image->Data);
 		}
@@ -86,7 +86,7 @@ ILAPI ILimage* ILAPIENTRY ilNewImage(ILuint Width, ILuint Height, ILuint Depth, 
 
 
 // Same as above but allows specification of Format and Type
-ILAPI ILimage* ILAPIENTRY ilNewImageFull(ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
+ILAPI ILimage* ILAPIENTRY ilNewImageFull(ILcontext* context, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
 {
 	ILimage *Image;
 
@@ -94,12 +94,12 @@ ILAPI ILimage* ILAPIENTRY ilNewImageFull(ILuint Width, ILuint Height, ILuint Dep
 		return NULL;
 	}
 
-	Image = (ILimage*)ialloc(sizeof(ILimage));
+	Image = (ILimage*)ialloc(context, sizeof(ILimage));
 	if (Image == NULL) {
 		return NULL;
 	}
 
-	if (!ilInitImage(Image, Width, Height, Depth, Bpp, Format, Type, Data)) {
+	if (!ilInitImage(context, Image, Width, Height, Depth, Bpp, Format, Type, Data)) {
 		if (Image->Data != NULL) {
 			ifree(Image->Data);
 		}
@@ -123,17 +123,17 @@ ILAPI ILimage* ILAPIENTRY ilNewImageFull(ILuint Width, ILuint Height, ILuint Dep
 	\exception IL_INVALID_PARAM One of the parameters is incorrect, such as one of the dimensions being 0.
 	\exception IL_OUT_OF_MEMORY Could not allocate enough memory.
 	\return Boolean value of failure or success*/
-ILboolean ILAPIENTRY ilTexImage(ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
+ILboolean ILAPIENTRY ilTexImage(ILcontext* context, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
 {
-	return ilTexImage_(iCurImage, Width, Height, Depth, Bpp, Format, Type, Data);
+	return ilTexImage_(context, context->impl->iCurImage, Width, Height, Depth, Bpp, Format, Type, Data);
 }
 
 
 // Internal version of ilTexImage.
-ILAPI ILboolean ILAPIENTRY ilTexImage_(ILimage *Image, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
+ILAPI ILboolean ILAPIENTRY ilTexImage_(ILcontext* context, ILimage *Image, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
 {
 	if (Image == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -158,11 +158,11 @@ ILAPI ILboolean ILAPIENTRY ilTexImage_(ILimage *Image, ILuint Width, ILuint Heig
 
 	//@TODO: Also check against format?
 	/*if (Width == 0 || Height == 0 || Depth == 0 || Bpp == 0) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 	return IL_FALSE;
 	}*/
 
-	return ilInitImage(Image, Width, Height, Depth, Bpp, Format, Type, Data);
+	return ilInitImage(context, Image, Width, Height, Depth, Bpp, Format, Type, Data);
 }
 
 
@@ -178,14 +178,14 @@ ILAPI ILboolean ILAPIENTRY ilTexImage_(ILimage *Image, ILuint Width, ILuint Heig
 \exception IL_INVALID_PARAM One of the parameters is incorrect, such as one of the dimensions being 0.
 \exception IL_OUT_OF_MEMORY Could not allocate enough memory.
 \return Boolean value of failure or success*/
-ILboolean ILAPIENTRY ilTexImageSurface(ILuint Width, ILuint Height, ILuint Depth, ILubyte NumChannels, ILenum Format, ILenum Type, void *Data)
+ILboolean ILAPIENTRY ilTexImageSurface(ILcontext* context, ILuint Width, ILuint Height, ILuint Depth, ILubyte NumChannels, ILenum Format, ILenum Type, void *Data)
 {
-	return ilTexImageSurface_(iCurImage, Width, Height, Depth, NumChannels, Format, Type, Data);
+	return ilTexImageSurface_(context, context->impl->iCurImage, Width, Height, Depth, NumChannels, Format, Type, Data);
 }
 
 
 // Internal version of ilTexImageSurface.
-ILboolean ILAPIENTRY ilTexImageSurface_(ILimage *Image, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
+ILboolean ILAPIENTRY ilTexImageSurface_(ILcontext* context, ILimage *Image, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILenum Format, ILenum Type, void *Data)
 {
 	ILimage* mips;
 	ILimage* next;
@@ -196,7 +196,7 @@ ILboolean ILAPIENTRY ilTexImageSurface_(ILimage *Image, ILuint Width, ILuint Hei
 	ILboolean retval;
 
 	if (Image == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -216,7 +216,7 @@ ILboolean ILAPIENTRY ilTexImageSurface_(ILimage *Image, ILuint Width, ILuint Hei
 
 	//@TODO: Also check against format?
 	/*if (Width == 0 || Height == 0 || Depth == 0 || Bpp == 0) {
-	ilSetError(IL_INVALID_PARAM);
+	ilSetError(context, IL_INVALID_PARAM);
 	return IL_FALSE;
 	}*/
 
@@ -227,7 +227,7 @@ ILboolean ILAPIENTRY ilTexImageSurface_(ILimage *Image, ILuint Width, ILuint Hei
 	flags = Image->CubeFlags;
 	origin = Image->Origin;
 
-	retval = ilInitImage(Image, Width, Height, Depth, Bpp, Format, Type, Data);
+	retval = ilInitImage(context, Image, Width, Height, Depth, Bpp, Format, Type, Data);
 
 	// reset our chains
 	Image->Mipmaps = mips;
@@ -247,26 +247,26 @@ ILboolean ILAPIENTRY ilTexImageSurface_(ILimage *Image, ILuint Width, ILuint Hei
 	\exception IL_INVALID_PARAM Data was NULL.
 	\return Boolean value of failure or success
 */
-ILboolean ILAPIENTRY ilSetData(void *Data)
+ILboolean ILAPIENTRY ilSetData(ILcontext* context, void *Data)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	
-	return ilTexSubImage_(iCurImage, Data);
+	return ilTexSubImage_(context, context->impl->iCurImage, Data);
 }
 
 
 // Internal version of ilTexSubImage.
-ILAPI ILboolean ILAPIENTRY ilTexSubImage_(ILimage *Image, void *Data)
+ILAPI ILboolean ILAPIENTRY ilTexSubImage_(ILcontext* context, ILimage *Image, void *Data)
 {
 	if (Image == NULL || Data == NULL) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return IL_FALSE;
 	}
 	if (!Image->Data) {
-		Image->Data = (ILubyte*)ialloc(Image->SizeOfData);
+		Image->Data = (ILubyte*)ialloc(context, Image->SizeOfData);
 		if (Image->Data == NULL)
 			return IL_FALSE;
 	}
@@ -282,14 +282,14 @@ ILAPI ILboolean ILAPIENTRY ilTexSubImage_(ILimage *Image, void *Data)
 	than one byte per channel for easier access to data.
 	\exception IL_ILLEGAL_OPERATION No currently bound image
 	\return ILubyte pointer to image data.*/
-ILubyte* ILAPIENTRY ilGetData(void)
+ILubyte* ILAPIENTRY ilGetData(ILcontext* context)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return NULL;
 	}
 	
-	return iCurImage->Data;
+	return context->impl->iCurImage->Data;
 }
 
 
@@ -299,14 +299,14 @@ ILubyte* ILAPIENTRY ilGetData(void)
 	called again.
 	\exception IL_ILLEGAL_OPERATION No currently bound image
 	\return ILubyte pointer to image palette data.*/
-ILubyte* ILAPIENTRY ilGetPalette(void)
+ILubyte* ILAPIENTRY ilGetPalette(ILcontext* context)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return NULL;
 	}
 	
-	return iCurImage->Pal.Palette;
+	return context->impl->iCurImage->Pal.Palette;
 }
 
 
@@ -342,7 +342,7 @@ void ILAPIENTRY ilClearColour(ILclampf Red, ILclampf Green, ILclampf Blue, ILcla
 }
 
 
-ILAPI void ILAPIENTRY ilGetClear(void *Colours, ILenum Format, ILenum Type)
+ILAPI void ILAPIENTRY ilGetClear(ILcontext* context, void *Colours, ILenum Format, ILenum Type)
 {
 	ILubyte 	*BytePtr;
 	ILushort	*ShortPtr;
@@ -397,7 +397,7 @@ ILAPI void ILAPIENTRY ilGetClear(void *Colours, ILenum Format, ILenum Type)
 					break;
 					
 				default:
-					ilSetError(IL_INTERNAL_ERROR);
+					ilSetError(context, IL_INTERNAL_ERROR);
 					return;
 			}
 				break;
@@ -448,7 +448,7 @@ ILAPI void ILAPIENTRY ilGetClear(void *Colours, ILenum Format, ILenum Type)
 					break;
 					
 				default:
-					ilSetError(IL_INTERNAL_ERROR);
+					ilSetError(context, IL_INTERNAL_ERROR);
 					return;
 			}
 				break;
@@ -499,7 +499,7 @@ ILAPI void ILAPIENTRY ilGetClear(void *Colours, ILenum Format, ILenum Type)
 					break;
 					
 				default:
-					ilSetError(IL_INTERNAL_ERROR);
+					ilSetError(context, IL_INTERNAL_ERROR);
 					return;
 			}
 				break;
@@ -549,7 +549,7 @@ ILAPI void ILAPIENTRY ilGetClear(void *Colours, ILenum Format, ILenum Type)
 					break;
 					
 				default:
-					ilSetError(IL_INTERNAL_ERROR);
+					ilSetError(context, IL_INTERNAL_ERROR);
 					return;
 			}
 				break;
@@ -599,13 +599,13 @@ ILAPI void ILAPIENTRY ilGetClear(void *Colours, ILenum Format, ILenum Type)
 					break;
 					
 				default:
-					ilSetError(IL_INTERNAL_ERROR);
+					ilSetError(context, IL_INTERNAL_ERROR);
 					return;
 			}
 				break;
 			
 		default:
-			ilSetError(IL_INTERNAL_ERROR);
+			ilSetError(context, IL_INTERNAL_ERROR);
 			return;
 	}
 	
@@ -614,18 +614,18 @@ ILAPI void ILAPIENTRY ilGetClear(void *Colours, ILenum Format, ILenum Type)
 
 
 //! Clears the current bound image to the values specified in ilClearColour
-ILboolean ILAPIENTRY ilClearImage()
+ILboolean ILAPIENTRY ilClearImage(ILcontext* context)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	
-	return ilClearImage_(iCurImage);
+	return ilClearImage_(context, context->impl->iCurImage);
 }
 
 
-ILAPI ILboolean ILAPIENTRY ilClearImage_(ILimage *Image)
+ILAPI ILboolean ILAPIENTRY ilClearImage_(ILcontext* context, ILimage *Image)
 {
 	ILuint		i, c, NumBytes;
 	ILubyte 	Colours[32];  // Maximum is sizeof(double) * 4 = 32
@@ -636,7 +636,7 @@ ILAPI ILboolean ILAPIENTRY ilClearImage_(ILimage *Image)
 	ILdouble	*DblPtr;
 	
 	NumBytes = Image->Bpp * Image->Bpc;
-	ilGetClear(Colours, Image->Format, Image->Type);
+	ilGetClear(context, Colours, Image->Format, Image->Type);
 	
 	if (Image->Format != IL_COLOUR_INDEX) {
 		switch (Image->Type)
@@ -695,7 +695,7 @@ ILAPI ILboolean ILAPIENTRY ilClearImage_(ILimage *Image)
 		
 		if (Image->Pal.Palette)
 			ifree(Image->Pal.Palette);
-		Image->Pal.Palette = (ILubyte*)ialloc(4);
+		Image->Pal.Palette = (ILubyte*)ialloc(context, 4);
 		if (Image->Pal.Palette == NULL) {
 			return IL_FALSE;
 		}
@@ -714,28 +714,28 @@ ILAPI ILboolean ILAPIENTRY ilClearImage_(ILimage *Image)
 
 
 //! Overlays the image found in Src on top of the current bound image at the coords specified.
-ILboolean ILAPIENTRY ilOverlayImage(ILuint Source, ILint XCoord, ILint YCoord, ILint ZCoord)
+ILboolean ILAPIENTRY ilOverlayImage(ILcontext* context, ILuint Source, ILint XCoord, ILint YCoord, ILint ZCoord)
 {
 	ILuint	Width, Height, Depth;
 	ILuint	Dest;
 	
-	Dest = ilGetCurName();
-	ilBindImage(Source);
-	Width = iCurImage->Width;  Height = iCurImage->Height;  Depth = iCurImage->Depth;
-	ilBindImage(Dest);
+	Dest = ilGetCurName(context);
+	ilBindImage(context, Source);
+	Width = context->impl->iCurImage->Width;  Height = context->impl->iCurImage->Height;  Depth = context->impl->iCurImage->Depth;
+	ilBindImage(context, Dest);
 
-	return ilBlit(Source, XCoord, YCoord, ZCoord, 0, 0, 0, Width, Height, Depth);
+	return ilBlit(context, Source, XCoord, YCoord, ZCoord, 0, 0, 0, Width, Height, Depth);
 }
 
 //@NEXT DestX,DestY,DestZ must be set to ILuint
-ILboolean ILAPIENTRY ilBlit(ILuint Source, ILint DestX,  ILint DestY,   ILint DestZ, 
+ILboolean ILAPIENTRY ilBlit(ILcontext* context, ILuint Source, ILint DestX,  ILint DestY,   ILint DestZ,
                                            ILuint SrcX,  ILuint SrcY,   ILuint SrcZ,
                                            ILuint Width, ILuint Height, ILuint Depth)
 {
 	ILuint 		x, y, z, ConvBps, ConvSizePlane;
 	ILimage 	*Dest,*Src;
 	ILubyte 	*Converted;
-	ILuint		DestName = ilGetCurName();
+	ILuint		DestName = ilGetCurName(context);
 	ILuint		c;
 	ILuint		StartX, StartY, StartZ;
 	ILboolean	DestFlipped = IL_FALSE;
@@ -743,49 +743,49 @@ ILboolean ILAPIENTRY ilBlit(ILuint Source, ILint DestX,  ILint DestY,   ILint De
 	ILfloat		Back;
 
 	// Check if the desiination image really exists
-	if (DestName == 0 || iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (DestName == 0 || context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
-	Dest = iCurImage;
+	Dest = context->impl->iCurImage;
 	
 	// set the destination image to upper left origin
 	if (Dest->Origin == IL_ORIGIN_LOWER_LEFT) {  // Dest
 		DestFlipped = IL_TRUE;
-		ilFlipImage();
+		ilFlipImage(context);
 	}
 	//DestOrigin = Dest->Origin;
-	ilBindImage(Source);
+	ilBindImage(context, Source);
 	
 	// Check if the source image really exists
-	if (iCurImage == NULL) {
-		ilSetError(IL_INVALID_PARAM);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_INVALID_PARAM);
 		return IL_FALSE;
 	}
 	
-	Src = iCurImage;
+	Src = context->impl->iCurImage;
 	
 	//@TODO test if coordinates are inside the images (hard limit for source)
 	
 	// set the source image to upper left origin
 	if (Src->Origin == IL_ORIGIN_LOWER_LEFT)
 	{
-		SrcTemp = iGetFlipped(iCurImage);
+		SrcTemp = iGetFlipped(context, context->impl->iCurImage);
 		if (SrcTemp == NULL)
 		{
-			ilBindImage(DestName);
+			ilBindImage(context, DestName);
 			if (DestFlipped)
-				ilFlipImage();
+				ilFlipImage(context);
 			return IL_FALSE;
 		}
 	}
 	else
 	{
-		SrcTemp = iCurImage->Data;
+		SrcTemp = context->impl->iCurImage->Data;
 	}
 	
 	// convert source image to match the destination image type and format
-	Converted = (ILubyte*)ilConvertBuffer(Src->SizeOfData, Src->Format, Dest->Format, Src->Type, Dest->Type, NULL, SrcTemp);
+	Converted = (ILubyte*)ilConvertBuffer(context, Src->SizeOfData, Src->Format, Dest->Format, Src->Type, Dest->Type, NULL, SrcTemp);
 	if (Converted == NULL)
 		return IL_FALSE;
 	
@@ -836,7 +836,7 @@ ILboolean ILAPIENTRY ilBlit(ILuint Source, ILint DestX,  ILint DestY,   ILint De
 					}
 					Back = 1.0f - Front;
 					// In case of Alpha channel, the data is blended. Keeps the original alpha.
-					if (ilIsEnabled(IL_BLIT_BLEND)) {
+					if (ilIsEnabled(context, IL_BLIT_BLEND)) {
 						for (c = 0; c < bpp_without_alpha; c++)
 						{
 							Dest->Data[DestIndex + c] = 
@@ -866,12 +866,12 @@ ILboolean ILAPIENTRY ilBlit(ILuint Source, ILint DestX,  ILint DestY,   ILint De
 		}
 	}
 	
-	if (SrcTemp != iCurImage->Data)
+	if (SrcTemp != context->impl->iCurImage->Data)
 		ifree(SrcTemp);
 	
-	ilBindImage(DestName);
+	ilBindImage(context, DestName);
 	if (DestFlipped)
-		ilFlipImage();
+		ilFlipImage(context);
 	
 	ifree(Converted);
 	
@@ -879,7 +879,7 @@ ILboolean ILAPIENTRY ilBlit(ILuint Source, ILint DestX,  ILint DestY,   ILint De
 }
 
 
-ILboolean iCopySubImage(ILimage *Dest, ILimage *Src)
+ILboolean iCopySubImage(ILcontext* context, ILimage *Dest, ILimage *Src)
 {
 	ILimage *DestTemp, *SrcTemp;
 	
@@ -887,15 +887,15 @@ ILboolean iCopySubImage(ILimage *Dest, ILimage *Src)
 	SrcTemp = Src;
 	
 	do {
-		ilCopyImageAttr(DestTemp, SrcTemp);
-		DestTemp->Data = (ILubyte*)ialloc(SrcTemp->SizeOfData);
+		ilCopyImageAttr(context, DestTemp, SrcTemp);
+		DestTemp->Data = (ILubyte*)ialloc(context, SrcTemp->SizeOfData);
 		if (DestTemp->Data == NULL) {
 			return IL_FALSE;
 		}
 		memcpy(DestTemp->Data, SrcTemp->Data, SrcTemp->SizeOfData);
 		
 		if (SrcTemp->Next) {
-			DestTemp->Next = (ILimage*)icalloc(1, sizeof(ILimage));
+			DestTemp->Next = (ILimage*)icalloc(context, 1, sizeof(ILimage));
 			if (!DestTemp->Next) {
 				return IL_FALSE;
 			}
@@ -912,41 +912,41 @@ ILboolean iCopySubImage(ILimage *Dest, ILimage *Src)
 }
 
 
-ILboolean iCopySubImages(ILimage *Dest, ILimage *Src)
+ILboolean iCopySubImages(ILcontext* context, ILimage *Dest, ILimage *Src)
 {
 	if (Src->Faces) {
-		Dest->Faces = (ILimage*)icalloc(1, sizeof(ILimage));
+		Dest->Faces = (ILimage*)icalloc(context, 1, sizeof(ILimage));
 		if (!Dest->Faces) {
 			return IL_FALSE;
 		}
-		if (!iCopySubImage(Dest->Faces, Src->Faces))
+		if (!iCopySubImage(context, Dest->Faces, Src->Faces))
 			return IL_FALSE;
 	}
 	
 	if (Src->Layers) {
-		Dest->Layers = (ILimage*)icalloc(1, sizeof(ILimage));
+		Dest->Layers = (ILimage*)icalloc(context, 1, sizeof(ILimage));
 		if (!Dest->Layers) {
 			return IL_FALSE;
 		}
-		if (!iCopySubImage(Dest->Layers, Src->Layers))
+		if (!iCopySubImage(context, Dest->Layers, Src->Layers))
 			return IL_FALSE;
 	}
 
 	if (Src->Mipmaps) {
-		Dest->Mipmaps = (ILimage*)icalloc(1, sizeof(ILimage));
+		Dest->Mipmaps = (ILimage*)icalloc(context, 1, sizeof(ILimage));
 		if (!Dest->Mipmaps) {
 			return IL_FALSE;
 		}
-		if (!iCopySubImage(Dest->Mipmaps, Src->Mipmaps))
+		if (!iCopySubImage(context, Dest->Mipmaps, Src->Mipmaps))
 			return IL_FALSE;
 	}
 
 	if (Src->Next) {
-		Dest->Next = (ILimage*)icalloc(1, sizeof(ILimage));
+		Dest->Next = (ILimage*)icalloc(context, 1, sizeof(ILimage));
 		if (!Dest->Next) {
 			return IL_FALSE;
 		}
-		if (!iCopySubImage(Dest->Next, Src->Next))
+		if (!iCopySubImage(context, Dest->Next, Src->Next))
 			return IL_FALSE;
 	}
 
@@ -955,10 +955,10 @@ ILboolean iCopySubImages(ILimage *Dest, ILimage *Src)
 
 
 // Copies everything but the Data from Src to Dest.
-ILAPI ILboolean ILAPIENTRY ilCopyImageAttr(ILimage *Dest, ILimage *Src)
+ILAPI ILboolean ILAPIENTRY ilCopyImageAttr(ILcontext* context, ILimage *Dest, ILimage *Src)
 {
 	if (Dest == NULL || Src == NULL) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return IL_FALSE;
 	}
 	
@@ -995,14 +995,14 @@ ILAPI ILboolean ILAPIENTRY ilCopyImageAttr(ILimage *Dest, ILimage *Src)
 	}
 	
 	if (Src->AnimList && Src->AnimSize) {
-		Dest->AnimList = (ILuint*)ialloc(Src->AnimSize * sizeof(ILuint));
+		Dest->AnimList = (ILuint*)ialloc(context, Src->AnimSize * sizeof(ILuint));
 		if (Dest->AnimList == NULL) {
 			return IL_FALSE;
 		}
 		memcpy(Dest->AnimList, Src->AnimList, Src->AnimSize * sizeof(ILuint));
 	}
 	if (Src->Profile) {
-		Dest->Profile = (ILubyte*)ialloc(Src->ProfileSize);
+		Dest->Profile = (ILubyte*)ialloc(context, Src->ProfileSize);
 		if (Dest->Profile == NULL) {
 			return IL_FALSE;
 		}
@@ -1010,7 +1010,7 @@ ILAPI ILboolean ILAPIENTRY ilCopyImageAttr(ILimage *Dest, ILimage *Src)
 		Dest->ProfileSize = Src->ProfileSize;
 	}
 	if (Src->Pal.Palette) {
-		Dest->Pal.Palette = (ILubyte*)ialloc(Src->Pal.PalSize);
+		Dest->Pal.Palette = (ILubyte*)ialloc(context, Src->Pal.PalSize);
 		if (Dest->Pal.Palette == NULL) {
 			return IL_FALSE;
 		}
@@ -1044,42 +1044,42 @@ ILAPI ILboolean ILAPIENTRY ilCopyImageAttr(ILimage *Dest, ILimage *Src)
 
 
 //! Copies everything from Src to the current bound image.
-ILboolean ILAPIENTRY ilCopyImage(ILuint Src)
+ILboolean ILAPIENTRY ilCopyImage(ILcontext* context, ILuint Src)
 {
-	ILuint DestName = ilGetCurName();
-	ILimage *DestImage = iCurImage, *SrcImage;
+	ILuint DestName = ilGetCurName(context);
+	ILimage *DestImage = context->impl->iCurImage, *SrcImage;
 	
-	if (iCurImage == NULL || DestName == 0) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL || DestName == 0) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	
-	ilBindImage(Src);
-	SrcImage = iCurImage;
-	ilBindImage(DestName);
-	ilTexImage(SrcImage->Width, SrcImage->Height, SrcImage->Depth, SrcImage->Bpp, SrcImage->Format, SrcImage->Type, SrcImage->Data);
-	ilCopyImageAttr(DestImage, SrcImage);
+	ilBindImage(context, Src);
+	SrcImage = context->impl->iCurImage;
+	ilBindImage(context, DestName);
+	ilTexImage(context, SrcImage->Width, SrcImage->Height, SrcImage->Depth, SrcImage->Bpp, SrcImage->Format, SrcImage->Type, SrcImage->Data);
+	ilCopyImageAttr(context, DestImage, SrcImage);
 	
 	return IL_TRUE;
 }
 
 
 // Creates a copy of Src and returns it.
-ILAPI ILimage* ILAPIENTRY ilCopyImage_(ILimage *Src)
+ILAPI ILimage* ILAPIENTRY ilCopyImage_(ILcontext* context, ILimage *Src)
 {
 	ILimage *Dest;
 	
 	if (Src == NULL) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return NULL;
 	}
 	
-	Dest = ilNewImage(Src->Width, Src->Height, Src->Depth, Src->Bpp, Src->Bpc);
+	Dest = ilNewImage(context, Src->Width, Src->Height, Src->Depth, Src->Bpp, Src->Bpc);
 	if (Dest == NULL) {
 		return NULL;
 	}
 	
-	if (ilCopyImageAttr(Dest, Src) == IL_FALSE)
+	if (ilCopyImageAttr(context, Dest, Src) == IL_FALSE)
 		return NULL;
 	
 	memcpy(Dest->Data, Src->Data, Src->SizeOfData);
@@ -1088,37 +1088,37 @@ ILAPI ILimage* ILAPIENTRY ilCopyImage_(ILimage *Src)
 }
 
 
-ILuint ILAPIENTRY ilCloneCurImage()
+ILuint ILAPIENTRY ilCloneCurImage(ILcontext* context)
 {
 	ILuint Id;
 	ILimage *CurImage;
 	
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return 0;
 	}
 	
-	ilGenImages(1, &Id);
+	ilGenImages(context, 1, &Id);
 	if (Id == 0)
 		return 0;
 	
-	CurImage = iCurImage;
+	CurImage = context->impl->iCurImage;
 	
-	ilBindImage(Id);
-	ilTexImage(CurImage->Width, CurImage->Height, CurImage->Depth, CurImage->Bpp, CurImage->Format, CurImage->Type, CurImage->Data);
-	ilCopyImageAttr(iCurImage, CurImage);
+	ilBindImage(context, Id);
+	ilTexImage(context, CurImage->Width, CurImage->Height, CurImage->Depth, CurImage->Bpp, CurImage->Format, CurImage->Type, CurImage->Data);
+	ilCopyImageAttr(context, context->impl->iCurImage, CurImage);
 	
-	iCurImage = CurImage;
+	context->impl->iCurImage = CurImage;
 	
 	return Id;
 }
 
 
 // Like ilTexImage but doesn't destroy the palette.
-ILAPI ILboolean ILAPIENTRY ilResizeImage(ILimage *Image, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILubyte Bpc)
+ILAPI ILboolean ILAPIENTRY ilResizeImage(ILcontext* context, ILimage *Image, ILuint Width, ILuint Height, ILuint Depth, ILubyte Bpp, ILubyte Bpc)
 {
 	if (Image == NULL) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return IL_FALSE;
 	}
 	
@@ -1134,7 +1134,7 @@ ILAPI ILboolean ILAPIENTRY ilResizeImage(ILimage *Image, ILuint Width, ILuint He
 	Image->SizeOfPlane = Image->Bps * Height;
 	Image->SizeOfData = Image->SizeOfPlane * Depth;
 	
-	Image->Data = (ILubyte*)ialloc(Image->SizeOfData);
+	Image->Data = (ILubyte*)ialloc(context, Image->SizeOfData);
 	if (Image->Data == NULL) {
 		return IL_FALSE;
 	}

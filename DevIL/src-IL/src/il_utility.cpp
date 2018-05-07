@@ -145,13 +145,13 @@ ILAPI ILuint ILAPIENTRY ilNextPower2(ILuint n)
 	return power;
 }
 
-ILAPI void ILAPIENTRY iMemSwap(ILubyte *s1, ILubyte *s2, const ILuint size)
+ILAPI void ILAPIENTRY iMemSwap(ILcontext* context, ILubyte *s1, ILubyte *s2, const ILuint size)
 {
 	const ILuint block_size = 4096;
 	const ILuint blocks = size/block_size;
 	ILuint i;
 
-	ILubyte *block = (ILubyte*)ialloc(block_size);
+	ILubyte *block = (ILubyte*)ialloc(context, block_size);
 	if(block == NULL) return;
 	for( i = 0; i < blocks; i++ ) {
 		memcpy(block,s1,block_size);

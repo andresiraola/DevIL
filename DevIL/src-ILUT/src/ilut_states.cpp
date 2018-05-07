@@ -49,7 +49,7 @@ void ILAPIENTRY ilutD3D8MipFunc(ILuint NumLevels)
 }
 
 
-ILstring ILAPIENTRY ilutGetString(ILenum StringName)
+ILstring ILAPIENTRY ilutGetString(ILcontext* context, ILenum StringName)
 {
 	switch (StringName)
 	{
@@ -59,26 +59,26 @@ ILstring ILAPIENTRY ilutGetString(ILenum StringName)
 		case ILUT_VERSION_NUM:
 			return (ILstring)_ilutVersion;
 		default:
-			ilSetError(ILUT_INVALID_PARAM);
+			ilSetError(context, ILUT_INVALID_PARAM);
 			break;
 	}
 	return NULL;
 }
 
 
-ILboolean ILAPIENTRY ilutEnable(ILenum Mode)
+ILboolean ILAPIENTRY ilutEnable(ILcontext* context, ILenum Mode)
 {
-	return ilutAble(Mode, IL_TRUE);
+	return ilutAble(context, Mode, IL_TRUE);
 }
 
 
-ILboolean ILAPIENTRY ilutDisable(ILenum Mode)
+ILboolean ILAPIENTRY ilutDisable(ILcontext* context, ILenum Mode)
 {
-	return ilutAble(Mode, IL_FALSE);
+	return ilutAble(context, Mode, IL_FALSE);
 }
 
 
-ILboolean ilutAble(ILenum Mode, ILboolean Flag)
+ILboolean ilutAble(ILcontext* context, ILenum Mode, ILboolean Flag)
 {
 	switch (Mode)
 	{
@@ -108,7 +108,7 @@ ILboolean ilutAble(ILenum Mode, ILboolean Flag)
 
 
 		default:
-			ilSetError(ILUT_INVALID_ENUM);
+			ilSetError(context, ILUT_INVALID_ENUM);
 			return IL_FALSE;
 	}
 
@@ -116,7 +116,7 @@ ILboolean ilutAble(ILenum Mode, ILboolean Flag)
 }
 
 
-ILboolean ILAPIENTRY ilutIsEnabled(ILenum Mode)
+ILboolean ILAPIENTRY ilutIsEnabled(ILcontext* context, ILenum Mode)
 {
 	switch (Mode)
 	{
@@ -140,20 +140,20 @@ ILboolean ILAPIENTRY ilutIsEnabled(ILenum Mode)
 
 
 		default:
-			ilSetError(ILUT_INVALID_ENUM);
+			ilSetError(context, ILUT_INVALID_ENUM);
 	}
 
 	return IL_FALSE;
 }
 
 
-ILboolean ILAPIENTRY ilutIsDisabled(ILenum Mode)
+ILboolean ILAPIENTRY ilutIsDisabled(ILcontext* context, ILenum Mode)
 {
-	return !ilutIsEnabled(Mode);
+	return !ilutIsEnabled(context, Mode);
 }
 
 
-void ILAPIENTRY ilutGetBooleanv(ILenum Mode, ILboolean *Param)
+void ILAPIENTRY ilutGetBooleanv(ILcontext* context, ILenum Mode, ILboolean *Param)
 {
 	switch (Mode)
 	{
@@ -182,21 +182,21 @@ void ILAPIENTRY ilutGetBooleanv(ILenum Mode, ILboolean *Param)
 			break;
 
 		default:
-			ilSetError(ILUT_INVALID_ENUM);
+			ilSetError(context, ILUT_INVALID_ENUM);
 	}
 	return;
 }
 
 
-ILboolean ILAPIENTRY ilutGetBoolean(ILenum Mode)
+ILboolean ILAPIENTRY ilutGetBoolean(ILcontext* context, ILenum Mode)
 {
 	ILboolean Temp = IL_FALSE;
-	ilutGetBooleanv(Mode, &Temp);
+	ilutGetBooleanv(context, Mode, &Temp);
 	return Temp;
 }
 
 
-void ILAPIENTRY ilutGetIntegerv(ILenum Mode, ILint *Param)
+void ILAPIENTRY ilutGetIntegerv(ILcontext* context, ILenum Mode, ILint *Param)
 {
 	switch (Mode)
 	{
@@ -247,21 +247,21 @@ void ILAPIENTRY ilutGetIntegerv(ILenum Mode, ILint *Param)
 			break;
 
 		default:
-			ilSetError(ILUT_INVALID_ENUM);
+			ilSetError(context, ILUT_INVALID_ENUM);
 	}
 	return;
 }
 
 
-ILint ILAPIENTRY ilutGetInteger(ILenum Mode)
+ILint ILAPIENTRY ilutGetInteger(ILcontext* context, ILenum Mode)
 {
 	ILint Temp = 0;
-	ilutGetIntegerv(Mode, &Temp);
+	ilutGetIntegerv(context, Mode, &Temp);
 	return Temp;
 }
 
 
-void ILAPIENTRY ilutSetInteger(ILenum Mode, ILint Param)
+void ILAPIENTRY ilutSetInteger(ILcontext* context, ILenum Mode, ILint Param)
 {
 	switch (Mode)
 	{
@@ -332,21 +332,21 @@ void ILAPIENTRY ilutSetInteger(ILenum Mode, ILint Param)
 //#endif//ILUT_USE_DIRECTX8
 
 		default:
-			ilSetError(ILUT_INVALID_ENUM);
+			ilSetError(context, ILUT_INVALID_ENUM);
 	}
 
-	ilSetError(IL_INVALID_PARAM);  // Parameter not in valid bounds.
+	ilSetError(context, IL_INVALID_PARAM);  // Parameter not in valid bounds.
 	return;
 }
 
 
-void ILAPIENTRY ilutPushAttrib(ILuint Bits)
+void ILAPIENTRY ilutPushAttrib(ILcontext* context, ILuint Bits)
 {
 	// Should we check here to see if ilCurrentPos is negative?
 
 	if (ilutCurrentPos >= ILUT_ATTRIB_STACK_MAX - 1) {
 		ilutCurrentPos = ILUT_ATTRIB_STACK_MAX - 1;
-		ilSetError(ILUT_STACK_OVERFLOW);
+		ilSetError(context, ILUT_STACK_OVERFLOW);
 		return;
 	}
 
@@ -367,11 +367,11 @@ void ILAPIENTRY ilutPushAttrib(ILuint Bits)
 }
 
 
-void ILAPIENTRY ilutPopAttrib()
+void ILAPIENTRY ilutPopAttrib(ILcontext* context)
 {
 	if (ilutCurrentPos <= 0) {
 		ilutCurrentPos = 0;
-		ilSetError(ILUT_STACK_UNDERFLOW);
+		ilSetError(context, ILUT_STACK_UNDERFLOW);
 		return;
 	}
 
@@ -382,10 +382,10 @@ void ILAPIENTRY ilutPopAttrib()
 }
 
 
-ILboolean ILAPIENTRY ilutRenderer(ILenum Renderer)
+ILboolean ILAPIENTRY ilutRenderer(ILcontext* context, ILenum Renderer)
 {
 	if (Renderer > ILUT_WIN32) {
-		ilSetError(ILUT_INVALID_VALUE);
+		ilSetError(context, ILUT_INVALID_VALUE);
 		return IL_FALSE;
 	}
 
@@ -393,7 +393,7 @@ ILboolean ILAPIENTRY ilutRenderer(ILenum Renderer)
 	{
 		#ifdef ILUT_USE_OPENGL
 		case ILUT_OPENGL:
-			return ilutGLInit();
+			return ilutGLInit(context);
 		#endif
 
 		#ifdef ILUT_USE_WIN32
@@ -417,7 +417,7 @@ ILboolean ILAPIENTRY ilutRenderer(ILenum Renderer)
         #endif
 
 		default:
-			ilSetError(ILUT_NOT_SUPPORTED);
+			ilSetError(context, ILUT_NOT_SUPPORTED);
 	}
 
 	return IL_FALSE;

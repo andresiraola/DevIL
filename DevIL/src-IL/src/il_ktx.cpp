@@ -18,9 +18,9 @@
 
 
 ILboolean	iIsValidKtx(void);
-ILboolean	iLoadKtxInternal();
-ILboolean	iKtxReadMipmaps(ILboolean Compressed, ILuint NumMips, ILenum Origin);
-ILboolean	iKtxKeyValueData(ILuint bytesOfKeyValueData, ILenum &Origin);
+ILboolean	iLoadKtxInternal(ILcontext* context);
+ILboolean	iKtxReadMipmaps(ILcontext* context, ILboolean Compressed, ILuint NumMips, ILenum Origin);
+ILboolean	iKtxKeyValueData(ILcontext* context, ILuint bytesOfKeyValueData, ILenum &Origin);
 
 
 #ifdef _MSC_VER
@@ -83,46 +83,46 @@ typedef struct KTX_HEAD
 
 
 
-ILboolean ilIsValidKtx(ILconst_string FileName)
+ILboolean ilIsValidKtx(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	KtxFile;
 	ILboolean	bKtx = IL_FALSE;
 
 	if (!iCheckExtension(FileName, IL_TEXT("ktx"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bKtx;
 	}
 
-	KtxFile = iopenr(FileName);
+	KtxFile = context->impl->iopenr(FileName);
 	if (KtxFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bKtx;
 	}
 
-	bKtx = ilIsValidKtxF(KtxFile);
-	icloser(KtxFile);
+	bKtx = ilIsValidKtxF(context, KtxFile);
+	context->impl->icloser(KtxFile);
 
 	return bKtx;
 }
 
 
-ILboolean ilIsValidKtxF(ILHANDLE File)
+ILboolean ilIsValidKtxF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
 	bRet = iIsValidKtx();
-	iseek(FirstPos, IL_SEEK_SET);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
-ILboolean ilIsValidKtxL(const void *Lump, ILuint Size)
+ILboolean ilIsValidKtxL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
+	iSetInputLump(context, Lump, Size);
 	return iIsValidKtx();
 }
 
@@ -132,58 +132,58 @@ ILboolean iIsValidKtx()
 	ILubyte 	Signature[8];
 	ILint		Read;
 
-	/*Read = iread(Signature, 1, 8);
-	iseek(-Read, IL_SEEK_CUR);*/
+	/*Read = context->impl->iread(context, Signature, 1, 8);
+	context->impl->iseek(context, -Read, IL_SEEK_CUR);*/
 
 	return IL_FALSE;
 }
 
 
 //! Reads a .ktx file
-ILboolean ilLoadKtx(ILconst_string FileName)
+ILboolean ilLoadKtx(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	KtxFile;
 	ILboolean	bKtx = IL_FALSE;
 
-	KtxFile = iopenr(FileName);
+	KtxFile = context->impl->iopenr(FileName);
 	if (KtxFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bKtx;
 	}
 
-	bKtx = ilLoadKtxF(KtxFile);
-	icloser(KtxFile);
+	bKtx = ilLoadKtxF(context, KtxFile);
+	context->impl->icloser(KtxFile);
 
 	return bKtx;
 }
 
 
 //! Reads an already-opened .ktx file
-ILboolean ilLoadKtxF(ILHANDLE File)
+ILboolean ilLoadKtxF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadKtxInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadKtxInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a .ktx
-ILboolean ilLoadKtxL(const void *Lump, ILuint Size)
+ILboolean ilLoadKtxL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadKtxInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadKtxInternal(context);
 }
 
 
 // Note:  .Ktx support has not been tested yet!
 //  https://www.khronos.org/opengles/sdk/tools/KTX/file_format_spec/
-ILboolean iLoadKtxInternal()
+ILboolean iLoadKtxInternal(ILcontext* context)
 {
 	KTX_HEAD	Header;
 	ILuint		imageSize;
@@ -192,58 +192,58 @@ ILboolean iLoadKtxInternal()
 	ILboolean	Compressed;
 	char		FileIdentifier[12] = {
 		//0xAB, 0x4B, 0x54, 0x58, 0x20, 0x31, 0x31, 0xBB, 0x0D, 0x0A, 0x1A, 0x0A
-		'«', 'K', 'T', 'X', ' ', '1', '1', '»', '\r', '\n', '\x1A', '\n'
+		'ï¿½', 'K', 'T', 'X', ' ', '1', '1', 'ï¿½', '\r', '\n', '\x1A', '\n'
 	};
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	/*Header.Width = GetLittleShort();
-	Header.Height = GetLittleShort();
-	Header.Dummy = GetLittleInt();*/
+	/*Header.Width = GetLittleShort(context);
+	Header.Height = GetLittleShort(context);
+	Header.Dummy = GetLittleInt(context);*/
 
-	if (iread(Header.identifier, 1, 12) != 12)
+	if (context->impl->iread(context, Header.identifier, 1, 12) != 12)
 		return IL_FALSE;
-	Header.endianness = GetLittleUInt();
-	Header.glType = GetLittleUInt();
-	Header.glTypeSize = GetLittleUInt();
-	Header.glFormat = GetLittleUInt();
-	Header.glInternalFormat = GetLittleUInt();
-	Header.glBaseInternalFormat = GetLittleUInt();
-	Header.pixelWidth = GetLittleUInt();
-	Header.pixelHeight = GetLittleUInt();
-	Header.pixelDepth = GetLittleUInt();
-	Header.numberOfArrayElements = GetLittleUInt();
-	Header.numberOfFaces = GetLittleUInt();
-	Header.numberOfMipmapLevels = GetLittleUInt();
-	Header.bytesOfKeyValueData = GetLittleUInt();
+	Header.endianness = GetLittleUInt(context);
+	Header.glType = GetLittleUInt(context);
+	Header.glTypeSize = GetLittleUInt(context);
+	Header.glFormat = GetLittleUInt(context);
+	Header.glInternalFormat = GetLittleUInt(context);
+	Header.glBaseInternalFormat = GetLittleUInt(context);
+	Header.pixelWidth = GetLittleUInt(context);
+	Header.pixelHeight = GetLittleUInt(context);
+	Header.pixelDepth = GetLittleUInt(context);
+	Header.numberOfArrayElements = GetLittleUInt(context);
+	Header.numberOfFaces = GetLittleUInt(context);
+	Header.numberOfMipmapLevels = GetLittleUInt(context);
+	Header.bytesOfKeyValueData = GetLittleUInt(context);
 
 	if (memcmp(Header.identifier, FileIdentifier, 12) || Header.endianness != 0x04030201) {
-		ilSetError(IL_ILLEGAL_FILE_VALUE);
+		ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 		return IL_FALSE;
 	}
 
 	if (Header.glTypeSize != 1)  //@TODO: Cases when this is different?
 	{
-		ilSetError(IL_ILLEGAL_FILE_VALUE);
+		ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 		return IL_FALSE;
 	}
 	//@TODO: Really needed?
 	/*if (Header.glInternalFormat != Header.glFormat || Header.glBaseInternalFormat != Header.glFormat)
 	{
-		ilSetError(IL_ILLEGAL_FILE_VALUE);
+		ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 		return IL_FALSE;
 	}*/
 
 	//@TODO: Mipmaps, etc.
 	if (Header.numberOfArrayElements != 0 || Header.numberOfFaces != 1 /*|| Header.numberOfMipmapLevels != 1*/)
 	{
-		ilSetError(IL_ILLEGAL_FILE_VALUE);
+		ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 		return IL_FALSE;
 	}
-	if (!iKtxKeyValueData(Header.bytesOfKeyValueData, Origin))
+	if (!iKtxKeyValueData(context, Header.bytesOfKeyValueData, Origin))
 		return IL_FALSE;
 
 	//@TODO: Additional formats
@@ -272,7 +272,7 @@ ILboolean iLoadKtxInternal()
 				Compressed = IL_FALSE;
 				break;
 			default:
-				ilSetError(IL_ILLEGAL_FILE_VALUE);
+				ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 				return IL_FALSE;
 		}
 	}
@@ -287,7 +287,7 @@ ILboolean iLoadKtxInternal()
 				Type = IL_UNSIGNED_BYTE;
 				break;
 			default:
-				ilSetError(IL_ILLEGAL_FILE_VALUE);
+				ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 				return IL_FALSE;
 		}
 	}
@@ -307,13 +307,13 @@ ILboolean iLoadKtxInternal()
 				break;
 			//case I_GL_SHORT:
 			default:
-				ilSetError(IL_ILLEGAL_FILE_VALUE);
+				ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 				return IL_FALSE;
 		}
 
-		if (!ilTexImage(Header.pixelWidth, Header.pixelHeight, 1, Bpp, Format, Type, NULL))
+		if (!ilTexImage(context, Header.pixelWidth, Header.pixelHeight, 1, Bpp, Format, Type, NULL))
 			return IL_FALSE;
-		if (!iKtxReadMipmaps(Compressed, Header.numberOfMipmapLevels, Origin))
+		if (!iKtxReadMipmaps(context, Compressed, Header.numberOfMipmapLevels, Origin))
 			return IL_FALSE;
 	}
 	else  // Compressed formats require different handling
@@ -321,44 +321,44 @@ ILboolean iLoadKtxInternal()
 		//@TODO: Add support for compressed mipmaps
 		if (Header.numberOfMipmapLevels != 1)
 		{
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			return IL_FALSE;
 		}
 
-		imageSize = GetLittleUInt();
+		imageSize = GetLittleUInt(context);
 
-		if (!ilTexImage(Header.pixelWidth, Header.pixelHeight, 1, Bpp, Format, Type, NULL))
+		if (!ilTexImage(context, Header.pixelWidth, Header.pixelHeight, 1, Bpp, Format, Type, NULL))
 			return IL_FALSE;
 
 		switch (Header.glInternalFormat)
 		{
 			case I_GL_ETC1_RGB8_OES:
-				ILubyte *FullBuffer = (ILubyte*)ialloc(Header.pixelWidth * Header.pixelHeight / 2);
+				ILubyte *FullBuffer = (ILubyte*)ialloc(context, Header.pixelWidth * Header.pixelHeight / 2);
 				ILuint UnpackBuff[16*4];
-				ILuint *Data = (ILuint*)iCurImage->Data;  // Easier copies
+				ILuint *Data = (ILuint*)context->impl->iCurImage->Data;  // Easier copies
 
 				if (FullBuffer == NULL)
 					return IL_FALSE;
 				if (imageSize != Header.pixelWidth * Header.pixelHeight / 2) {
-					ilSetError(IL_ILLEGAL_FILE_VALUE);
+					ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 					return IL_FALSE;
 				}
-				if (iread(FullBuffer, 1, imageSize) != imageSize)
+				if (context->impl->iread(context, FullBuffer, 1, imageSize) != imageSize)
 					return IL_FALSE;
 
 				ILuint BlockPos = 0;
-				for (ILuint y = 0; y < iCurImage->Height; y+=4)
+				for (ILuint y = 0; y < context->impl->iCurImage->Height; y+=4)
 				{
-					for (ILuint x = 0; x < iCurImage->Width; x+=4)
+					for (ILuint x = 0; x < context->impl->iCurImage->Width; x+=4)
 					{
-						ILuint ImagePos = y * iCurImage->Width + x;
+						ILuint ImagePos = y * context->impl->iCurImage->Width + x;
 						rg_etc1::unpack_etc1_block(&FullBuffer[BlockPos], (ILuint*)UnpackBuff, false);
 						ILuint c = 0;
 						for (ILuint y1 = 0; y1 < 4; y1++)
 						{
 							for (ILuint x1 = 0; x1 < 4; x1++)
 							{
-								Data[ImagePos + y1*iCurImage->Width + x1] = UnpackBuff[c++];
+								Data[ImagePos + y1*context->impl->iCurImage->Width + x1] = UnpackBuff[c++];
 							}
 						}
 						BlockPos += 8;
@@ -369,16 +369,16 @@ ILboolean iLoadKtxInternal()
 				break;
 		}
 
-		iCurImage->Origin = Origin;  //@TODO: Correct for all?
+		context->impl->iCurImage->Origin = Origin;  //@TODO: Correct for all?
 	}
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 
 // There are multiple items that can be in the key values, but all we care about
 //  right now is the orientation/origin data.
-ILboolean iKtxKeyValueData(ILuint bytesOfKeyValueData, ILenum &Origin)
+ILboolean iKtxKeyValueData(ILcontext* context, ILuint bytesOfKeyValueData, ILenum &Origin)
 {
 	ILubyte	*KeyValueData;
 	ILuint	Pos = 0, Length;
@@ -388,11 +388,11 @@ ILboolean iKtxKeyValueData(ILuint bytesOfKeyValueData, ILenum &Origin)
 	if (bytesOfKeyValueData == 0)
 		return IL_TRUE;
 
-	KeyValueData = (ILubyte*)ialloc(bytesOfKeyValueData);
+	KeyValueData = (ILubyte*)ialloc(context, bytesOfKeyValueData);
 	if (KeyValueData == NULL)
 		return IL_FALSE;
 
-	if (iread(KeyValueData, 1, bytesOfKeyValueData) != bytesOfKeyValueData)
+	if (context->impl->iread(context, KeyValueData, 1, bytesOfKeyValueData) != bytesOfKeyValueData)
 		return IL_FALSE;
 
 	// Just a very rudimentary check on the origin values
@@ -423,20 +423,20 @@ ILboolean iKtxKeyValueData(ILuint bytesOfKeyValueData, ILenum &Origin)
 }
 
 
-ILboolean iKtxReadMipmaps(ILboolean Compressed, ILuint NumMips, ILenum Origin)
+ILboolean iKtxReadMipmaps(ILcontext* context, ILboolean Compressed, ILuint NumMips, ILenum Origin)
 {
-	ILimage *Image = iCurImage;
-	ILuint Width = iCurImage->Width, Height = iCurImage->Height;
+	ILimage *Image = context->impl->iCurImage;
+	ILuint Width = context->impl->iCurImage->Width, Height = context->impl->iCurImage->Height;
 	ILuint imageSize, Padding, Pos;
 
 	for (ILuint Mip = 0; Mip < NumMips; Mip++)
 	{
-		imageSize = GetLittleUInt();
+		imageSize = GetLittleUInt(context);
 		Padding = 3 - ((Image->Bps + 3) % 4);
 
 		if (imageSize != Image->SizeOfData + Padding*Image->Height)
 		{
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			goto mip_fail;
 		}
 
@@ -444,7 +444,7 @@ ILboolean iKtxReadMipmaps(ILboolean Compressed, ILuint NumMips, ILenum Origin)
 		//  seems to imply dword-alignment of the entire image, but this is per scanline.
 		if (Image->Bps % 4 == 0)  // Required to be dword-aligned
 		{
-			if (iread(Image->Data, 1, Image->SizeOfData) != Image->SizeOfData)
+			if (context->impl->iread(context, Image->Data, 1, Image->SizeOfData) != Image->SizeOfData)
 				return IL_FALSE;
 		}
 		else  // Since not dword-aligned, have to read each line separately.
@@ -452,9 +452,9 @@ ILboolean iKtxReadMipmaps(ILboolean Compressed, ILuint NumMips, ILenum Origin)
 			Pos = 0;
 			for (ILuint h = 0; h < Height; h++)
 			{
-				if (iread(&Image->Data[Pos], 1, Image->Bps) != Image->Bps)
+				if (context->impl->iread(context, &Image->Data[Pos], 1, Image->Bps) != Image->Bps)
 					return IL_FALSE;
-				iseek(Padding, IL_SEEK_CUR);
+				context->impl->iseek(context, Padding, IL_SEEK_CUR);
 				Pos += Image->Bps;
 			}
 		}
@@ -465,7 +465,7 @@ ILboolean iKtxReadMipmaps(ILboolean Compressed, ILuint NumMips, ILenum Origin)
 
 		if (Mip < NumMips - 1)
 		{
-			Image->Mipmaps = ilNewImage(Width, Height, 1, Image->Bpp, Image->Bpc);
+			Image->Mipmaps = ilNewImage(context, Width, Height, 1, Image->Bpp, Image->Bpc);
 			if (Image->Mipmaps == NULL)
 				goto mip_fail;
 			Image->Mipmaps->Format = Image->Format;
@@ -477,7 +477,7 @@ ILboolean iKtxReadMipmaps(ILboolean Compressed, ILuint NumMips, ILenum Origin)
 	return IL_TRUE;
 
 mip_fail:
-	Image = iCurImage;
+	Image = context->impl->iCurImage;
 	ILimage *StartImage = Image->Mipmaps, *TempImage;
 	while (StartImage) {
 		TempImage = StartImage;

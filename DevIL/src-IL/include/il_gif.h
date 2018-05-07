@@ -58,14 +58,14 @@ typedef struct GFXCONTROL
 #endif
 
 // Internal functions
-ILboolean iLoadGifInternal(void);
-ILboolean ilLoadGifF(ILHANDLE File);
-ILboolean iIsValidGif(void);
-ILboolean iGetPalette(ILubyte Info, ILpal *Pal, ILboolean UsePrevPal, ILimage *PrevImage);
-ILboolean GetImages(ILpal *GlobalPal, GIFHEAD *GifHead);
-ILboolean SkipExtensions(GFXCONTROL *Gfx);
-ILboolean GifGetData(ILimage *Image, ILubyte *Data, ILuint ImageSize, ILuint Width, ILuint Height, ILuint Stride, ILuint PalOffset, GFXCONTROL *Gfx);
-ILboolean RemoveInterlace(ILimage *image);
-ILboolean ConvertTransparent(ILimage *Image, ILubyte TransColour);
+ILboolean iLoadGifInternal(ILcontext* context);
+ILboolean ilLoadGifF(ILcontext* context, ILHANDLE File);
+ILboolean iIsValidGif(ILcontext* context);
+ILboolean iGetPalette(ILcontext* context, ILubyte Info, ILpal *Pal, ILboolean UsePrevPal, ILimage *PrevImage);
+ILboolean GetImages(ILcontext* context, ILpal *GlobalPal, GIFHEAD *GifHead);
+ILboolean SkipExtensions(ILcontext* context, GFXCONTROL *Gfx);
+ILboolean GifGetData(ILcontext* context, ILimage *Image, ILubyte *Data, ILuint ImageSize, ILuint Width, ILuint Height, ILuint Stride, ILuint PalOffset, GFXCONTROL *Gfx);
+ILboolean RemoveInterlace(ILcontext* context, ILimage *image);
+ILboolean ConvertTransparent(ILcontext* context, ILimage *Image, ILubyte TransColour);
 
 #endif//GIF_H

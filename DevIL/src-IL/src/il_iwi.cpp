@@ -33,86 +33,86 @@ typedef struct IWIHEAD
 #define IWI_DXT3	0x0C
 #define IWI_DXT5	0x0D
 
-ILboolean iIsValidIwi(void);
+ILboolean iIsValidIwi(ILcontext* context);
 ILboolean iCheckIwi(IWIHEAD *Header);
-ILboolean iLoadIwiInternal(void);
-ILboolean IwiInitMipmaps(ILimage *BaseImage, ILuint *NumMips);
-ILboolean IwiReadImage(ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips);
+ILboolean iLoadIwiInternal(ILcontext* context);
+ILboolean IwiInitMipmaps(ILcontext* context, ILimage *BaseImage, ILuint *NumMips);
+ILboolean IwiReadImage(ILcontext* context, ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips);
 ILenum IwiGetFormat(ILubyte Format, ILubyte *Bpp);
 
 //! Checks if the file specified in FileName is a valid IWI file.
-ILboolean ilIsValidIwi(ILconst_string FileName)
+ILboolean ilIsValidIwi(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	IwiFile;
 	ILboolean	bIwi = IL_FALSE;
 	
 	if (!iCheckExtension(FileName, IL_TEXT("iwi"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bIwi;
 	}
 	
-	IwiFile = iopenr(FileName);
+	IwiFile = context->impl->iopenr(FileName);
 	if (IwiFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bIwi;
 	}
 	
-	bIwi = ilIsValidIwiF(IwiFile);
-	icloser(IwiFile);
+	bIwi = ilIsValidIwiF(context, IwiFile);
+	context->impl->icloser(IwiFile);
 	
 	return bIwi;
 }
 
 
 //! Checks if the ILHANDLE contains a valid IWI file at the current position.
-ILboolean ilIsValidIwiF(ILHANDLE File)
+ILboolean ilIsValidIwiF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidIwi();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidIwi(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid IWI lump.
-ILboolean ilIsValidIwiL(const void *Lump, ILuint Size)
+ILboolean ilIsValidIwiL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidIwi();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidIwi(context);
 }
 
 
 // Internal function used to get the IWI header from the current file.
-ILboolean iGetIwiHead(IWIHEAD *Header)
+ILboolean iGetIwiHead(ILcontext* context, IWIHEAD *Header)
 {
-	Header->Signature = GetLittleUInt();
-	Header->Format = igetc();
-	Header->Flags = igetc();  //@TODO: Find out what the flags mean.
-	Header->Width = GetLittleUShort();
-	Header->Height = GetLittleUShort();
+	Header->Signature = GetLittleUInt(context);
+	Header->Format = context->impl->igetc(context);
+	Header->Flags = context->impl->igetc(context);  //@TODO: Find out what the flags mean.
+	Header->Width = GetLittleUShort(context);
+	Header->Height = GetLittleUShort(context);
 
 	// @TODO: Find out what is in the rest of the header.
-	iseek(18, IL_SEEK_CUR);
+	context->impl->iseek(context, 18, IL_SEEK_CUR);
 
 	return IL_TRUE;
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidIwi(void)
+ILboolean iIsValidIwi(ILcontext* context)
 {
 	IWIHEAD		Header;
-	ILuint		Pos = itell();
+	ILuint		Pos = context->impl->itell(context);
 
-	if (!iGetIwiHead(&Header))
+	if (!iGetIwiHead(context, &Header))
 		return IL_FALSE;
 	// The length of the header varies, so we just go back to the original position.
-	iseek(Pos, IL_SEEK_CUR);
+	context->impl->iseek(context, Pos, IL_SEEK_CUR);
 
 	return iCheckIwi(&Header);
 }
@@ -139,49 +139,49 @@ ILboolean iCheckIwi(IWIHEAD *Header)
 
 
 //! Reads a IWI file
-ILboolean ilLoadIwi(ILconst_string FileName)
+ILboolean ilLoadIwi(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	IwiFile;
 	ILboolean	bIwi = IL_FALSE;
 	
-	IwiFile = iopenr(FileName);
+	IwiFile = context->impl->iopenr(FileName);
 	if (IwiFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bIwi;
 	}
 
-	bIwi = ilLoadIwiF(IwiFile);
-	icloser(IwiFile);
+	bIwi = ilLoadIwiF(context, IwiFile);
+	context->impl->icloser(IwiFile);
 
 	return bIwi;
 }
 
 
 //! Reads an already-opened IWI file
-ILboolean ilLoadIwiF(ILHANDLE File)
+ILboolean ilLoadIwiF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadIwiInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadIwiInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a IWI
-ILboolean ilLoadIwiL(const void *Lump, ILuint Size)
+ILboolean ilLoadIwiL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadIwiInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadIwiInternal(context);
 }
 
 
 // Internal function used to load the IWI.
-ILboolean iLoadIwiInternal(void)
+ILboolean iLoadIwiInternal(ILcontext* context)
 {
 	IWIHEAD		Header;
 	ILuint		NumMips = 0;
@@ -189,16 +189,16 @@ ILboolean iLoadIwiInternal(void)
 	ILenum		Format;
 	ILubyte		Bpp;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	// Read the header and check it.
-	if (!iGetIwiHead(&Header))
+	if (!iGetIwiHead(context, &Header))
 		return IL_FALSE;
 	if (!iCheckIwi(&Header)) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
@@ -208,16 +208,16 @@ ILboolean iLoadIwiInternal(void)
 
 	// Create the image, then create the mipmaps, then finally read the image.
 	Format = IwiGetFormat(Header.Format, &Bpp);
-	if (!ilTexImage(Header.Width, Header.Height, 1, Bpp, Format, IL_UNSIGNED_BYTE, NULL))
+	if (!ilTexImage(context, Header.Width, Header.Height, 1, Bpp, Format, IL_UNSIGNED_BYTE, NULL))
 		return IL_FALSE;
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 	if (HasMipmaps)
-		if (!IwiInitMipmaps(iCurImage, &NumMips))
+		if (!IwiInitMipmaps(context, context->impl->iCurImage, &NumMips))
 			return IL_FALSE;
-	if (!IwiReadImage(iCurImage, &Header, NumMips))
+	if (!IwiReadImage(context, context->impl->iCurImage, &Header, NumMips))
 		return IL_FALSE;
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 
@@ -254,7 +254,7 @@ ILenum IwiGetFormat(ILubyte Format, ILubyte *Bpp)
 
 
 // Function to intialize the mipmaps and determine the number of mipmaps.
-ILboolean IwiInitMipmaps(ILimage *BaseImage, ILuint *NumMips)
+ILboolean IwiInitMipmaps(ILcontext* context, ILimage *BaseImage, ILuint *NumMips)
 {
 	ILimage	*Image;
 	ILuint	Width, Height, Mipmap;
@@ -268,7 +268,7 @@ ILboolean IwiInitMipmaps(ILimage *BaseImage, ILuint *NumMips)
 		Width = (Width >> 1) == 0 ? 1 : (Width >> 1);
 		Height = (Height >> 1) == 0 ? 1 : (Height >> 1);
 
-		Image->Mipmaps = ilNewImageFull(Width, Height, 1, BaseImage->Bpp, BaseImage->Format, BaseImage->Type, NULL);
+		Image->Mipmaps = ilNewImageFull(context, Width, Height, 1, BaseImage->Bpp, BaseImage->Format, BaseImage->Type, NULL);
 		if (Image->Mipmaps == NULL)
 			return IL_FALSE;
 		Image = Image->Mipmaps;
@@ -285,7 +285,7 @@ ILboolean IwiInitMipmaps(ILimage *BaseImage, ILuint *NumMips)
 }
 
 
-ILboolean IwiReadImage(ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips)
+ILboolean IwiReadImage(ILcontext* context, ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips)
 {
 	ILimage	*Image;
 	ILuint	SizeOfData;
@@ -304,17 +304,17 @@ ILboolean IwiReadImage(ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips)
 			case IWI_ARGB8: // These are all
 			case IWI_RGB8:  //  uncompressed data,
 			case IWI_A8:    //  so just read it.
-				if (iread(Image->Data, 1, Image->SizeOfData) != Image->SizeOfData)
+				if (context->impl->iread(context, Image->Data, 1, Image->SizeOfData) != Image->SizeOfData)
 					return IL_FALSE;
 				break;
 
 			case IWI_ARGB4:  //@TODO: Find some test images for this.
 				// Data is in ARGB4 format - 4 bits per component.
 				SizeOfData = Image->Width * Image->Height * 2;
-				CompData = (ILubyte*)ialloc(SizeOfData);  // Not really compressed - just in ARGB4 format.
+				CompData = (ILubyte*)ialloc(context, SizeOfData);  // Not really compressed - just in ARGB4 format.
 				if (CompData == NULL)
 					return IL_FALSE;
-				if (iread(CompData, 1, SizeOfData) != SizeOfData) {
+				if (context->impl->iread(context, CompData, 1, SizeOfData) != SizeOfData) {
 					ifree(CompData);
 					return IL_FALSE;
 				}
@@ -330,10 +330,10 @@ ILboolean IwiReadImage(ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips)
 			case IWI_DXT1:
 				// DXT1 data has at least 8 bytes, even for one pixel.
 				SizeOfData = IL_MAX(Image->Width * Image->Height / 2, 8);
-				CompData = (ILubyte*)ialloc(SizeOfData);  // Gives a 6:1 compression ratio (or 8:1 for DXT1 with alpha)
+				CompData = (ILubyte*)ialloc(context, SizeOfData);  // Gives a 6:1 compression ratio (or 8:1 for DXT1 with alpha)
 				if (CompData == NULL)
 					return IL_FALSE;
-				if (iread(CompData, 1, SizeOfData) != SizeOfData) {
+				if (context->impl->iread(context, CompData, 1, SizeOfData) != SizeOfData) {
 					ifree(CompData);
 					return IL_FALSE;
 				}
@@ -345,7 +345,7 @@ ILboolean IwiReadImage(ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips)
 				}
 
 				// Keep a copy of the DXTC data if the user wants it.
-				if (ilGetInteger(IL_KEEP_DXTC_DATA) == IL_TRUE) {
+				if (ilGetInteger(context, IL_KEEP_DXTC_DATA) == IL_TRUE) {
 					Image->DxtcSize = SizeOfData;
 					Image->DxtcData = CompData;
 					Image->DxtcFormat = IL_DXT1;
@@ -357,10 +357,10 @@ ILboolean IwiReadImage(ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips)
 			case IWI_DXT3:
 				// DXT3 data has at least 16 bytes, even for one pixel.
 				SizeOfData = IL_MAX(Image->Width * Image->Height, 16);
-				CompData = (ILubyte*)ialloc(SizeOfData);  // Gives a 4:1 compression ratio
+				CompData = (ILubyte*)ialloc(context, SizeOfData);  // Gives a 4:1 compression ratio
 				if (CompData == NULL)
 					return IL_FALSE;
-				if (iread(CompData, 1, SizeOfData) != SizeOfData) {
+				if (context->impl->iread(context, CompData, 1, SizeOfData) != SizeOfData) {
 					ifree(CompData);
 					return IL_FALSE;
 				}
@@ -375,10 +375,10 @@ ILboolean IwiReadImage(ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips)
 			case IWI_DXT5:
 				// DXT5 data has at least 16 bytes, even for one pixel.
 				SizeOfData = IL_MAX(Image->Width * Image->Height, 16);
-				CompData = (ILubyte*)ialloc(SizeOfData);  // Gives a 4:1 compression ratio
+				CompData = (ILubyte*)ialloc(context, SizeOfData);  // Gives a 4:1 compression ratio
 				if (CompData == NULL)
 					return IL_FALSE;
-				if (iread(CompData, 1, SizeOfData) != SizeOfData) {
+				if (context->impl->iread(context, CompData, 1, SizeOfData) != SizeOfData) {
 					ifree(CompData);
 					return IL_FALSE;
 				}

@@ -33,10 +33,10 @@ static ILfloat	*FloatPtr, *SFloatPtr;
 
 
 
-ILimage *iluScale2D_(ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
+ILimage *iluScale2D_(ILcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
 {
 	if (Image == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 

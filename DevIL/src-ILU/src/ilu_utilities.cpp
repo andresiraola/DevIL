@@ -14,33 +14,33 @@
 #include "ilu_internal.h"
 
 
-void ILAPIENTRY iluDeleteImage(ILuint Id)
+void ILAPIENTRY iluDeleteImage(ILcontext* context, ILuint Id)
 {
-	ilDeleteImages(1, &Id);
+	ilDeleteImages(context, 1, &Id);
 	return;
 }
 
 
-ILuint ILAPIENTRY iluGenImage()
+ILuint ILAPIENTRY iluGenImage(ILcontext* context)
 {
 	ILuint Id;
-	ilGenImages(1, &Id);
-	ilBindImage(Id);
+	ilGenImages(context, 1, &Id);
+	ilBindImage(context, Id);
 	return Id;
 }
 
 
 //! Retrieves information about the current bound image.
-void ILAPIENTRY iluGetImageInfo(ILinfo *Info)
+void ILAPIENTRY iluGetImageInfo(ILcontext* context, ILinfo *Info)
 {
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL || Info == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return;
 	}
 
-	Info->Id			= ilGetCurName();
-	Info->Data			= ilGetData();
+	Info->Id			= ilGetCurName(context);
+	Info->Data			= ilGetData(context);
 	Info->Width			= iluCurImage->Width;
 	Info->Height		= iluCurImage->Height;
 	Info->Depth			= iluCurImage->Depth;
@@ -52,11 +52,11 @@ void ILAPIENTRY iluGetImageInfo(ILinfo *Info)
 	Info->Palette		= iluCurImage->Pal.Palette;
 	Info->PalType		= iluCurImage->Pal.PalType;
 	Info->PalSize		= iluCurImage->Pal.PalSize;
-	iGetIntegervImage(iluCurImage, IL_NUM_IMAGES,             
+	iGetIntegervImage(context, iluCurImage, IL_NUM_IMAGES,             
 	                        (ILint*)&Info->NumNext);
-	iGetIntegervImage(iluCurImage, IL_NUM_MIPMAPS, 
+	iGetIntegervImage(context, iluCurImage, IL_NUM_MIPMAPS, 
 	                        (ILint*)&Info->NumMips);
-	iGetIntegervImage(iluCurImage, IL_NUM_LAYERS, 
+	iGetIntegervImage(context, iluCurImage, IL_NUM_LAYERS, 
 	                        (ILint*)&Info->NumLayers);
 	
 	return;

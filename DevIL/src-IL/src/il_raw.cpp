@@ -15,126 +15,126 @@
 #ifndef IL_NO_RAW
 
 
-ILboolean iLoadRawInternal(void);
-ILboolean iSaveRawInternal(void);
+ILboolean iLoadRawInternal(ILcontext* context);
+ILboolean iSaveRawInternal(ILcontext* context);
 
 
 //! Reads a raw file
-ILboolean ilLoadRaw(ILconst_string FileName)
+ILboolean ilLoadRaw(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	RawFile;
 	ILboolean	bRaw = IL_FALSE;
 
 	// No need to check for raw
 	/*if (!iCheckExtension(FileName, "raw")) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bRaw;
 	}*/
 
-	RawFile = iopenr(FileName);
+	RawFile = context->impl->iopenr(FileName);
 	if (RawFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bRaw;
 	}
 
-	bRaw = ilLoadRawF(RawFile);
-	icloser(RawFile);
+	bRaw = ilLoadRawF(context, RawFile);
+	context->impl->icloser(RawFile);
 
 	return bRaw;
 }
 
 
 //! Reads an already-opened raw file
-ILboolean ilLoadRawF(ILHANDLE File)
+ILboolean ilLoadRawF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadRawInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadRawInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a raw memory "lump"
-ILboolean ilLoadRawL(const void *Lump, ILuint Size)
+ILboolean ilLoadRawL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadRawInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadRawInternal(context);
 }
 
 
 // Internal function to load a raw image
-ILboolean iLoadRawInternal()
+ILboolean iLoadRawInternal(ILcontext* context)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 
-	iCurImage->Width = GetLittleUInt();
+	context->impl->iCurImage->Width = GetLittleUInt(context);
 
-	iCurImage->Height = GetLittleUInt();
+	context->impl->iCurImage->Height = GetLittleUInt(context);
 
-	iCurImage->Depth = GetLittleUInt();
+	context->impl->iCurImage->Depth = GetLittleUInt(context);
 
-	iCurImage->Bpp = (ILubyte)igetc();
+	context->impl->iCurImage->Bpp = (ILubyte)context->impl->igetc(context);
 
-	if (iread(&iCurImage->Bpc, 1, 1) != 1)
+	if (context->impl->iread(context, &context->impl->iCurImage->Bpc, 1, 1) != 1)
 		return IL_FALSE;
 
-	if (!ilTexImage(iCurImage->Width, iCurImage->Height, iCurImage->Depth, iCurImage->Bpp, 0, ilGetTypeBpc(iCurImage->Bpc), NULL)) {
+	if (!ilTexImage(context, context->impl->iCurImage->Width, context->impl->iCurImage->Height, context->impl->iCurImage->Depth, context->impl->iCurImage->Bpp, 0, ilGetTypeBpc(context->impl->iCurImage->Bpc), NULL)) {
 		return IL_FALSE;
 	}
-	iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
 
 	// Tries to read the correct amount of data
-	if (iread(iCurImage->Data, 1, iCurImage->SizeOfData) < iCurImage->SizeOfData)
+	if (context->impl->iread(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfData) < context->impl->iCurImage->SizeOfData)
 		return IL_FALSE;
 
-	if (ilIsEnabled(IL_ORIGIN_SET)) {
-		iCurImage->Origin = ilGetInteger(IL_ORIGIN_MODE);
+	if (ilIsEnabled(context, IL_ORIGIN_SET)) {
+		context->impl->iCurImage->Origin = ilGetInteger(context, IL_ORIGIN_MODE);
 	}
 	else {
-		iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+		context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 	}
 
-	if (iCurImage->Bpp == 1)
-		iCurImage->Format = IL_LUMINANCE;
-	else if (iCurImage->Bpp == 3)
-		iCurImage->Format = IL_RGB;
+	if (context->impl->iCurImage->Bpp == 1)
+		context->impl->iCurImage->Format = IL_LUMINANCE;
+	else if (context->impl->iCurImage->Bpp == 3)
+		context->impl->iCurImage->Format = IL_RGB;
 	else  // 4
-		iCurImage->Format = IL_RGBA;
+		context->impl->iCurImage->Format = IL_RGBA;
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 
 //! Writes a Raw file
-ILboolean ilSaveRaw(const ILstring FileName)
+ILboolean ilSaveRaw(ILcontext* context, const ILstring FileName)
 {
 	ILHANDLE	RawFile;
 	ILuint		RawSize;
 
-	if (ilGetBoolean(IL_FILE_MODE) == IL_FALSE) {
+	if (ilGetBoolean(context, IL_FILE_MODE) == IL_FALSE) {
 		if (iFileExists(FileName)) {
-			ilSetError(IL_FILE_ALREADY_EXISTS);
+			ilSetError(context, IL_FILE_ALREADY_EXISTS);
 			return IL_FALSE;
 		}
 	}
 
-	RawFile = iopenw(FileName);
+	RawFile = context->impl->iopenw(FileName);
 	if (RawFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	RawSize = ilSaveRawF(RawFile);
-	iclosew(RawFile);
+	RawSize = ilSaveRawF(context, RawFile);
+	context->impl->iclosew(RawFile);
 
 	if (RawSize == 0)
 		return IL_FALSE;
@@ -143,43 +143,43 @@ ILboolean ilSaveRaw(const ILstring FileName)
 
 
 //! Writes Raw to an already-opened file
-ILuint ilSaveRawF(ILHANDLE File)
+ILuint ilSaveRawF(ILcontext* context, ILHANDLE File)
 {
 	ILuint Pos;
-	iSetOutputFile(File);
-	Pos = itellw();
-	if (iSaveRawInternal() == IL_FALSE)
+	iSetOutputFile(context, File);
+	Pos = context->impl->itellw(context);
+	if (iSaveRawInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 //! Writes Raw to a memory "lump"
-ILuint ilSaveRawL(void *Lump, ILuint Size)
+ILuint ilSaveRawL(ILcontext* context, void *Lump, ILuint Size)
 {
 	ILuint Pos;
-	iSetOutputLump(Lump, Size);
-	Pos = itellw();
-	if (iSaveRawInternal() == IL_FALSE)
+	iSetOutputLump(context, Lump, Size);
+	Pos = context->impl->itellw(context);
+	if (iSaveRawInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 // Internal function used to load the raw data.
-ILboolean iSaveRawInternal()
+ILboolean iSaveRawInternal(ILcontext* context)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	SaveLittleUInt(iCurImage->Width);
-	SaveLittleUInt(iCurImage->Height);
-	SaveLittleUInt(iCurImage->Depth);
-	iputc(iCurImage->Bpp);
-	iputc(iCurImage->Bpc);
-	iwrite(iCurImage->Data, 1, iCurImage->SizeOfData);
+	SaveLittleUInt(context, context->impl->iCurImage->Width);
+	SaveLittleUInt(context, context->impl->iCurImage->Height);
+	SaveLittleUInt(context, context->impl->iCurImage->Depth);
+	context->impl->iputc(context, context->impl->iCurImage->Bpp);
+	context->impl->iputc(context, context->impl->iCurImage->Bpc);
+	context->impl->iwrite(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfData);
 
 	return IL_TRUE;
 }

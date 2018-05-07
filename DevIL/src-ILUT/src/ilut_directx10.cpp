@@ -65,7 +65,7 @@ void CheckFormatsDX10(ID3D10Device *Device)
 #ifndef _WIN32_WCE
 ILboolean ILAPIENTRY ilutD3D10TexFromFile(ID3D10Device *Device, ILconst_string FileName, ID3D10Texture2D **Texture)
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadImage(FileName))
 		return IL_FALSE;
 
@@ -78,7 +78,7 @@ ILboolean ILAPIENTRY ilutD3D10TexFromFile(ID3D10Device *Device, ILconst_string F
 
 ILboolean ILAPIENTRY ilutD3D10TexFromFileInMemory(ID3D10Device *Device, void *Lump, ILuint Size, ID3D10Texture2D **Texture)
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadL(IL_TYPE_UNKNOWN, Lump, Size))
 		return IL_FALSE;
 
@@ -93,7 +93,7 @@ ILboolean ILAPIENTRY ilutD3D10TexFromResource(ID3D10Device *Device, HMODULE SrcM
 	HRSRC	Resource;
 	ILubyte	*Data;
 
-	iBindImageTemp();
+	iBindImageTemp(context);
 
 	Resource = (HRSRC)LoadResource(SrcModule, FindResource(SrcModule, SrcResource, RT_BITMAP));
 	Data = (ILubyte*)LockResource(Resource);
@@ -108,7 +108,7 @@ ILboolean ILAPIENTRY ilutD3D10TexFromResource(ID3D10Device *Device, HMODULE SrcM
 
 ILboolean ILAPIENTRY ilutD3D10TexFromFileHandle(ID3D10Device *Device, ILHANDLE File, ID3D10Texture2D **Texture)
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadF(IL_TYPE_UNKNOWN, File))
 		return IL_FALSE;
 
@@ -185,9 +185,9 @@ ID3D10Texture2D* ILAPIENTRY ilutD3D10Texture(ID3D10Device *Device)
 	DXGI_FORMAT Format;
 	ILimage	*Image;
 
-	Image = ilutCurImage = ilGetCurImage();
+	Image = ilutCurImage = ilGetCurImage(context);
 	if (ilutCurImage == NULL) {
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return NULL;
 	}
 
@@ -284,7 +284,7 @@ ILimage *MakeD3D10Compliant(ID3D10Device *Device, DXGI_FORMAT *DestFormat)
 	if (ilNextPower2(ilutCurImage->Width) != ilutCurImage->Width ||
 		ilNextPower2(ilutCurImage->Height) != ilutCurImage->Height ||
 		ilNextPower2(ilutCurImage->Depth) != ilutCurImage->Depth) {
-			Scaled = iluScale_(Converted, ilNextPower2(ilutCurImage->Width),
+			Scaled = iluScale_(context, Converted, ilNextPower2(ilutCurImage->Width),
 						ilNextPower2(ilutCurImage->Height), 1);  //@TODO: 1 should be ilNextPower2(ilutCurImage->Depth)
 			if (Converted != ilutCurImage) {
 				ilCloseImage(Converted);

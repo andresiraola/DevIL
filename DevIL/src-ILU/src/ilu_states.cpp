@@ -19,7 +19,7 @@ ILconst_string _iluVendor	= IL_TEXT("Abysmal Software");
 ILconst_string _iluVersion	= IL_TEXT("Developer's Image Library Utilities (ILU) 1.8.0");// IL_TEXT(__DATE__));
 
 
-ILstring ILAPIENTRY iluGetString(ILenum StringName)
+ILstring ILAPIENTRY iluGetString(ILcontext* context, ILenum StringName)
 {
 	switch (StringName)
 	{
@@ -29,14 +29,14 @@ ILstring ILAPIENTRY iluGetString(ILenum StringName)
 		case ILU_VERSION_NUM:
 			return (ILstring)_iluVersion;
 		default:
-			ilSetError(ILU_INVALID_PARAM);
+			ilSetError(context, ILU_INVALID_PARAM);
 			break;
 	}
 	return NULL;
 }
 
 
-void ILAPIENTRY iluGetIntegerv(ILenum Mode, ILint *Param)
+void ILAPIENTRY iluGetIntegerv(ILcontext* context, ILenum Mode, ILint *Param)
 {
 	switch (Mode)
 	{
@@ -49,17 +49,17 @@ void ILAPIENTRY iluGetIntegerv(ILenum Mode, ILint *Param)
 			break;
 
 		default:
-			ilSetError(ILU_INVALID_ENUM);
+			ilSetError(context, ILU_INVALID_ENUM);
 	}
 	return;
 }
 
 
-ILint ILAPIENTRY iluGetInteger(ILenum Mode)
+ILint ILAPIENTRY iluGetInteger(ILcontext* context, ILenum Mode)
 {
 	ILint Temp;
 	Temp = 0;
-	iluGetIntegerv(Mode, &Temp);
+	iluGetIntegerv(context, Mode, &Temp);
 	return Temp;
 }
 
@@ -67,7 +67,7 @@ ILint ILAPIENTRY iluGetInteger(ILenum Mode)
 ILenum iluFilter = ILU_NEAREST;
 ILenum iluPlacement = ILU_CENTER;
 
-void ILAPIENTRY iluImageParameter(ILenum PName, ILenum Param)
+void ILAPIENTRY iluImageParameter(ILcontext* context, ILenum PName, ILenum Param)
 {
 	switch (PName)
 	{
@@ -86,7 +86,7 @@ void ILAPIENTRY iluImageParameter(ILenum PName, ILenum Param)
 					iluFilter = Param;
 					break;
 				default:
-					ilSetError(ILU_INVALID_ENUM);
+					ilSetError(context, ILU_INVALID_ENUM);
 					return;
 			}
 			break;
@@ -102,13 +102,13 @@ void ILAPIENTRY iluImageParameter(ILenum PName, ILenum Param)
 					iluPlacement = Param;
 					break;
 				default:
-					ilSetError(ILU_INVALID_ENUM);
+					ilSetError(context, ILU_INVALID_ENUM);
 					return;
 			}
 			break;
 
 		default:
-			ilSetError(ILU_INVALID_ENUM);
+			ilSetError(context, ILU_INVALID_ENUM);
 			return;
 	}
 	return;

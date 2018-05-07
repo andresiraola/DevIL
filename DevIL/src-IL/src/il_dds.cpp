@@ -51,83 +51,83 @@ ILuint CubemapDirections[CUBEMAP_SIDES] = {
 
 
 //! Checks if the file specified in FileName is a valid .dds file.
-ILboolean ilIsValidDds(ILconst_string FileName)
+ILboolean ilIsValidDds(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	DdsFile;
 	ILboolean	bDds = IL_FALSE;
 
 	if (!iCheckExtension(FileName, IL_TEXT("dds"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bDds;
 	}
 
-	DdsFile = iopenr(FileName);
+	DdsFile = context->impl->iopenr(FileName);
 	if (DdsFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bDds;
 	}
 
-	bDds = ilIsValidDdsF(DdsFile);
-	icloser(DdsFile);
+	bDds = ilIsValidDdsF(context, DdsFile);
+	context->impl->icloser(DdsFile);
 
 	return bDds;
 }
 
 
 //! Checks if the ILHANDLE contains a valid .dds file at the current position.
-ILboolean ilIsValidDdsF(ILHANDLE File)
+ILboolean ilIsValidDdsF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidDds();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidDds(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid .dds lump.
-ILboolean ilIsValidDdsL(const void *Lump, ILuint Size)
+ILboolean ilIsValidDdsL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidDds();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidDds(context);
 }
 
 
 // Internal function used to get the .dds header from the current file.
-ILboolean iGetDdsHead(DDSHEAD *Header)
+ILboolean iGetDdsHead(ILcontext* context, DDSHEAD *Header)
 {
 	ILint i;
 
-	iread(&Header->Signature, 1, 4);
-	Header->Size1 = GetLittleUInt();
-	Header->Flags1 = GetLittleUInt();
-	Header->Height = GetLittleUInt();
-	Header->Width = GetLittleUInt();
-	Header->LinearSize = GetLittleUInt();
-	Header->Depth = GetLittleUInt();
-	Header->MipMapCount = GetLittleUInt();
-	Header->AlphaBitDepth = GetLittleUInt();
+	context->impl->iread(context, &Header->Signature, 1, 4);
+	Header->Size1 = GetLittleUInt(context);
+	Header->Flags1 = GetLittleUInt(context);
+	Header->Height = GetLittleUInt(context);
+	Header->Width = GetLittleUInt(context);
+	Header->LinearSize = GetLittleUInt(context);
+	Header->Depth = GetLittleUInt(context);
+	Header->MipMapCount = GetLittleUInt(context);
+	Header->AlphaBitDepth = GetLittleUInt(context);
 
 	for (i = 0; i < 10; ++i)
-		Header->NotUsed[i] = GetLittleUInt();
+		Header->NotUsed[i] = GetLittleUInt(context);
 
-	Header->Size2 = GetLittleUInt();
-	Header->Flags2 = GetLittleUInt();
-	Header->FourCC = GetLittleUInt();
-	Header->RGBBitCount = GetLittleUInt();
-	Header->RBitMask = GetLittleUInt();
-	Header->GBitMask = GetLittleUInt();
-	Header->BBitMask = GetLittleUInt();
-	Header->RGBAlphaBitMask = GetLittleUInt();
-	Header->ddsCaps1 = GetLittleUInt();
-	Header->ddsCaps2 = GetLittleUInt();
-	Header->ddsCaps3 = GetLittleUInt();
-	Header->ddsCaps4 = GetLittleUInt();
-	Header->TextureStage = GetLittleUInt();
+	Header->Size2 = GetLittleUInt(context);
+	Header->Flags2 = GetLittleUInt(context);
+	Header->FourCC = GetLittleUInt(context);
+	Header->RGBBitCount = GetLittleUInt(context);
+	Header->RBitMask = GetLittleUInt(context);
+	Header->GBitMask = GetLittleUInt(context);
+	Header->BBitMask = GetLittleUInt(context);
+	Header->RGBAlphaBitMask = GetLittleUInt(context);
+	Header->ddsCaps1 = GetLittleUInt(context);
+	Header->ddsCaps2 = GetLittleUInt(context);
+	Header->ddsCaps3 = GetLittleUInt(context);
+	Header->ddsCaps4 = GetLittleUInt(context);
+	Header->TextureStage = GetLittleUInt(context);
 
 	if (Head.Depth == 0)
 		Head.Depth = 1;
@@ -137,26 +137,26 @@ ILboolean iGetDdsHead(DDSHEAD *Header)
 
 
 // Internal function used to get the DirectX 10 DDS header extension (24 bytes)
-ILboolean iGetDXT10Head(DXT10HEAD *Header)
+ILboolean iGetDXT10Head(ILcontext* context, DXT10HEAD *Header)
 {
-	Header->dxgiFormat = GetLittleUInt();
-	Header->resourceDimension = GetLittleUInt();
-	Header->miscFlag = GetLittleUInt();
-	Header->arraySize = GetLittleUInt();
-	Header->miscFlags2 = GetLittleUInt();
+	Header->dxgiFormat = GetLittleUInt(context);
+	Header->resourceDimension = GetLittleUInt(context);
+	Header->miscFlag = GetLittleUInt(context);
+	Header->arraySize = GetLittleUInt(context);
+	Header->miscFlags2 = GetLittleUInt(context);
 
 	return IL_TRUE;
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidDds()
+ILboolean iIsValidDds(ILcontext* context)
 {
 	ILboolean	IsValid;
 	DDSHEAD		Head;
 
-	iGetDdsHead(&Head);
-	iseek(-(ILint)sizeof(DDSHEAD), IL_SEEK_CUR);  // Go ahead and restore to previous state
+	iGetDdsHead(context, &Head);
+	context->impl->iseek(context, -(ILint)sizeof(DDSHEAD), IL_SEEK_CUR);  // Go ahead and restore to previous state
 
 	IsValid = iCheckDds(&Head);
 
@@ -196,44 +196,44 @@ ILboolean iCheckDxt10(DXT10HEAD *Head)
 
 
 //! Reads a .dds file
-ILboolean ilLoadDds(ILconst_string FileName)
+ILboolean ilLoadDds(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	DdsFile;
 	ILboolean	bDds = IL_FALSE;
 
-	DdsFile = iopenr(FileName);
+	DdsFile = context->impl->iopenr(FileName);
 	if (DdsFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bDds;
 	}
 
-	bDds = ilLoadDdsF(DdsFile);
-	icloser(DdsFile);
+	bDds = ilLoadDdsF(context, DdsFile);
+	context->impl->icloser(DdsFile);
 
 	return bDds;
 }
 
 
 //! Reads an already-opened .dds file
-ILboolean ilLoadDdsF(ILHANDLE File)
+ILboolean ilLoadDdsF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadDdsInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadDdsInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a .dds
-ILboolean ilLoadDdsL(const void *Lump, ILuint Size)
+ILboolean ilLoadDdsL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadDdsInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadDdsInternal(context);
 }
 
 
@@ -309,7 +309,7 @@ ILubyte iCompFormatToChannelCount(ILenum Format)
 }
 
 
-ILboolean iLoadDdsCubemapInternal(ILuint CompFormat, ILboolean IsDXT10)
+ILboolean iLoadDdsCubemapInternal(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
 {
 	ILuint	i;
 	ILubyte	Bpp, Channels, Bpc;
@@ -336,7 +336,7 @@ ILboolean iLoadDdsCubemapInternal(ILuint CompFormat, ILboolean IsDXT10)
 		Depth = Head.Depth;
 		if (Head.ddsCaps2 & CubemapDirections[i]) {
 			if (i != 0) {
-				Image->Faces = ilNewImage(Width, Height, Depth, Channels, Bpc);
+				Image->Faces = ilNewImage(context, Width, Height, Depth, Channels, Bpc);
 				if (Image->Faces == NULL)
 					return IL_FALSE;
 
@@ -354,15 +354,15 @@ ILboolean iLoadDdsCubemapInternal(ILuint CompFormat, ILboolean IsDXT10)
 					Image->Bpp = Channels;
 				}
 
-				ilBindImage(ilGetCurName()); // Set to parent image first.
-				//ilActiveImage(i); //@TODO: now Image == iCurImage...globals SUCK, fix this!!!
-				ilActiveFace(i);
+				ilBindImage(context, ilGetCurName(context)); // Set to parent image first.
+				//ilActiveImage(context, i); //@TODO: now Image == context->impl->iCurImage...globals SUCK, fix this!!!
+				ilActiveFace(context, i);
 			}
 
-			if (!ReadData(CompFormat, IsDXT10))
+			if (!ReadData(context, CompFormat, IsDXT10))
 				return IL_FALSE;
 
-			if (!AllocImage(CompFormat, IsDXT10)) {
+			if (!AllocImage(context, CompFormat, IsDXT10)) {
 				if (CompData) {
 					ifree(CompData);
 					CompData = NULL;
@@ -372,7 +372,7 @@ ILboolean iLoadDdsCubemapInternal(ILuint CompFormat, ILboolean IsDXT10)
 
 			Image->CubeFlags = CubemapDirections[i];
 
-			if (!DdsDecompress(CompFormat, IsDXT10)) {
+			if (!DdsDecompress(context, CompFormat, IsDXT10)) {
 				if (CompData) {
 					ifree(CompData);
 					CompData = NULL;
@@ -380,7 +380,7 @@ ILboolean iLoadDdsCubemapInternal(ILuint CompFormat, ILboolean IsDXT10)
 				return IL_FALSE;
 			}
 
-			if (!ReadMipmaps(CompFormat, IsDXT10)) {
+			if (!ReadMipmaps(context, CompFormat, IsDXT10)) {
 				if (CompData) {
 					ifree(CompData);
 					CompData = NULL;
@@ -395,12 +395,12 @@ ILboolean iLoadDdsCubemapInternal(ILuint CompFormat, ILboolean IsDXT10)
 		CompData = NULL;
 	}
 
-	ilBindImage(ilGetCurName());  // Set to parent image first.
-	return ilFixImage();
+	ilBindImage(context, ilGetCurName(context));  // Set to parent image first.
+	return ilFixImage(context);
 }
 
 
-ILboolean iLoadDdsInternal()
+ILboolean iLoadDdsInternal(ILcontext* context)
 {
 	ILuint		BlockSize = 0;
 	ILuint		CompFormat;
@@ -409,41 +409,41 @@ ILboolean iLoadDdsInternal()
 	CompData = NULL;
 	Image = NULL;
 
-	if (iCurImage == NULL)
+	if (context->impl->iCurImage == NULL)
 	{
-		ilSetError(IL_ILLEGAL_OPERATION);
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	if (!iGetDdsHead(&Head))
+	if (!iGetDdsHead(context, &Head))
 	{
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 	if (!iCheckDds(&Head))
 	{
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
 	BlockSize = DecodePixelFormat(&CompFormat);
 	if (CompFormat == PF_UNKNOWN)
 	{
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
 	if (CompFormat == PF_DX10)
 	{
 		IsDXT10 = IL_TRUE;
-		if (!iGetDXT10Head(&HeadDXT10))
+		if (!iGetDXT10Head(context, &HeadDXT10))
 		{
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return IL_FALSE;
 		}
 		if (!iCheckDxt10(&HeadDXT10))
 		{
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return IL_FALSE;
 		}
 
@@ -463,10 +463,10 @@ ILboolean iLoadDdsInternal()
 		Head.LinearSize = BlockSize;
 	}
 
-	Image = iCurImage;
+	Image = context->impl->iCurImage;
 	if (Head.ddsCaps1 & DDS_COMPLEX) {
 		if (Head.ddsCaps2 & DDS_CUBEMAP) {
-			if (!iLoadDdsCubemapInternal(CompFormat, IsDXT10))
+			if (!iLoadDdsCubemapInternal(context, CompFormat, IsDXT10))
 				return IL_FALSE;
 			return IL_TRUE;
 		}
@@ -477,16 +477,16 @@ ILboolean iLoadDdsInternal()
 	Depth = Head.Depth;
 	AdjustVolumeTexture(&Head, CompFormat, IsDXT10);
 
-	if (!ReadData(CompFormat, IsDXT10))
+	if (!ReadData(context, CompFormat, IsDXT10))
 		return IL_FALSE;
-	if (!AllocImage(CompFormat, IsDXT10)) {
+	if (!AllocImage(context, CompFormat, IsDXT10)) {
 		if (CompData) {
 			ifree(CompData);
 			CompData = NULL;
 		}
 		return IL_FALSE;
 	}
-	if (!DdsDecompress(CompFormat, IsDXT10)) {
+	if (!DdsDecompress(context, CompFormat, IsDXT10)) {
 		if (CompData) {
 			ifree(CompData);
 			CompData = NULL;
@@ -494,7 +494,7 @@ ILboolean iLoadDdsInternal()
 		return IL_FALSE;
 	}
 
-	if (!ReadMipmaps(CompFormat, IsDXT10)) {
+	if (!ReadMipmaps(context, CompFormat, IsDXT10)) {
 		if (CompData) {
 			ifree(CompData);
 			CompData = NULL;
@@ -507,8 +507,8 @@ ILboolean iLoadDdsInternal()
 		CompData = NULL;
 	}
 
-	ilBindImage(ilGetCurName());  // Set to parent image first.
-	return ilFixImage();
+	ilBindImage(context, ilGetCurName(context));  // Set to parent image first.
+	return ilFixImage(context);
 }
 
 
@@ -824,7 +824,7 @@ void AdjustVolumeTexture(DDSHEAD *Head, ILuint CompFormat, ILboolean IsDXT10)
 
 
 // Reads the compressed data
-ILboolean ReadData(ILuint CompFormat, ILboolean IsDXT10)
+ILboolean ReadData(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
 {
 	ILuint	Bps;
 	ILint	y, z;
@@ -838,12 +838,12 @@ ILboolean ReadData(ILuint CompFormat, ILboolean IsDXT10)
 	if (Head.Flags1 & DDS_LINEARSIZE) {
 		//Head.LinearSize = Head.LinearSize * Depth;
 
-		CompData = (ILubyte*)ialloc(Head.LinearSize);
+		CompData = (ILubyte*)ialloc(context, Head.LinearSize);
 		if (CompData == NULL) {
 			return IL_FALSE;
 		}
 
-		if (iread(CompData, 1, Head.LinearSize) != (ILuint)Head.LinearSize) {
+		if (context->impl->iread(context, CompData, 1, Head.LinearSize) != (ILuint)Head.LinearSize) {
 			ifree(CompData);
 			CompData = NULL;
 			return IL_FALSE;
@@ -856,11 +856,11 @@ ILboolean ReadData(ILuint CompFormat, ILboolean IsDXT10)
 			Bps = Width * Head.RGBBitCount / 8;
 		CompSize = Bps * Height * Depth;
 		if (CompSize == 0) {
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return IL_FALSE;
 		}
 
-		CompData = (ILubyte*)ialloc(CompSize);
+		CompData = (ILubyte*)ialloc(context, CompSize);
 		if (CompData == NULL) {
 			return IL_FALSE;
 		}
@@ -868,7 +868,7 @@ ILboolean ReadData(ILuint CompFormat, ILboolean IsDXT10)
 		Temp = CompData;
 		for (z = 0; z < Depth; z++) {
 			for (y = 0; y < Height; y++) {
-				if (iread(Temp, 1, Bps) != Bps) {
+				if (context->impl->iread(context, Temp, 1, Bps) != Bps) {
 					ifree(CompData);
 					CompData = NULL;
 					return IL_FALSE;
@@ -882,7 +882,7 @@ ILboolean ReadData(ILuint CompFormat, ILboolean IsDXT10)
 }
 
 
-ILboolean AllocImage(ILuint CompFormat, ILboolean IsDXT10)
+ILboolean AllocImage(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
 {
 	ILubyte channels = 4;
 	ILenum format = IL_RGBA;
@@ -892,45 +892,45 @@ ILboolean AllocImage(ILuint CompFormat, ILboolean IsDXT10)
 		switch (CompFormat)
 		{
 			case PF_RGB:
-				if (!ilTexImage(Width, Height, Depth, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL))
+				if (!ilTexImage(context, Width, Height, Depth, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL))
 					return IL_FALSE;
 				break;
 			case PF_ARGB:
-				if (!ilTexImage(Width, Height, Depth, 4, IL_RGBA, Has16BitComponents ? IL_UNSIGNED_SHORT : IL_UNSIGNED_BYTE, NULL))
+				if (!ilTexImage(context, Width, Height, Depth, 4, IL_RGBA, Has16BitComponents ? IL_UNSIGNED_SHORT : IL_UNSIGNED_BYTE, NULL))
 					return IL_FALSE;
 				break;
 
 			case PF_LUMINANCE:
 				if (Head.RGBBitCount == 16 && Head.RBitMask == 0xFFFF) { //HACK
-					if (!ilTexImage(Width, Height, Depth, 1, IL_LUMINANCE, IL_UNSIGNED_SHORT, NULL))
+					if (!ilTexImage(context, Width, Height, Depth, 1, IL_LUMINANCE, IL_UNSIGNED_SHORT, NULL))
 						return IL_FALSE;
 				}
 				else
-					if (!ilTexImage(Width, Height, Depth, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL))
+					if (!ilTexImage(context, Width, Height, Depth, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL))
 						return IL_FALSE;
 				break;
 
 			case PF_LUMINANCE_ALPHA:
-				if (!ilTexImage(Width, Height, Depth, 2, IL_LUMINANCE_ALPHA, IL_UNSIGNED_BYTE, NULL))
+				if (!ilTexImage(context, Width, Height, Depth, 2, IL_LUMINANCE_ALPHA, IL_UNSIGNED_BYTE, NULL))
 					return IL_FALSE;
 				break;
 
 			case PF_ATI1N:
 				//right now there's no OpenGL api to use the compressed 3dc data, so
 				//throw it away (I don't know how DirectX works, though)?
-				if (!ilTexImage(Width, Height, Depth, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL))
+				if (!ilTexImage(context, Width, Height, Depth, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL))
 					return IL_FALSE;
 				break;
 
 			case PF_3DC:
 				//right now there's no OpenGL api to use the compressed 3dc data, so
 				//throw it away (I don't know how DirectX works, though)?
-				if (!ilTexImage(Width, Height, Depth, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL))
+				if (!ilTexImage(context, Width, Height, Depth, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL))
 					return IL_FALSE;
 				break;
 
 			case PF_A16B16G16R16:
-				if (!ilTexImage(Width, Height, Depth, iCompFormatToChannelCount(CompFormat),
+				if (!ilTexImage(context, Width, Height, Depth, iCompFormatToChannelCount(CompFormat),
 					ilGetFormatBpp(iCompFormatToChannelCount(CompFormat)), IL_UNSIGNED_SHORT, NULL))
 					return IL_FALSE;
 				break;
@@ -941,7 +941,7 @@ ILboolean AllocImage(ILuint CompFormat, ILboolean IsDXT10)
 			case PF_R32F:
 			case PF_G32R32F:
 			case PF_A32B32G32R32F:
-				if (!ilTexImage(Width, Height, Depth, iCompFormatToChannelCount(CompFormat),
+				if (!ilTexImage(context, Width, Height, Depth, iCompFormatToChannelCount(CompFormat),
 					ilGetFormatBpp(iCompFormatToChannelCount(CompFormat)), IL_FLOAT, NULL))
 					return IL_FALSE;
 				break;
@@ -952,15 +952,15 @@ ILboolean AllocImage(ILuint CompFormat, ILboolean IsDXT10)
 					format = IL_RGB;
 				}
 
-				if (!ilTexImage(Width, Height, Depth, channels, format, IL_UNSIGNED_BYTE, NULL))
+				if (!ilTexImage(context, Width, Height, Depth, channels, format, IL_UNSIGNED_BYTE, NULL))
 					return IL_FALSE;
-				if (ilGetInteger(IL_KEEP_DXTC_DATA) == IL_TRUE && CompData) {
-					iCurImage->DxtcData = (ILubyte*)ialloc(Head.LinearSize);
-					if (iCurImage->DxtcData == NULL)
+				if (ilGetInteger(context, IL_KEEP_DXTC_DATA) == IL_TRUE && CompData) {
+					context->impl->iCurImage->DxtcData = (ILubyte*)ialloc(context, Head.LinearSize);
+					if (context->impl->iCurImage->DxtcData == NULL)
 						return IL_FALSE;
-					iCurImage->DxtcFormat = CompFormat - PF_DXT1 + IL_DXT1;
-					iCurImage->DxtcSize = Head.LinearSize;
-					memcpy(iCurImage->DxtcData, CompData, iCurImage->DxtcSize);
+					context->impl->iCurImage->DxtcFormat = CompFormat - PF_DXT1 + IL_DXT1;
+					context->impl->iCurImage->DxtcSize = Head.LinearSize;
+					memcpy(context->impl->iCurImage->DxtcData, CompData, context->impl->iCurImage->DxtcSize);
 				}
 				break;
 		}
@@ -970,20 +970,20 @@ ILboolean AllocImage(ILuint CompFormat, ILboolean IsDXT10)
 		switch (CompFormat)
 		{
 			case DXGI_FORMAT_R8G8B8A8_UNORM:
-				if (!ilTexImage(Width, Height, Depth, 4, IL_RGBA, Has16BitComponents ? IL_UNSIGNED_SHORT : IL_UNSIGNED_BYTE, NULL))
+				if (!ilTexImage(context, Width, Height, Depth, 4, IL_RGBA, Has16BitComponents ? IL_UNSIGNED_SHORT : IL_UNSIGNED_BYTE, NULL))
 					return IL_FALSE;
 				break;
 			case DXGI_FORMAT_B8G8R8A8_UNORM:
-				if (!ilTexImage(Width, Height, Depth, 4, IL_BGRA, Has16BitComponents ? IL_UNSIGNED_SHORT : IL_UNSIGNED_BYTE, NULL))
+				if (!ilTexImage(context, Width, Height, Depth, 4, IL_BGRA, Has16BitComponents ? IL_UNSIGNED_SHORT : IL_UNSIGNED_BYTE, NULL))
 					return IL_FALSE;
 				break;
 			case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-				if (!ilTexImage(Width, Height, Depth, 4, IL_BGRA, Has16BitComponents ? IL_UNSIGNED_SHORT : IL_UNSIGNED_BYTE, NULL))
+				if (!ilTexImage(context, Width, Height, Depth, 4, IL_BGRA, Has16BitComponents ? IL_UNSIGNED_SHORT : IL_UNSIGNED_BYTE, NULL))
 					return IL_FALSE;
 				break;
 
 			default:
-				ilSetError(IL_INVALID_FILE_HEADER);
+				ilSetError(context, IL_INVALID_FILE_HEADER);
 				return IL_FALSE;
 		}
 	}
@@ -1000,7 +1000,7 @@ ILboolean AllocImage(ILuint CompFormat, ILboolean IsDXT10)
  * Decompresses this data into Image->Data, returns if it was successful.
  * It also uses the globals Width and Height.
  *
- * Assumes that iCurImage has valid Width, Height, Depth, Data, SizeOfData,
+ * Assumes that context->impl->iCurImage has valid Width, Height, Depth, Data, SizeOfData,
  * Bpp, Bpc, Bps, SizeOfPlane, Format and Type fields. It is more or
  * less assumed that the image has u8 rgba data (perhaps not for float
  * images...)
@@ -1008,11 +1008,11 @@ ILboolean AllocImage(ILuint CompFormat, ILboolean IsDXT10)
  *
  * @TODO: don't use globals, clean this function (and this file) up
  */
-ILboolean DdsDecompress(ILuint CompFormat, ILboolean IsDXT10)
+ILboolean DdsDecompress(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
 {
 	if (IsDXT10)
 	{  //@TODO: Put in compressed formats
-		return DecompressARGBDX10(CompFormat);
+		return DecompressARGBDX10(context, CompFormat);
 	}
 
 	switch (CompFormat)
@@ -1067,7 +1067,7 @@ ILboolean DdsDecompress(ILuint CompFormat, ILboolean IsDXT10)
 }
 
 
-ILboolean ReadMipmaps(ILuint CompFormat, ILboolean IsDXT10)
+ILboolean ReadMipmaps(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
 {
 	ILuint	i, CompFactor=0;
 	ILubyte	Bpp, Channels, Bpc;
@@ -1141,7 +1141,7 @@ ILboolean ReadMipmaps(ILuint CompFormat, ILboolean IsDXT10)
 		if (Height == 0) 
 			Height = 1;
 
-		Image->Mipmaps = ilNewImage(Width, Height, Depth, Channels, Bpc);
+		Image->Mipmaps = ilNewImage(context, Width, Height, Depth, Channels, Bpc);
 		if (Image->Mipmaps == NULL)
 			goto mip_fail;
 		Image = Image->Mipmaps;
@@ -1183,11 +1183,11 @@ ILboolean ReadMipmaps(ILuint CompFormat, ILboolean IsDXT10)
 			Head.LinearSize >>= 1;
 		}
 
-		if (!ReadData(CompFormat, IsDXT10))
+		if (!ReadData(context, CompFormat, IsDXT10))
 			goto mip_fail;
 
-		if (ilGetInteger(IL_KEEP_DXTC_DATA) == IL_TRUE && isCompressed == IL_TRUE && CompData) {
-			Image->DxtcData = (ILubyte*)ialloc(Head.LinearSize);
+		if (ilGetInteger(context, IL_KEEP_DXTC_DATA) == IL_TRUE && isCompressed == IL_TRUE && CompData) {
+			Image->DxtcData = (ILubyte*)ialloc(context, Head.LinearSize);
 			if (Image->DxtcData == NULL)
 				return IL_FALSE;
 			Image->DxtcFormat = CompFormat - PF_DXT1 + IL_DXT1;
@@ -1195,7 +1195,7 @@ ILboolean ReadMipmaps(ILuint CompFormat, ILboolean IsDXT10)
 			memcpy(Image->DxtcData, CompData, Image->DxtcSize);
 		}
 
-		if (!DdsDecompress(CompFormat, IsDXT10))
+		if (!DdsDecompress(context, CompFormat, IsDXT10))
 			goto mip_fail;
 	}
 
@@ -1919,10 +1919,10 @@ void CorrectPreMult()
 }
 
 
-ILboolean DecompressARGBDX10(ILuint CompFormat)
+ILboolean DecompressARGBDX10(ILcontext* context, ILuint CompFormat)
 {
-	//@TODO: Will certainly fail if iCurImage->SizeOfData != "Compressed" Size
-	memcpy(iCurImage->Data, CompData, iCurImage->SizeOfData);
+	//@TODO: Will certainly fail if context->impl->iCurImage->SizeOfData != "Compressed" Size
+	memcpy(context->impl->iCurImage->Data, CompData, context->impl->iCurImage->SizeOfData);
 	return IL_TRUE;
 }
 
@@ -2145,43 +2145,43 @@ void GetBitsFromMask(ILuint Mask, ILuint *ShiftLeft, ILuint *ShiftRight)
 // DXT extension code
 //
 //
-ILubyte* ILAPIENTRY ilGetDxtcData()
+ILubyte* ILAPIENTRY ilGetDxtcData(ILcontext* context)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_INTERNAL_ERROR);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_INTERNAL_ERROR);
 		return NULL;
 	}
-	return iCurImage->DxtcData;
+	return context->impl->iCurImage->DxtcData;
 }
 
-void ilFreeSurfaceDxtcData()
+void ilFreeSurfaceDxtcData(ILcontext* context)
 {
-	if (iCurImage != NULL && iCurImage->DxtcData != NULL) {
-		ifree(iCurImage->DxtcData);
-		iCurImage->DxtcData = NULL;
-		iCurImage->DxtcSize = 0;
-		iCurImage->DxtcFormat = IL_DXT_NO_COMP;
+	if (context->impl->iCurImage != NULL && context->impl->iCurImage->DxtcData != NULL) {
+		ifree(context->impl->iCurImage->DxtcData);
+		context->impl->iCurImage->DxtcData = NULL;
+		context->impl->iCurImage->DxtcSize = 0;
+		context->impl->iCurImage->DxtcFormat = IL_DXT_NO_COMP;
 	}
 }
 
-void ilFreeImageDxtcData()
+void ilFreeImageDxtcData(ILcontext* context)
 {
 	ILint i, j;
-	ILuint ImgID = ilGetInteger(IL_CUR_IMAGE);
-	ILint ImgCount = ilGetInteger(IL_NUM_IMAGES);
+	ILuint ImgID = ilGetInteger(context, IL_CUR_IMAGE);
+	ILint ImgCount = ilGetInteger(context, IL_NUM_IMAGES);
 	ILint MipCount;
 
 	for(i = 0; i <= ImgCount; ++i) {
-		ilBindImage(ImgID);
-		ilActiveImage(i);
+		ilBindImage(context, ImgID);
+		ilActiveImage(context, i);
 
-		MipCount = ilGetInteger(IL_NUM_MIPMAPS);
+		MipCount = ilGetInteger(context, IL_NUM_MIPMAPS);
 		for(j = 0; j <= MipCount; ++j) {
-			ilBindImage(ImgID);
-			ilActiveImage(i);
-			ilActiveMipmap(j);
+			ilBindImage(context, ImgID);
+			ilActiveImage(context, i);
+			ilActiveMipmap(context, j);
 
-			ilFreeSurfaceDxtcData();
+			ilFreeSurfaceDxtcData(context);
 		}
 	}
 }
@@ -2189,135 +2189,135 @@ void ilFreeImageDxtcData()
 /*
  * This assumes DxtcData, DxtcFormat, width, height, and depth are valid
  */
-ILAPI ILboolean ILAPIENTRY ilDxtcDataToSurface()
+ILAPI ILboolean ILAPIENTRY ilDxtcDataToSurface(ILcontext* context)
 {
 	ILuint CompFormat;
 
-	if (iCurImage == NULL || iCurImage->DxtcData == NULL) {
-		ilSetError(IL_INVALID_PARAM);
+	if (context->impl->iCurImage == NULL || context->impl->iCurImage->DxtcData == NULL) {
+		ilSetError(context, IL_INVALID_PARAM);
 		return IL_FALSE;
 	}
 
-	if (!(iCurImage->DxtcFormat == IL_DXT1 || iCurImage->DxtcFormat == IL_DXT3
-		|| iCurImage->DxtcFormat == IL_DXT5)) {
-		ilSetError(IL_INVALID_PARAM); //TODO
+	if (!(context->impl->iCurImage->DxtcFormat == IL_DXT1 || context->impl->iCurImage->DxtcFormat == IL_DXT3
+		|| context->impl->iCurImage->DxtcFormat == IL_DXT5)) {
+		ilSetError(context, IL_INVALID_PARAM); //TODO
 		return IL_FALSE;
 	}
 
 	//@TODO: is this right for all dxt formats? works for
 	//  DXT1, 3, 5
-	iCurImage->Bpp = 4;
-	iCurImage->Bpc = 1;
-	iCurImage->Bps = iCurImage->Width*iCurImage->Bpp*iCurImage->Bpc;
-	iCurImage->SizeOfPlane = iCurImage->Height*iCurImage->Bps;
-	iCurImage->Format = IL_RGBA;
-	iCurImage->Type = IL_UNSIGNED_BYTE;
+	context->impl->iCurImage->Bpp = 4;
+	context->impl->iCurImage->Bpc = 1;
+	context->impl->iCurImage->Bps = context->impl->iCurImage->Width*context->impl->iCurImage->Bpp*context->impl->iCurImage->Bpc;
+	context->impl->iCurImage->SizeOfPlane = context->impl->iCurImage->Height*context->impl->iCurImage->Bps;
+	context->impl->iCurImage->Format = IL_RGBA;
+	context->impl->iCurImage->Type = IL_UNSIGNED_BYTE;
 
-	if (iCurImage->SizeOfData != iCurImage->SizeOfPlane*iCurImage->Depth) {
-		iCurImage->SizeOfData = iCurImage->Depth*iCurImage->SizeOfPlane;
-		if (iCurImage->Data != NULL)
-			ifree(iCurImage->Data);
-		iCurImage->Data = NULL;
+	if (context->impl->iCurImage->SizeOfData != context->impl->iCurImage->SizeOfPlane*context->impl->iCurImage->Depth) {
+		context->impl->iCurImage->SizeOfData = context->impl->iCurImage->Depth*context->impl->iCurImage->SizeOfPlane;
+		if (context->impl->iCurImage->Data != NULL)
+			ifree(context->impl->iCurImage->Data);
+		context->impl->iCurImage->Data = NULL;
 	}
 
-	if (iCurImage->Data == NULL) {
-		iCurImage->Data = (ILubyte*)ialloc(iCurImage->SizeOfData);
+	if (context->impl->iCurImage->Data == NULL) {
+		context->impl->iCurImage->Data = (ILubyte*)ialloc(context, context->impl->iCurImage->SizeOfData);
 	}
 
-	Image = iCurImage;
-	Width = iCurImage->Width;
-	Height = iCurImage->Height;
-	Depth = iCurImage->Depth;
-	switch(iCurImage->DxtcFormat)
+	Image = context->impl->iCurImage;
+	Width = context->impl->iCurImage->Width;
+	Height = context->impl->iCurImage->Height;
+	Depth = context->impl->iCurImage->Depth;
+	switch(context->impl->iCurImage->DxtcFormat)
 	{
 		case IL_DXT1: CompFormat = PF_DXT1; break;
 		case IL_DXT3: CompFormat = PF_DXT3; break;
 		case IL_DXT5: CompFormat = PF_DXT5; break;
 	}
-	CompData = iCurImage->DxtcData;
-	DdsDecompress(CompFormat, IL_FALSE); //@TODO: globals suck...fix this
+	CompData = context->impl->iCurImage->DxtcData;
+	DdsDecompress(context, CompFormat, IL_FALSE); //@TODO: globals suck...fix this
 	//@TODO: Should we ever expect this to be IL_TRUE?
 
 	//@TODO: origin should be set in Decompress()...
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
-	return ilFixCur();
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	return ilFixCur(context);
 }
 
 
-ILAPI ILboolean ILAPIENTRY ilDxtcDataToImage()
+ILAPI ILboolean ILAPIENTRY ilDxtcDataToImage(ILcontext* context)
 {
 	ILint i, j;
-	ILuint ImgID = ilGetInteger(IL_CUR_IMAGE);
-	ILint ImgCount = ilGetInteger(IL_NUM_IMAGES);
+	ILuint ImgID = ilGetInteger(context, IL_CUR_IMAGE);
+	ILint ImgCount = ilGetInteger(context, IL_NUM_IMAGES);
 	ILint MipCount;
 	ILboolean ret = IL_TRUE;
 
 	for(i = 0; i <= ImgCount; ++i) {
-		ilBindImage(ImgID);
-		ilActiveImage(i);
+		ilBindImage(context, ImgID);
+		ilActiveImage(context, i);
 
-		MipCount = ilGetInteger(IL_NUM_MIPMAPS);
+		MipCount = ilGetInteger(context, IL_NUM_MIPMAPS);
 		for(j = 0; j <= MipCount; ++j) {
-			ilBindImage(ImgID);
-			ilActiveImage(i);
-			ilActiveMipmap(j);
+			ilBindImage(context, ImgID);
+			ilActiveImage(context, i);
+			ilActiveMipmap(context, j);
 
-			if (!ilDxtcDataToSurface())
+			if (!ilDxtcDataToSurface(context))
 				ret = IL_FALSE;
 		}
 	}
-    ilBindImage(ImgID);
+    ilBindImage(context, ImgID);
 
 	return ret;
 }
 
 
-ILAPI ILboolean ILAPIENTRY ilSurfaceToDxtcData(ILenum Format)
+ILAPI ILboolean ILAPIENTRY ilSurfaceToDxtcData(ILcontext* context, ILenum Format)
 {
 	ILuint Size;
 	ILubyte* Data;
-	ilFreeSurfaceDxtcData();
+	ilFreeSurfaceDxtcData(context);
 
-	Size = ilGetDXTCData(NULL, 0, Format);
+	Size = ilGetDXTCData(context, NULL, 0, Format);
 	if (Size == 0) {
 		return IL_FALSE;
 	}
 
-	Data = (ILubyte*)ialloc(Size);
+	Data = (ILubyte*)ialloc(context, Size);
     
 	if (Data == NULL)
 		return IL_FALSE;
             
-	ilGetDXTCData((void*)Data, Size, Format);
+	ilGetDXTCData(context, (void*)Data, Size, Format);
 
 	//These have to be after the call to ilGetDXTCData()
-	iCurImage->DxtcData = Data;
-	iCurImage->DxtcFormat = Format;
-	iCurImage->DxtcSize = Size;
+	context->impl->iCurImage->DxtcData = Data;
+	context->impl->iCurImage->DxtcFormat = Format;
+	context->impl->iCurImage->DxtcSize = Size;
 
 	return IL_TRUE;
 }
 
 
-ILAPI ILboolean ILAPIENTRY ilImageToDxtcData(ILenum Format)
+ILAPI ILboolean ILAPIENTRY ilImageToDxtcData(ILcontext* context, ILenum Format)
 {
 	ILint i, j;
-	ILuint ImgID = ilGetInteger(IL_CUR_IMAGE);
-	ILint ImgCount = ilGetInteger(IL_NUM_IMAGES);
+	ILuint ImgID = ilGetInteger(context, IL_CUR_IMAGE);
+	ILint ImgCount = ilGetInteger(context, IL_NUM_IMAGES);
 	ILint MipCount;
 	ILboolean ret = IL_TRUE;
 
 	for (i = 0; i <= ImgCount; ++i) {
-		ilBindImage(ImgID);
-		ilActiveImage(i);
+		ilBindImage(context, ImgID);
+		ilActiveImage(context, i);
 
-		MipCount = ilGetInteger(IL_NUM_MIPMAPS);
+		MipCount = ilGetInteger(context, IL_NUM_MIPMAPS);
 		for(j = 0; j <= MipCount; ++j) {
-			ilBindImage(ImgID);
-			ilActiveImage(i);
-			ilActiveMipmap(j);
+			ilBindImage(context, ImgID);
+			ilActiveImage(context, i);
+			ilActiveMipmap(context, j);
 
-			if (!ilSurfaceToDxtcData(Format))
+			if (!ilSurfaceToDxtcData(context, Format))
 				ret = IL_FALSE;
 		}
 	}
@@ -2329,9 +2329,9 @@ ILAPI ILboolean ILAPIENTRY ilImageToDxtcData(ILenum Format)
 //works like ilTexImage(), ie. destroys mipmaps etc (which sucks, but
 //is consistent. There should be a ilTexSurface() and ilTexSurfaceDxtc()
 //functions as well, but for now this is sufficient)
-ILAPI ILboolean ILAPIENTRY ilTexImageDxtc(ILint w, ILint h, ILint d, ILenum DxtFormat, const ILubyte* data)
+ILAPI ILboolean ILAPIENTRY ilTexImageDxtc(ILcontext* context, ILint w, ILint h, ILint d, ILenum DxtFormat, const ILubyte* data)
 {
-	ILimage* Image = iCurImage;
+	ILimage* Image = context->impl->iCurImage;
 
 	ILint xBlocks, yBlocks, BlockSize, LineSize, DataSize;
 
@@ -2339,7 +2339,7 @@ ILAPI ILboolean ILAPIENTRY ilTexImageDxtc(ILint w, ILint h, ILint d, ILenum DxtF
 	//The next few lines are copied from ilTexImage() and ilInitImage() -
 	//should be factored in more reusable functions...
 	if (Image == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -2387,7 +2387,7 @@ ILAPI ILboolean ILAPIENTRY ilTexImageDxtc(ILint w, ILint h, ILint d, ILenum DxtF
 
 	Image->DxtcFormat  = DxtFormat;
     Image->DxtcSize = DataSize;
-	Image->DxtcData    = (ILubyte*)ialloc(DataSize);
+	Image->DxtcData    = (ILubyte*)ialloc(context, DataSize);
 
 	if (Image->DxtcData == NULL) {
 		return IL_FALSE;
@@ -2498,7 +2498,7 @@ void iFlip3dc(ILubyte* data, ILuint count)
 }
 
 
-ILAPI void ILAPIENTRY ilFlipSurfaceDxtcData()
+ILAPI void ILAPIENTRY ilFlipSurfaceDxtcData(ILcontext* context)
 {
 	ILuint y, z;
 	ILuint BlockSize, LineSize;
@@ -2506,15 +2506,15 @@ ILAPI void ILAPIENTRY ilFlipSurfaceDxtcData()
 	ILuint numXBlocks, numYBlocks;
 	void (*FlipBlocks)(ILubyte* data, ILuint count);
 
-	if (iCurImage == NULL || iCurImage->DxtcData == NULL) {
-		ilSetError(IL_INVALID_PARAM);
+	if (context->impl->iCurImage == NULL || context->impl->iCurImage->DxtcData == NULL) {
+		ilSetError(context, IL_INVALID_PARAM);
 		return;
 	}
 
-	numXBlocks = (iCurImage->Width + 3)/4;
-	numYBlocks = (iCurImage->Height + 3)/4;
+	numXBlocks = (context->impl->iCurImage->Width + 3)/4;
+	numYBlocks = (context->impl->iCurImage->Height + 3)/4;
 	
-	switch (iCurImage->DxtcFormat)
+	switch (context->impl->iCurImage->DxtcFormat)
 	{
 		case IL_DXT1:
 			BlockSize = 8;
@@ -2536,18 +2536,18 @@ ILAPI void ILAPIENTRY ilFlipSurfaceDxtcData()
 			FlipBlocks = iFlip3dc;
 			break;
 		default:
-			ilSetError(IL_INVALID_PARAM);
+			ilSetError(context, IL_INVALID_PARAM);
 			return;
 	}
 	
 	LineSize = numXBlocks * BlockSize;
-	Temp = (ILubyte*)ialloc(LineSize);
+	Temp = (ILubyte*)ialloc(context, LineSize);
 
 	if (Temp == NULL)
 	    return;
 
-	Runner = iCurImage->DxtcData;
-	for (z = 0; z < iCurImage->Depth; ++z) {
+	Runner = context->impl->iCurImage->DxtcData;
+	for (z = 0; z < context->impl->iCurImage->Depth; ++z) {
 		Top = Runner;
 		Bottom = Runner + (numYBlocks - 1)*LineSize;
 	    
@@ -2642,7 +2642,7 @@ void iInvertDxt5Alpha(ILubyte *data)
 }
 
 
-ILAPI ILboolean ILAPIENTRY ilInvertSurfaceDxtcDataAlpha()
+ILAPI ILboolean ILAPIENTRY ilInvertSurfaceDxtcDataAlpha(ILcontext* context)
 {
 	ILint i;
 	ILuint BlockSize;
@@ -2650,17 +2650,17 @@ ILAPI ILboolean ILAPIENTRY ilInvertSurfaceDxtcDataAlpha()
 	ILint numXBlocks, numYBlocks, numBlocks;
 	void (*InvertAlpha)(ILubyte* data);
 
-	if (iCurImage == NULL || iCurImage->DxtcData == NULL) {
-		ilSetError(IL_INVALID_PARAM);
+	if (context->impl->iCurImage == NULL || context->impl->iCurImage->DxtcData == NULL) {
+		ilSetError(context, IL_INVALID_PARAM);
 		return IL_FALSE;
 	}
 
-	numXBlocks = (iCurImage->Width + 3)/4;
-	numYBlocks = (iCurImage->Height + 3)/4;
-	numBlocks = numXBlocks*numYBlocks*iCurImage->Depth;
+	numXBlocks = (context->impl->iCurImage->Width + 3)/4;
+	numYBlocks = (context->impl->iCurImage->Height + 3)/4;
+	numBlocks = numXBlocks*numYBlocks*context->impl->iCurImage->Depth;
 	BlockSize = 16;
 
-	switch (iCurImage->DxtcFormat)
+	switch (context->impl->iCurImage->DxtcFormat)
 	{
 		case IL_DXT3:
 			InvertAlpha = iInvertDxt3Alpha;
@@ -2674,11 +2674,11 @@ ILAPI ILboolean ILAPIENTRY ilInvertSurfaceDxtcDataAlpha()
 			//the color blocks as well...
 			//DXT1 is not supported because DXT1 alpha is
 			//seldom used and it's not easily invertable.
-			ilSetError(IL_INVALID_PARAM);
+			ilSetError(context, IL_INVALID_PARAM);
 			return IL_FALSE;
 	}
 
-	Runner = iCurImage->DxtcData;
+	Runner = context->impl->iCurImage->DxtcData;
 	for (i = 0; i < numBlocks; ++i, Runner += BlockSize) {
 		InvertAlpha(Runner);
 	}

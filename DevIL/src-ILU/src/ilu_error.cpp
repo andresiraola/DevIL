@@ -81,7 +81,7 @@ ILconst_string ILAPIENTRY iluErrorString(ILenum Error)
 }
 
 
-ILboolean ILAPIENTRY iluSetLanguage(ILenum Language)
+ILboolean ILAPIENTRY iluSetLanguage(ILcontext* context, ILenum Language)
 {
 	switch (Language)
 	{
@@ -99,7 +99,7 @@ ILboolean ILAPIENTRY iluSetLanguage(ILenum Language)
 			break;
 
 		default:
-			ilSetError(IL_INVALID_ENUM);
+			ilSetError(context, IL_INVALID_ENUM);
 			return IL_FALSE;
 	}
 

@@ -179,9 +179,9 @@ typedef struct WDPTILE
 //
 // Internal functions
 //
-ILboolean	iIsValidWdp();
+ILboolean	iIsValidWdp(ILcontext* context);
 ILboolean	iCheckWdp(WDPHEAD *Header);
-ILboolean	iLoadWdpInternal();
+ILboolean	iLoadWdpInternal(ILcontext* context);
 ILuint		VLWESC();
 
 

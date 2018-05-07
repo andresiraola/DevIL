@@ -137,7 +137,7 @@ typedef struct ILpointi {
 
 ILAPI ILboolean      ILAPIENTRY iluAlienify(void);
 ILAPI ILboolean      ILAPIENTRY iluBlurAvg(ILuint Iter);
-ILAPI ILboolean      ILAPIENTRY iluBlurGaussian(ILuint Iter);
+ILAPI ILboolean      ILAPIENTRY iluBlurGaussian(ILcontext* context, ILuint Iter);
 ILAPI ILboolean      ILAPIENTRY iluBuildMipmaps(void);
 ILAPI ILuint         ILAPIENTRY iluColoursUsed(void);
 ILAPI ILboolean      ILAPIENTRY iluCompareImage(ILuint Comp);
@@ -158,11 +158,11 @@ ILAPI ILboolean      ILAPIENTRY iluFlipImage(void);
 ILAPI ILboolean      ILAPIENTRY iluGammaCorrect(ILfloat Gamma);
 ILAPI ILuint         ILAPIENTRY iluGenImage(void); // Deprecated
 ILAPI void           ILAPIENTRY iluGetImageInfo(ILinfo *Info);
-ILAPI ILint          ILAPIENTRY iluGetInteger(ILenum Mode);
-ILAPI void           ILAPIENTRY iluGetIntegerv(ILenum Mode, ILint *Param);
+ILAPI ILint          ILAPIENTRY iluGetInteger(ILcontext* context, ILenum Mode);
+ILAPI void           ILAPIENTRY iluGetIntegerv(ILcontext* context, ILenum Mode, ILint *Param);
 ILAPI ILstring 		 ILAPIENTRY iluGetString(ILenum StringName);
-ILAPI void           ILAPIENTRY iluImageParameter(ILenum PName, ILenum Param);
-ILAPI void           ILAPIENTRY iluInit(void);
+ILAPI void           ILAPIENTRY iluImageParameter(ILcontext* context, ILenum PName, ILenum Param);
+ILAPI void           ILAPIENTRY iluInit(ILcontext* context);
 ILAPI ILboolean      ILAPIENTRY iluInvertAlpha(void);
 ILAPI ILuint         ILAPIENTRY iluLoadImage(ILconst_string FileName);
 ILAPI ILboolean      ILAPIENTRY iluMirror(void);
@@ -175,12 +175,12 @@ ILAPI ILboolean      ILAPIENTRY iluReplaceColour(ILubyte Red, ILubyte Green, ILu
 ILAPI ILboolean      ILAPIENTRY iluRotate(ILfloat Angle);
 ILAPI ILboolean      ILAPIENTRY iluRotate3D(ILfloat x, ILfloat y, ILfloat z, ILfloat Angle);
 ILAPI ILboolean      ILAPIENTRY iluSaturate1f(ILfloat Saturation);
-ILAPI ILboolean      ILAPIENTRY iluSaturate4f(ILfloat r, ILfloat g, ILfloat b, ILfloat Saturation);
-ILAPI ILboolean      ILAPIENTRY iluScale(ILuint Width, ILuint Height, ILuint Depth);
+ILAPI ILboolean      ILAPIENTRY iluSaturate4f(ILcontext* context, ILfloat r, ILfloat g, ILfloat b, ILfloat Saturation);
+ILAPI ILboolean      ILAPIENTRY iluScale(ILcontext* context, ILuint Width, ILuint Height, ILuint Depth);
 ILAPI ILboolean      ILAPIENTRY iluScaleAlpha(ILfloat scale);
 ILAPI ILboolean      ILAPIENTRY iluScaleColours(ILfloat r, ILfloat g, ILfloat b);
 ILAPI ILboolean      ILAPIENTRY iluSepia(void);
-ILAPI ILboolean      ILAPIENTRY iluSetLanguage(ILenum Language);
+ILAPI ILboolean      ILAPIENTRY iluSetLanguage(ILcontext* context, ILenum Language);
 ILAPI ILboolean      ILAPIENTRY iluSharpen(ILfloat Factor, ILuint Iter);
 ILAPI ILboolean      ILAPIENTRY iluSwapColours(void);
 ILAPI ILboolean      ILAPIENTRY iluWave(ILfloat Angle);

@@ -16,7 +16,7 @@
 #include "ilut_internal.h"
 
 
-ILboolean ilutAble(ILenum Mode, ILboolean Flag);
+ILboolean ilutAble(ILcontext* context, ILenum Mode, ILboolean Flag);
 
 
 #define ILUT_ATTRIB_STACK_MAX 32

@@ -192,38 +192,38 @@ extern "C" {
 // ImageLib Utility Toolkit Functions
 ILAPI ILboolean		ILAPIENTRY ilutDisable(ILenum Mode);
 ILAPI ILboolean		ILAPIENTRY ilutEnable(ILenum Mode);
-ILAPI ILboolean		ILAPIENTRY ilutGetBoolean(ILenum Mode);
-ILAPI void          ILAPIENTRY ilutGetBooleanv(ILenum Mode, ILboolean *Param);
-ILAPI ILint			ILAPIENTRY ilutGetInteger(ILenum Mode);
-ILAPI void          ILAPIENTRY ilutGetIntegerv(ILenum Mode, ILint *Param);
-ILAPI ILstring      ILAPIENTRY ilutGetString(ILenum StringName);
+ILAPI ILboolean		ILAPIENTRY ilutGetBoolean(ILcontext* context, ILenum Mode);
+ILAPI void          ILAPIENTRY ilutGetBooleanv(ILcontext* context, ILenum Mode, ILboolean *Param);
+ILAPI ILint			ILAPIENTRY ilutGetInteger(ILcontext* context, ILenum Mode);
+ILAPI void          ILAPIENTRY ilutGetIntegerv(ILcontext* context, ILenum Mode, ILint *Param);
+ILAPI ILstring      ILAPIENTRY ilutGetString(ILcontext* context, ILenum StringName);
 ILAPI void          ILAPIENTRY ilutInit(void);
-ILAPI ILboolean     ILAPIENTRY ilutIsDisabled(ILenum Mode);
-ILAPI ILboolean     ILAPIENTRY ilutIsEnabled(ILenum Mode);
+ILAPI ILboolean     ILAPIENTRY ilutIsDisabled(ILcontext* context, ILenum Mode);
+ILAPI ILboolean     ILAPIENTRY ilutIsEnabled(ILcontext* context, ILenum Mode);
 ILAPI void          ILAPIENTRY ilutPopAttrib(void);
-ILAPI void          ILAPIENTRY ilutPushAttrib(ILuint Bits);
-ILAPI void          ILAPIENTRY ilutSetInteger(ILenum Mode, ILint Param);
+ILAPI void          ILAPIENTRY ilutPushAttrib(ILcontext* context, ILuint Bits);
+ILAPI void          ILAPIENTRY ilutSetInteger(ILcontext* context, ILenum Mode, ILint Param);
 
-ILAPI ILboolean     ILAPIENTRY ilutRenderer(ILenum Renderer);
+ILAPI ILboolean     ILAPIENTRY ilutRenderer(ILcontext* context, ILenum Renderer);
 
 
 // ImageLib Utility Toolkit's OpenGL Functions
 #ifdef ILUT_USE_OPENGL
-	ILAPI GLuint	ILAPIENTRY ilutGLBindTexImage();
+	ILAPI GLuint	ILAPIENTRY ilutGLBindTexImage(ILcontext* context);
 	ILAPI GLuint	ILAPIENTRY ilutGLBindMipmaps(void);
-	ILAPI ILboolean	ILAPIENTRY ilutGLBuildMipmaps(void);
+	ILAPI ILboolean	ILAPIENTRY ilutGLBuildMipmaps(ILcontext* context);
 	ILAPI GLuint	ILAPIENTRY ilutGLLoadImage(ILstring FileName);
-	ILAPI ILboolean	ILAPIENTRY ilutGLScreen(void);
+	ILAPI ILboolean	ILAPIENTRY ilutGLScreen(ILcontext* context);
 	ILAPI ILboolean	ILAPIENTRY ilutGLScreenie(void);
 	ILAPI ILboolean	ILAPIENTRY ilutGLSaveImage(ILstring FileName, GLuint TexID);
-	ILAPI ILboolean ILAPIENTRY ilutGLSubTex2D(GLuint TexID, ILuint XOff, ILuint YOff);
+	ILAPI ILboolean ILAPIENTRY ilutGLSubTex2D(ILcontext* context, GLuint TexID, ILuint XOff, ILuint YOff);
 	ILAPI ILboolean ILAPIENTRY ilutGLSubTex3D(GLuint TexID, ILuint XOff, ILuint YOff, ILuint ZOff);
-	ILAPI ILboolean	ILAPIENTRY ilutGLSetTex2D(GLuint TexID);
+	ILAPI ILboolean	ILAPIENTRY ilutGLSetTex2D(ILcontext* context, GLuint TexID);
 	ILAPI ILboolean	ILAPIENTRY ilutGLSetTex3D(GLuint TexID);
-	ILAPI ILboolean	ILAPIENTRY ilutGLTexImage(GLuint Level);
+	ILAPI ILboolean	ILAPIENTRY ilutGLTexImage(ILcontext* context, GLuint Level);
 	ILAPI ILboolean ILAPIENTRY ilutGLSubTex(GLuint TexID, ILuint XOff, ILuint YOff);
 
-	ILAPI ILboolean	ILAPIENTRY ilutGLSetTex(GLuint TexID);  // Deprecated - use ilutGLSetTex2D.
+	ILAPI ILboolean	ILAPIENTRY ilutGLSetTex(ILcontext* context, GLuint TexID);  // Deprecated - use ilutGLSetTex2D.
 	ILAPI ILboolean ILAPIENTRY ilutGLSubTex(GLuint TexID, ILuint XOff, ILuint YOff);  // Use ilutGLSubTex2D.
 #endif//ILUT_USE_OPENGL
 
@@ -259,15 +259,15 @@ ILAPI ILboolean     ILAPIENTRY ilutRenderer(ILenum Renderer);
 
 // ImageLib Utility Toolkit's Win32 GDI Functions
 #ifdef ILUT_USE_WIN32
-	ILAPI HBITMAP	ILAPIENTRY ilutConvertToHBitmap(HDC hDC);
-	ILAPI HBITMAP	ILAPIENTRY ilutConvertSliceToHBitmap(HDC hDC, ILuint slice);
+	ILAPI HBITMAP	ILAPIENTRY ilutConvertToHBitmap(ILcontext* context, HDC hDC);
+	ILAPI HBITMAP	ILAPIENTRY ilutConvertSliceToHBitmap(ILcontext* context, HDC hDC, ILuint slice);
 	ILAPI void	ILAPIENTRY ilutFreePaddedData(ILubyte *Data);
 	ILAPI void	ILAPIENTRY ilutGetBmpInfo(BITMAPINFO *Info);
 	ILAPI HPALETTE	ILAPIENTRY ilutGetHPal(void);
 	ILAPI ILubyte*	ILAPIENTRY ilutGetPaddedData(void);
 	ILAPI ILboolean	ILAPIENTRY ilutGetWinClipboard(void);
 	ILAPI ILboolean	ILAPIENTRY ilutLoadResource(HINSTANCE hInst, ILint ID, ILstring ResourceType, ILenum Type);
-	ILAPI ILboolean	ILAPIENTRY ilutSetHBitmap(HBITMAP Bitmap);
+	ILAPI ILboolean	ILAPIENTRY ilutSetHBitmap(ILcontext* context, HBITMAP Bitmap);
 	ILAPI ILboolean	ILAPIENTRY ilutSetHPal(HPALETTE Pal);
 	ILAPI ILboolean	ILAPIENTRY ilutSetWinClipboard(void);
 	ILAPI HBITMAP	ILAPIENTRY ilutWinLoadImage(ILstring FileName, HDC hDC);

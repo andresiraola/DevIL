@@ -47,10 +47,10 @@ typedef struct EXRHEAD
 extern "C" {
 #endif
 
-ILboolean iIsValidExr();
+ILboolean iIsValidExr(ILcontext* context);
 ILboolean iCheckExr(EXRHEAD *Header);
-ILboolean iLoadExrInternal();
-ILboolean iSaveExrInternal();
+ILboolean iLoadExrInternal(ILcontext* context);
+ILboolean iSaveExrInternal(ILcontext* context);
 
 #ifdef __cplusplus
 }

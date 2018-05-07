@@ -23,7 +23,7 @@ iFormatL *LoadProcs = NULL;
 iFormatS *SaveProcs = NULL;
 
 
-ILboolean ILAPIENTRY ilRegisterLoad(ILconst_string Ext, IL_LOADPROC Load) {
+ILboolean ILAPIENTRY ilRegisterLoad(ILcontext* context, ILconst_string Ext, IL_LOADPROC Load) {
 	iFormatL *TempNode, *NewNode;
 
 	TempNode = LoadProcs;
@@ -36,7 +36,7 @@ ILboolean ILAPIENTRY ilRegisterLoad(ILconst_string Ext, IL_LOADPROC Load) {
 		}
 	}
 
-	NewNode = (iFormatL*)ialloc(sizeof(iFormatL));
+	NewNode = (iFormatL*)ialloc(context, sizeof(iFormatL));
 	if (NewNode == NULL) {
 		return IL_FALSE;
 	}
@@ -48,7 +48,7 @@ ILboolean ILAPIENTRY ilRegisterLoad(ILconst_string Ext, IL_LOADPROC Load) {
 		TempNode->Next = NewNode;
 	}
 
-	NewNode->Ext = ilStrDup(Ext);
+	NewNode->Ext = ilStrDup(context, Ext);
 	NewNode->Load = Load;
 	NewNode->Next = NULL;
 
@@ -56,7 +56,7 @@ ILboolean ILAPIENTRY ilRegisterLoad(ILconst_string Ext, IL_LOADPROC Load) {
 }
 
 
-ILboolean ILAPIENTRY ilRegisterSave(ILconst_string Ext, IL_SAVEPROC Save)
+ILboolean ILAPIENTRY ilRegisterSave(ILcontext* context, ILconst_string Ext, IL_SAVEPROC Save)
 {
 	iFormatS *TempNode, *NewNode;
 
@@ -70,7 +70,7 @@ ILboolean ILAPIENTRY ilRegisterSave(ILconst_string Ext, IL_SAVEPROC Save)
 		}
 	}
 
-	NewNode = (iFormatS*)ialloc(sizeof(iFormatL));
+	NewNode = (iFormatS*)ialloc(context, sizeof(iFormatL));
 	if (NewNode == NULL) {
 		return IL_FALSE;
 	}
@@ -82,7 +82,7 @@ ILboolean ILAPIENTRY ilRegisterSave(ILconst_string Ext, IL_SAVEPROC Save)
 		TempNode->Next = NewNode;
 	}
 
-	NewNode->Ext = ilStrDup(Ext);
+	NewNode->Ext = ilStrDup(context, Ext);
 	NewNode->Save = Save;
 	NewNode->Next = NULL;
 
@@ -172,7 +172,7 @@ void ilRemoveRegistered()
 }
 
 
-ILboolean iRegisterLoad(ILconst_string FileName)
+ILboolean iRegisterLoad(ILcontext* context, ILconst_string FileName)
 {
 	iFormatL	*TempNode = LoadProcs;
 	ILstring	Ext = iGetExtension(FileName);
@@ -188,7 +188,7 @@ ILboolean iRegisterLoad(ILconst_string FileName)
 				return IL_TRUE;
 			}
 			else {
-				ilSetError(Error);
+				ilSetError(context, Error);
 				return IL_FALSE;
 			}
 		}
@@ -199,7 +199,7 @@ ILboolean iRegisterLoad(ILconst_string FileName)
 }
 
 
-ILboolean iRegisterSave(ILconst_string FileName)
+ILboolean iRegisterSave(ILcontext* context, ILconst_string FileName)
 {
 	iFormatS	*TempNode = SaveProcs;
 	ILstring	Ext = iGetExtension(FileName);
@@ -215,7 +215,7 @@ ILboolean iRegisterSave(ILconst_string FileName)
 				return IL_TRUE;
 			}
 			else {
-				ilSetError(Error);
+				ilSetError(context, Error);
 				return IL_FALSE;
 			}
 		}
@@ -230,22 +230,22 @@ ILboolean iRegisterSave(ILconst_string FileName)
 // "Reporting" functions
 //
 
-void ILAPIENTRY ilRegisterOrigin(ILenum Origin)
+void ILAPIENTRY ilRegisterOrigin(ILcontext* context, ILenum Origin)
 {
 	switch (Origin)
 	{
 		case IL_ORIGIN_LOWER_LEFT:
 		case IL_ORIGIN_UPPER_LEFT:
-			iCurImage->Origin = Origin;
+			context->impl->iCurImage->Origin = Origin;
 			break;
 		default:
-			ilSetError(IL_INVALID_ENUM);
+			ilSetError(context, IL_INVALID_ENUM);
 	}
 	return;
 }
 
 
-void ILAPIENTRY ilRegisterFormat(ILenum Format)
+void ILAPIENTRY ilRegisterFormat(ILcontext* context, ILenum Format)
 {
 	switch (Format)
 	{
@@ -256,37 +256,37 @@ void ILAPIENTRY ilRegisterFormat(ILenum Format)
 		case IL_BGRA:
 		case IL_LUMINANCE:
                 case IL_LUMINANCE_ALPHA:
-			iCurImage->Format = Format;
+			context->impl->iCurImage->Format = Format;
 			break;
 		default:
-			ilSetError(IL_INVALID_ENUM);
+			ilSetError(context, IL_INVALID_ENUM);
 	}
 	return;
 }
 
 
-ILboolean ILAPIENTRY ilRegisterNumFaces(ILuint Num)
+ILboolean ILAPIENTRY ilRegisterNumFaces(ILcontext* context, ILuint Num)
 {
 	ILimage *Next, *Prev;
 
-	ilBindImage(ilGetCurName());  // Make sure the current image is actually bound.
-	ilCloseImage(iCurImage->Faces);  // Close any current mipmaps.
+	ilBindImage(context, ilGetCurName(context));  // Make sure the current image is actually bound.
+	ilCloseImage(context->impl->iCurImage->Faces);  // Close any current mipmaps.
 
-	iCurImage->Faces = NULL;
+	context->impl->iCurImage->Faces = NULL;
 	if (Num == 0)  // Just gets rid of all the mipmaps.
 		return IL_TRUE;
 
-	iCurImage->Faces = ilNewImage(1, 1, 1, 1, 1);
-	if (iCurImage->Faces == NULL)
+	context->impl->iCurImage->Faces = ilNewImage(context, 1, 1, 1, 1, 1);
+	if (context->impl->iCurImage->Faces == NULL)
 		return IL_FALSE;
-	Next = iCurImage->Faces;
+	Next = context->impl->iCurImage->Faces;
 	Num--;
 
 	while (Num) {
-		Next->Faces = ilNewImage(1, 1, 1, 1, 1);
+		Next->Faces = ilNewImage(context, 1, 1, 1, 1, 1);
 		if (Next->Faces == NULL) {
 			// Clean up before we error out.
-			Prev = iCurImage->Faces;
+			Prev = context->impl->iCurImage->Faces;
 			while (Prev) {
 				Next = Prev->Faces;
 				ilCloseImage(Prev);
@@ -302,28 +302,28 @@ ILboolean ILAPIENTRY ilRegisterNumFaces(ILuint Num)
 }
 
 
-ILboolean ILAPIENTRY ilRegisterMipNum(ILuint Num)
+ILboolean ILAPIENTRY ilRegisterMipNum(ILcontext* context, ILuint Num)
 {
 	ILimage *Next, *Prev;
 
-	ilBindImage(ilGetCurName());  // Make sure the current image is actually bound.
-	ilCloseImage(iCurImage->Mipmaps);  // Close any current mipmaps.
+	ilBindImage(context, ilGetCurName(context));  // Make sure the current image is actually bound.
+	ilCloseImage(context->impl->iCurImage->Mipmaps);  // Close any current mipmaps.
 
-	iCurImage->Mipmaps = NULL;
+	context->impl->iCurImage->Mipmaps = NULL;
 	if (Num == 0)  // Just gets rid of all the mipmaps.
 		return IL_TRUE;
 
-	iCurImage->Mipmaps = ilNewImage(1, 1, 1, 1, 1);
-	if (iCurImage->Mipmaps == NULL)
+	context->impl->iCurImage->Mipmaps = ilNewImage(context, 1, 1, 1, 1, 1);
+	if (context->impl->iCurImage->Mipmaps == NULL)
 		return IL_FALSE;
-	Next = iCurImage->Mipmaps;
+	Next = context->impl->iCurImage->Mipmaps;
 	Num--;
 
 	while (Num) {
-		Next->Next = ilNewImage(1, 1, 1, 1, 1);
+		Next->Next = ilNewImage(context, 1, 1, 1, 1, 1);
 		if (Next->Next == NULL) {
 			// Clean up before we error out.
-			Prev = iCurImage->Mipmaps;
+			Prev = context->impl->iCurImage->Mipmaps;
 			while (Prev) {
 				Next = Prev->Next;
 				ilCloseImage(Prev);
@@ -339,28 +339,28 @@ ILboolean ILAPIENTRY ilRegisterMipNum(ILuint Num)
 }
 
 
-ILboolean ILAPIENTRY ilRegisterNumImages(ILuint Num)
+ILboolean ILAPIENTRY ilRegisterNumImages(ILcontext* context, ILuint Num)
 {
 	ILimage *Next, *Prev;
 
-	ilBindImage(ilGetCurName());  // Make sure the current image is actually bound.
-	ilCloseImage(iCurImage->Next);  // Close any current "next" images.
+	ilBindImage(context, ilGetCurName(context));  // Make sure the current image is actually bound.
+	ilCloseImage(context->impl->iCurImage->Next);  // Close any current "next" images.
 
-	iCurImage->Next = NULL;
+	context->impl->iCurImage->Next = NULL;
 	if (Num == 0)  // Just gets rid of all the "next" images.
 		return IL_TRUE;
 
-	iCurImage->Next = ilNewImage(1, 1, 1, 1, 1);
-	if (iCurImage->Next == NULL)
+	context->impl->iCurImage->Next = ilNewImage(context, 1, 1, 1, 1, 1);
+	if (context->impl->iCurImage->Next == NULL)
 		return IL_FALSE;
-	Next = iCurImage->Next;
+	Next = context->impl->iCurImage->Next;
 	Num--;
 
 	while (Num) {
-		Next->Next = ilNewImage(1, 1, 1, 1, 1);
+		Next->Next = ilNewImage(context, 1, 1, 1, 1, 1);
 		if (Next->Next == NULL) {
 			// Clean up before we error out.
-			Prev = iCurImage->Next;
+			Prev = context->impl->iCurImage->Next;
 			while (Prev) {
 				Next = Prev->Next;
 				ilCloseImage(Prev);
@@ -376,7 +376,7 @@ ILboolean ILAPIENTRY ilRegisterNumImages(ILuint Num)
 }
 
 
-void ILAPIENTRY ilRegisterType(ILenum Type)
+void ILAPIENTRY ilRegisterType(ILcontext* context, ILenum Type)
 {
 	switch (Type)
 	{
@@ -388,47 +388,47 @@ void ILAPIENTRY ilRegisterType(ILenum Type)
 		case IL_UNSIGNED_INT:
 		case IL_FLOAT:
 		case IL_DOUBLE:
-			iCurImage->Type = Type;
+			context->impl->iCurImage->Type = Type;
 			break;
 		default:
-			ilSetError(IL_INVALID_ENUM);
+			ilSetError(context, IL_INVALID_ENUM);
 	}
 
 	return;
 }
 
 
-void ILAPIENTRY ilRegisterPal(void *Pal, ILuint Size, ILenum Type)
+void ILAPIENTRY ilRegisterPal(ILcontext* context, void *Pal, ILuint Size, ILenum Type)
 {
-	if (!iCurImage->Pal.Palette || !iCurImage->Pal.PalSize || iCurImage->Pal.PalType != IL_PAL_NONE) {
-		ifree(iCurImage->Pal.Palette);
+	if (!context->impl->iCurImage->Pal.Palette || !context->impl->iCurImage->Pal.PalSize || context->impl->iCurImage->Pal.PalType != IL_PAL_NONE) {
+		ifree(context->impl->iCurImage->Pal.Palette);
 	}
 
-	iCurImage->Pal.PalSize = Size;
-	iCurImage->Pal.PalType = Type;
-	iCurImage->Pal.Palette = (ILubyte*)ialloc(Size);
-	if (iCurImage->Pal.Palette == NULL)
+	context->impl->iCurImage->Pal.PalSize = Size;
+	context->impl->iCurImage->Pal.PalType = Type;
+	context->impl->iCurImage->Pal.Palette = (ILubyte*)ialloc(context, Size);
+	if (context->impl->iCurImage->Pal.Palette == NULL)
 		return;
 
 	if (Pal != NULL) {
-		memcpy(iCurImage->Pal.Palette, Pal, Size);
+		memcpy(context->impl->iCurImage->Pal.Palette, Pal, Size);
 	}
 	else {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 	}
 	
 	return;
 }
 
 
-ILboolean ILAPIENTRY ilSetDuration(ILuint Duration)
+ILboolean ILAPIENTRY ilSetDuration(ILcontext* context, ILuint Duration)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	iCurImage->Duration = Duration;
+	context->impl->iCurImage->Duration = Duration;
 
 	return IL_TRUE;
 }

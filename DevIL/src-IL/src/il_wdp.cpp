@@ -41,39 +41,39 @@ ILboolean ilLoadWdp(ILconst_string FileName)
 	ILHANDLE	WdpFile;
 	ILboolean	bWdp = IL_FALSE;
 	
-	WdpFile = iopenr(FileName);
+	WdpFile = context->impl->iopenr(FileName);
 	if (WdpFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bWdp;
 	}
 
 	bWdp = ilLoadWdpF(WdpFile);
-	icloser(WdpFile);
+	context->impl->icloser(WdpFile);
 
 	return bWdp;
 }
 
 
 //! Reads an already-opened WDP file
-ILboolean ilLoadWdpF(ILHANDLE File)
+ILboolean ilLoadWdpF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadWdpInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadWdpInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a WDP
-ILboolean ilLoadWdpL(const void *Lump, ILuint Size)
+ILboolean ilLoadWdpL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadWdpInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadWdpInternal(context);
 }
 
 //@TODO: Put in ilPKImageEncode_WritePixels_DevIL?
@@ -206,7 +206,7 @@ Cleanup:*/
 Bool iEOSWS_File(struct WMPStream* pWS)
 {
     //return feof(pWS->state.file.pFile);
-	return ieof();
+	return context->impl->ieof(context);
 }
 
 ERR iReadWS_File(struct WMPStream* pWS, void* pv, size_t cb)
@@ -214,7 +214,7 @@ ERR iReadWS_File(struct WMPStream* pWS, void* pv, size_t cb)
 	// For some reason, the WDP images load just fine, but it tries to read too much,
 	//  so IL_FILE_READ_ERROR is set.  So we get rid of the error.
 	if (iread(pv, 1, (ILuint)cb) != cb)
-		ilGetError();
+		ilGetError(context);
     return WMP_errSuccess;
 }
 
@@ -223,7 +223,7 @@ ERR iWriteWS_File(struct WMPStream* pWS, const void* pv, size_t cb)
     ERR err = WMP_errSuccess;
 
     if (0 != cb) {
-		FailIf(1 != iwrite(pv, (ILuint)cb, 1), WMP_errFileIO);
+		FailIf(1 != context->impl->iwrite((pv, (ILuint)cb, 1), WMP_errFileIO);
     }
 
 Cleanup:
@@ -235,7 +235,7 @@ ERR iSetPosWS_File(struct WMPStream* pWS, size_t offPos)
     ERR err = WMP_errSuccess;
 
     //FailIf(0 != fseek(pWS->state.file.pFile, (long)offPos, SEEK_SET), WMP_errFileIO);
-	FailIf(0 != iseek((ILuint)offPos, IL_SEEK_SET), WMP_errFileIO);
+	FailIf(0 != context->impl->iseek(context, (ILuint)offPos, IL_SEEK_SET), WMP_errFileIO);
 
 Cleanup:
     return err;
@@ -247,7 +247,7 @@ ERR iGetPosWS_File(struct WMPStream* pWS, size_t* poffPos)
     long lOff = 0;
 
     //FailIf(-1 == (lOff = ftell(pWS->state.file.pFile)), WMP_errFileIO);
-	lOff = itell();
+	lOff = context->impl->itell(context);
     *poffPos = (size_t)lOff;
 
 Cleanup:
@@ -259,7 +259,7 @@ ERR ilCreateWS_File(struct WMPStream** ppWS, const char* szFilename, const char*
     ERR err = WMP_errSuccess;
     struct WMPStream* pWS = NULL;
 
-	*ppWS = icalloc(1, sizeof(**ppWS));
+	*ppWS = icalloc(context, 1, sizeof(**ppWS));
 	if (*ppWS == NULL)
 		return WMP_errOutOfMemory;
     pWS = *ppWS;
@@ -398,7 +398,7 @@ ILboolean iLoadWdpInternal(/*ILconst_string FileName*/)
 		goto Cleanup;
 	//ilTexImage(pDecoder->uWidth, pDecoder->uHeight, 1, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, Data);
 
-	pFactory->CreateStreamFromMemory(&pEncodeStream, iCurImage->Data, iCurImage->SizeOfData);
+	pFactory->CreateStreamFromMemory(&pEncodeStream, context->impl->iCurImage->Data, context->impl->iCurImage->SizeOfData);
     iWmpDecAppCreateEncoderFromExt(pCodecFactory, ".wdp", &pEncoder);
 	pEncoder->Initialize(pEncoder, pEncodeStream, ".wdp", 0);
 

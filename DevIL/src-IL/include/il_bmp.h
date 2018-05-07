@@ -59,17 +59,17 @@ typedef struct OS2_HEAD
 #endif
 
 // Internal functions
-ILboolean	iGetBmpHead(BMPHEAD * const Header);
-ILboolean	iGetOS2Head(OS2_HEAD * const Header);
-ILboolean	iIsValidBmp();
+ILboolean	iGetBmpHead(ILcontext* context, BMPHEAD * const Header);
+ILboolean	iGetOS2Head(ILcontext* context, OS2_HEAD * const Header);
+ILboolean	iIsValidBmp(ILcontext* context);
 ILboolean	iCheckBmp(const BMPHEAD *CONST_RESTRICT Header);
 ILboolean	iCheckOS2(const OS2_HEAD *CONST_RESTRICT Header);
-ILboolean	iLoadBitmapInternal();
-ILboolean	iSaveBitmapInternal();
-ILboolean	ilReadUncompBmp(BMPHEAD *Info);
-ILboolean	ilReadRLE8Bmp(BMPHEAD *Info);
-ILboolean	ilReadRLE4Bmp(BMPHEAD *Info);
-ILboolean	iGetOS2Bmp(OS2_HEAD *Header);
+ILboolean	iLoadBitmapInternal(ILcontext* context);
+ILboolean	iSaveBitmapInternal(ILcontext* context);
+ILboolean	ilReadUncompBmp(ILcontext* context, BMPHEAD *Info);
+ILboolean	ilReadRLE8Bmp(ILcontext* context, BMPHEAD *Info);
+ILboolean	ilReadRLE4Bmp(ILcontext* context, BMPHEAD *Info);
+ILboolean	iGetOS2Bmp(ILcontext* context, OS2_HEAD *Header);
 
 #ifdef IL_BMP_C
 #undef NOINLINE

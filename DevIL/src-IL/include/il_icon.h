@@ -64,7 +64,7 @@ typedef struct ICOIMAGE
 	#pragma pack(pop, ico_struct)
 #endif
 
-ILboolean iLoadIconInternal();
-ILboolean iLoadIconPNG(ICOIMAGE *Icon);
+ILboolean iLoadIconInternal(ILcontext* context);
+ILboolean iLoadIconPNG(ILcontext* context, ICOIMAGE *Icon);
 
 #endif//ICON_H

@@ -17,7 +17,7 @@
 extern "C" {
 #endif
 
-ILboolean ilFlipImage(void);
+ILboolean ilFlipImage(ILcontext* context);
 ILboolean ilMirrorImage(void);	//@JASON New routine created 03/28/2001
 
 

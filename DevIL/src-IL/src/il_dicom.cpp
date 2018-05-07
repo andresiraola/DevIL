@@ -35,99 +35,99 @@ typedef struct DICOMHEAD
 	ILenum	Type;
 } DICOMHEAD;
 
-ILboolean	iIsValidDicom(void);
+ILboolean	iIsValidDicom(ILcontext* context);
 ILboolean	iCheckDicom(DICOMHEAD *Header);
-ILboolean	iLoadDicomInternal(void);
-ILboolean	iGetDicomHead(DICOMHEAD *Header);
-ILboolean	SkipElement(DICOMHEAD *Header, ILushort GroupNum, ILushort ElementNum);
-ILboolean	GetNumericValue(DICOMHEAD *Header, ILushort GroupNum, ILuint *Number);
-ILboolean	GetUID(ILubyte *UID);
-ILuint		GetGroupNum(DICOMHEAD *Header);
-ILuint		GetShort(DICOMHEAD *Header, ILushort GroupNum);
-ILuint		GetInt(DICOMHEAD *Header, ILushort GroupNum);
-ILfloat		GetFloat(DICOMHEAD *Header, ILushort GroupNum);
+ILboolean	iLoadDicomInternal(ILcontext* context);
+ILboolean	iGetDicomHead(ILcontext* context, DICOMHEAD *Header);
+ILboolean	SkipElement(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum, ILushort ElementNum);
+ILboolean	GetNumericValue(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum, ILuint *Number);
+ILboolean	GetUID(ILcontext* context, ILubyte *UID);
+ILuint		GetGroupNum(ILcontext* context, DICOMHEAD *Header);
+ILuint		GetShort(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum);
+ILuint		GetInt(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum);
+ILfloat		GetFloat(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum);
 
 //! Checks if the file specified in FileName is a valid DICOM file.
-ILboolean ilIsValidDicom(ILconst_string FileName)
+ILboolean ilIsValidDicom(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	DicomFile;
 	ILboolean	bDicom = IL_FALSE;
 	
 	if (!iCheckExtension(FileName, IL_TEXT("dicom")) && !iCheckExtension(FileName, IL_TEXT("dcm"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bDicom;
 	}
 	
-	DicomFile = iopenr(FileName);
+	DicomFile = context->impl->iopenr(FileName);
 	if (DicomFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bDicom;
 	}
 	
-	bDicom = ilIsValidDicomF(DicomFile);
-	icloser(DicomFile);
+	bDicom = ilIsValidDicomF(context, DicomFile);
+	context->impl->icloser(DicomFile);
 	
 	return bDicom;
 }
 
 
 //! Checks if the ILHANDLE contains a valid DICOM file at the current position.
-ILboolean ilIsValidDicomF(ILHANDLE File)
+ILboolean ilIsValidDicomF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidDicom();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidDicom(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid DICOM lump.
-ILboolean ilIsValidDicomL(const void *Lump, ILuint Size)
+ILboolean ilIsValidDicomL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidDicom();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidDicom(context);
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidDicom(void)
+ILboolean iIsValidDicom(ILcontext* context)
 {
 	DICOMHEAD	Header;
-	ILuint		Pos = itell();
+	ILuint		Pos = context->impl->itell(context);
 
 	// Clear the header to all 0s to make checks later easier.
 	memset(&Header, 0, sizeof(DICOMHEAD));
-	if (!iGetDicomHead(&Header))
+	if (!iGetDicomHead(context, &Header))
 		return IL_FALSE;
 	// The length of the header varies, so we just go back to the original position.
-	iseek(Pos, IL_SEEK_CUR);
+	context->impl->iseek(context, Pos, IL_SEEK_CUR);
 
 	return iCheckDicom(&Header);
 }
 
 
 // Internal function used to get the DICOM header from the current file.
-ILboolean iGetDicomHead(DICOMHEAD *Header)
+ILboolean iGetDicomHead(ILcontext* context, DICOMHEAD *Header)
 {
 	ILushort	GroupNum, ElementNum;
 	ILboolean	ReachedData = IL_FALSE;
 	ILubyte		Var2, UID[65];
 
 	// Signature should be "DICM" at position 128.
-	iseek(128, IL_SEEK_SET);
-	if (iread(Header->Signature, 1, 4) != 4)
+	context->impl->iseek(context, 128, IL_SEEK_SET);
+	if (context->impl->iread(context, Header->Signature, 1, 4) != 4)
 		return IL_FALSE;
 
 //@TODO: What about the case when we are reading an image with Big Endian data?
 
 	do {
-		GroupNum = GetGroupNum(Header);
-		ElementNum = GetShort(Header, GroupNum);;
+		GroupNum = GetGroupNum(context, Header);
+		ElementNum = GetShort(context, Header, GroupNum);;
 
 		switch (GroupNum)
 		{
@@ -143,7 +143,7 @@ ILboolean iGetDicomHead(DICOMHEAD *Header)
 
 					case 0x10:
 						//@TODO: Look at pg. 60 of 07_05pu.pdf (PS 3.5) for more UIDs.
-						if (!GetUID(UID))
+						if (!GetUID(context, UID))
 							return IL_FALSE;
 						if (!strncmp((char*)UID, "1.2.840.10008.1.2.2", 64))  // Explicit big endian
 							Header->BigEndian = IL_TRUE;
@@ -156,7 +156,7 @@ ILboolean iGetDicomHead(DICOMHEAD *Header)
 						break;
 
 					default:
-						if (!SkipElement(Header, GroupNum, ElementNum))  // We do not understand this entry, so we just skip it.
+						if (!SkipElement(context, Header, GroupNum, ElementNum))  // We do not understand this entry, so we just skip it.
 							return IL_FALSE;
 				}
 				break;
@@ -165,37 +165,37 @@ ILboolean iGetDicomHead(DICOMHEAD *Header)
 				switch (ElementNum)
 				{
 					case 0x02:  // Samples per pixel
-						if (!GetNumericValue(Header, GroupNum, &Header->Samples))
+						if (!GetNumericValue(context, Header, GroupNum, &Header->Samples))
 							return IL_FALSE;
 						break;
 
 					case 0x08:  // Number of frames, or depth
-						if (!GetNumericValue(Header, GroupNum, &Header->Depth))
+						if (!GetNumericValue(context, Header, GroupNum, &Header->Depth))
 							return IL_FALSE;
 						break;
 
 					case 0x10:  // The number of rows
-						if (!GetNumericValue(Header, GroupNum, &Header->Height))
+						if (!GetNumericValue(context, Header, GroupNum, &Header->Height))
 							return IL_FALSE;
 						break;
 
 					case 0x11:  // The number of columns
-						if (!GetNumericValue(Header, GroupNum, &Header->Width))
+						if (!GetNumericValue(context, Header, GroupNum, &Header->Width))
 							return IL_FALSE;
 						break;
 
 					case 0x100:  // Bits allocated per sample
-						if (!GetNumericValue(Header, GroupNum, &Header->BitsAllocated))
+						if (!GetNumericValue(context, Header, GroupNum, &Header->BitsAllocated))
 							return IL_FALSE;
 						break;
 
 					case 0x101:  // Bits stored per sample - Do we really need this information?
-						if (!GetNumericValue(Header, GroupNum, &Header->BitsStored))
+						if (!GetNumericValue(context, Header, GroupNum, &Header->BitsStored))
 							return IL_FALSE;
 						break;
 
 					default:
-						if (!SkipElement(Header, GroupNum, ElementNum))  // We do not understand this entry, so we just skip it.
+						if (!SkipElement(context, Header, GroupNum, ElementNum))  // We do not understand this entry, so we just skip it.
 							return IL_FALSE;
 				}
 				break;
@@ -204,28 +204,28 @@ ILboolean iGetDicomHead(DICOMHEAD *Header)
 				switch (ElementNum)
 				{
 					case 0x10:  // This element is the actual pixel data.  We are done with the header here.
-						if (igetc() != 'O')  // @TODO: Can we assume that this is always 'O'?
+						if (context->impl->igetc(context) != 'O')  // @TODO: Can we assume that this is always 'O'?
 							return IL_FALSE;
-						Var2 = igetc();
+						Var2 = context->impl->igetc(context);
 						if (Var2 != 'B' && Var2 != 'W' && Var2 != 'F')  // 'OB', 'OW' and 'OF' accepted for this element.
 							return IL_FALSE;
-						GetLittleUShort();  // Skip the 2 reserved bytes.
-						Header->DataLen = GetInt(Header, GroupNum);//GetLittleUInt();
+						GetLittleUShort(context);  // Skip the 2 reserved bytes.
+						Header->DataLen = GetInt(context, Header, GroupNum);//GetLittleUInt();
 						ReachedData = IL_TRUE;
 						break;
 					default:
-						if (!SkipElement(Header, GroupNum, ElementNum))  // We do not understand this entry, so we just skip it.
+						if (!SkipElement(context, Header, GroupNum, ElementNum))  // We do not understand this entry, so we just skip it.
 							return IL_FALSE;
 				}
 				break;
 
 			default:
-				if (!SkipElement(Header, GroupNum, ElementNum))  // We do not understand this entry, so we just skip it.
+				if (!SkipElement(context, Header, GroupNum, ElementNum))  // We do not understand this entry, so we just skip it.
 					return IL_FALSE;
 		}
-	} while (!ieof() && !ReachedData);
+	} while (!context->impl->ieof(context) && !ReachedData);
 
-	if (ieof())
+	if (context->impl->ieof(context))
 		return IL_FALSE;
 
 	// Some DICOM images do not have the depth (number of frames) field.
@@ -256,35 +256,35 @@ ILboolean iGetDicomHead(DICOMHEAD *Header)
 }
 
 
-ILboolean SkipElement(DICOMHEAD *Header, ILushort GroupNum, ILushort ElementNum)
+ILboolean SkipElement(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum, ILushort ElementNum)
 {
 	ILubyte	VR1, VR2;
 	ILuint	ValLen;
 
 	// 2 byte character string telling what type this element is ('OB', 'UI', etc.)
-	VR1 = igetc();
-	VR2 = igetc();
+	VR1 = context->impl->igetc(context);
+	VR2 = context->impl->igetc(context);
 
 	if ((VR1 == 'O' && VR2 == 'B') || (VR1 == 'O' && VR2 == 'W') || (VR1 == 'O' && VR2 == 'F') ||
 		(VR1 == 'S' && VR2 == 'Q') || (VR1 == 'U' && VR2 == 'T') || (VR1 == 'U' && VR2 == 'N')) {
 		// These all have a different format than the other formats, since they can be up to 32 bits long.
-		GetLittleUShort();  // Values reserved, we do not care about them.
-		ValLen = GetInt(Header, GroupNum);//GetLittleUInt();  // Length of the rest of the element
+		GetLittleUShort(context);  // Values reserved, we do not care about them.
+		ValLen = GetInt(context, Header, GroupNum);//GetLittleUInt();  // Length of the rest of the element
 		if (ValLen % 2)  // This length must be even, according to the specs.
 			return IL_FALSE;
 		if (ElementNum != 0x00)  // Element numbers of 0 tell the size of the full group, so we do not skip this.
 								 //  @TODO: We could use this to skip groups that we do not care about.
-			if (iseek(ValLen, IL_SEEK_CUR))
+			if (context->impl->iseek(context, ValLen, IL_SEEK_CUR))
 				return IL_FALSE;
 	}
 	else {
 		// These have a length of 16 bits.
-		ValLen = GetShort(Header, GroupNum);//GetLittleUShort();
+		ValLen = GetShort(context, Header, GroupNum);//GetLittleUShort();
 		//if (ValLen % 2)  // This length must be even, according to the specs.
 		//	ValLen++;  // Add the extra byte to seek.
 		//if (ElementNum != 0x00)  // Element numbers of 0 tell the size of the full group, so we do not skip this.
 								 //  @TODO: We could use this to skip groups that we do not care about.
-			if (iseek(ValLen, IL_SEEK_CUR))
+			if (context->impl->iseek(context, ValLen, IL_SEEK_CUR))
 				return IL_FALSE;
 	}
 
@@ -292,11 +292,11 @@ ILboolean SkipElement(DICOMHEAD *Header, ILushort GroupNum, ILushort ElementNum)
 }
 
 
-ILuint GetGroupNum(DICOMHEAD *Header)
+ILuint GetGroupNum(ILcontext* context, DICOMHEAD *Header)
 {
 	ILushort GroupNum;
 
-	iread(&GroupNum, 1, 2);
+	context->impl->iread(context, &GroupNum, 1, 2);
 	// The 0x02 group is always little endian.
 	if (GroupNum == 0x02) {
 		UShort(&GroupNum);
@@ -312,11 +312,11 @@ ILuint GetGroupNum(DICOMHEAD *Header)
 }
 
 
-ILuint GetShort(DICOMHEAD *Header, ILushort GroupNum)
+ILuint GetShort(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum)
 {
 	ILushort Num;
 
-	iread(&Num, 1, 2);
+	context->impl->iread(context, &Num, 1, 2);
 	// The 0x02 group is always little endian.
 	if (GroupNum == 0x02) {
 		UShort(&Num);
@@ -332,11 +332,11 @@ ILuint GetShort(DICOMHEAD *Header, ILushort GroupNum)
 }
 
 
-ILuint GetInt(DICOMHEAD *Header, ILushort GroupNum)
+ILuint GetInt(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum)
 {
 	ILuint Num;
 
-	iread(&Num, 1, 4);
+	context->impl->iread(context, &Num, 1, 4);
 	// The 0x02 group is always little endian.
 	if (GroupNum == 0x02) {
 		UInt(&Num);
@@ -352,11 +352,11 @@ ILuint GetInt(DICOMHEAD *Header, ILushort GroupNum)
 }
 
 
-ILfloat GetFloat(DICOMHEAD *Header, ILushort GroupNum)
+ILfloat GetFloat(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum)
 {
 	ILfloat Num;
 
-	iread(&Num, 1, 4);
+	context->impl->iread(context, &Num, 1, 4);
 	// The 0x02 group is always little endian.
 	if (GroupNum == 0x02) {
 		Float(&Num);
@@ -372,41 +372,41 @@ ILfloat GetFloat(DICOMHEAD *Header, ILushort GroupNum)
 }
 
 
-ILboolean GetNumericValue(DICOMHEAD *Header, ILushort GroupNum, ILuint *Number)
+ILboolean GetNumericValue(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum, ILuint *Number)
 {
 	ILubyte		VR1, VR2;
 	ILushort	ValLen;
 
 	// 2 byte character string telling what type this element is ('OB', 'UI', etc.)
-	VR1 = igetc();
-	VR2 = igetc();
+	VR1 = context->impl->igetc(context);
+	VR2 = context->impl->igetc(context);
 
 	if (VR1 == 'U' && VR2 == 'S') {  // Unsigned short
-		ValLen = GetShort(Header, GroupNum);//GetLittleUShort();
+		ValLen = GetShort(context, Header, GroupNum);//GetLittleUShort();
 		if (ValLen != 2)  // Must always be 2 for short ('US')
 			return IL_FALSE;
-		*((ILushort*)Number) = GetShort(Header, GroupNum);//GetLittleUShort();
+		*((ILushort*)Number) = GetShort(context, Header, GroupNum);//GetLittleUShort();
 		return IL_TRUE;
 	}
 	if (VR1 == 'U' && VR2 == 'L') {  // Unsigned long
-		ValLen = GetInt(Header, GroupNum);//GetLittleUInt();
+		ValLen = GetInt(context, Header, GroupNum);//GetLittleUInt();
 		if (ValLen != 4)  // Must always be 4 for long ('UL')
 			return IL_FALSE;
-		*Number = GetInt(Header, GroupNum);
+		*Number = GetInt(context, Header, GroupNum);
 		return IL_TRUE;
 	}
 	if (VR1 == 'S' && VR2 == 'S') {  // Signed short
-		ValLen = GetShort(Header, GroupNum);
+		ValLen = GetShort(context, Header, GroupNum);
 		if (ValLen != 2)  // Must always be 2 for short ('US')
 			return IL_FALSE;
-		*((ILshort*)Number) = GetShort(Header, GroupNum);
+		*((ILshort*)Number) = GetShort(context, Header, GroupNum);
 		return IL_TRUE;
 	}
 	if (VR1 == 'S' && VR2 == 'L') {  // Signed long
-		ValLen = GetInt(Header, GroupNum);
+		ValLen = GetInt(context, Header, GroupNum);
 		if (ValLen != 4)  // Must always be 4 for long ('UL')
 			return IL_FALSE;
-		*((ILint*)Number) = GetInt(Header, GroupNum);
+		*((ILint*)Number) = GetInt(context, Header, GroupNum);
 		return IL_TRUE;
 	}
 
@@ -414,22 +414,22 @@ ILboolean GetNumericValue(DICOMHEAD *Header, ILushort GroupNum, ILuint *Number)
 }
 
 
-ILboolean GetUID(ILubyte *UID)
+ILboolean GetUID(ILcontext* context, ILubyte *UID)
 {
 	ILubyte		VR1, VR2;
 	ILushort	ValLen;
 
 	// 2 byte character string telling what type this element is ('OB', 'UI', etc.)
-	VR1 = igetc();
-	VR2 = igetc();
+	VR1 = context->impl->igetc(context);
+	VR2 = context->impl->igetc(context);
 
 	if (VR1 != 'U' || VR2 != 'I')  // 'UI' == UID
 		return IL_FALSE;
 
-	ValLen = GetLittleUShort();
+	ValLen = GetLittleUShort(context);
 	if (ValLen > 64)  // Addresses this vulnerability: https://vuldb.com/?id.51054
 		return IL_FALSE;
-	if (iread(UID, ValLen, 1) != 1)
+	if (context->impl->iread(context, UID, ValLen, 1) != 1)
 		return IL_FALSE;
 	UID[ValLen] = 0;  // Just to make sure that our string is terminated.
 
@@ -460,49 +460,49 @@ ILboolean iCheckDicom(DICOMHEAD *Header)
 
 
 //! Reads a DICOM file
-ILboolean ilLoadDicom(ILconst_string FileName)
+ILboolean ilLoadDicom(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	DicomFile;
 	ILboolean	bDicom = IL_FALSE;
 	
-	DicomFile = iopenr(FileName);
+	DicomFile = context->impl->iopenr(FileName);
 	if (DicomFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bDicom;
 	}
 
-	bDicom = ilLoadDicomF(DicomFile);
-	icloser(DicomFile);
+	bDicom = ilLoadDicomF(context, DicomFile);
+	context->impl->icloser(DicomFile);
 
 	return bDicom;
 }
 
 
 //! Reads an already-opened DICOM file
-ILboolean ilLoadDicomF(ILHANDLE File)
+ILboolean ilLoadDicomF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadDicomInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadDicomInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a DICOM
-ILboolean ilLoadDicomL(const void *Lump, ILuint Size)
+ILboolean ilLoadDicomL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadDicomInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadDicomInternal(context);
 }
 
 
 // Internal function used to load the DICOM.
-ILboolean iLoadDicomInternal(void)
+ILboolean iLoadDicomInternal(ILcontext* context)
 {
 	DICOMHEAD	Header;
 	ILuint		i;
@@ -510,29 +510,29 @@ ILboolean iLoadDicomInternal(void)
 	ILfloat		TempF, *FloatPtr;
 	ILboolean	Swizzle = IL_FALSE;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	// Clear the header to all 0s to make checks later easier.
 	memset(&Header, 0, sizeof(DICOMHEAD));
-	if (!iGetDicomHead(&Header)) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+	if (!iGetDicomHead(context, &Header)) {
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 	if (!iCheckDicom(&Header))
 		return IL_FALSE;
 
-	if (!ilTexImage(Header.Width, Header.Height, Header.Depth, ilGetBppFormat(Header.Format), Header.Format, Header.Type, NULL))
+	if (!ilTexImage(context, Header.Width, Header.Height, Header.Depth, ilGetBppFormat(Header.Format), Header.Format, Header.Type, NULL))
 		return IL_FALSE;
 	//@TODO: Find out if the origin is always in the upper left.
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 	// Header.DataLen may be larger than SizeOfData, since it has to be padded with a NULL if it is not an even length,
 	//   so we just test to make sure it is at least large enough.
 	//@TODO: Do this check before ilTexImage call.
-	if (Header.DataLen < iCurImage->SizeOfData) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+	if (Header.DataLen < context->impl->iCurImage->SizeOfData) {
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
@@ -556,26 +556,26 @@ ILboolean iLoadDicomInternal(void)
 	switch (Header.Type)
 	{
 		case IL_UNSIGNED_BYTE:
-			if (iread(iCurImage->Data, iCurImage->SizeOfData, 1) != 1)
+			if (context->impl->iread(context, context->impl->iCurImage->Data, context->impl->iCurImage->SizeOfData, 1) != 1)
 				return IL_FALSE;
 
 			// Swizzle the data from ABGR to RGBA.
 			if (Swizzle) {
-				for (i = 0; i < iCurImage->SizeOfData; i += 4) {
-					iSwapUInt((ILuint*)(iCurImage->Data + i));
+				for (i = 0; i < context->impl->iCurImage->SizeOfData; i += 4) {
+					iSwapUInt((ILuint*)(context->impl->iCurImage->Data + i));
 				}
 			}
 			break;
 
 		case IL_UNSIGNED_SHORT:
-			for (i = 0; i < iCurImage->SizeOfData; i += 2) {
-				*((ILushort*)(iCurImage->Data + i)) = GetShort(&Header, 0);//GetLittleUShort();
+			for (i = 0; i < context->impl->iCurImage->SizeOfData; i += 2) {
+				*((ILushort*)(context->impl->iCurImage->Data + i)) = GetShort(context, &Header, 0);//GetLittleUShort();
 			}
 
 			// Swizzle the data from ABGR to RGBA.
 			if (Swizzle) {
-				ShortPtr = (ILushort*)iCurImage->Data;
-				for (i = 0; i < iCurImage->SizeOfData / 2; i += 4) {
+				ShortPtr = (ILushort*)context->impl->iCurImage->Data;
+				for (i = 0; i < context->impl->iCurImage->SizeOfData / 2; i += 4) {
 					TempS = ShortPtr[i];
 					ShortPtr[i] = ShortPtr[i+3];
 					ShortPtr[i+3] = TempS;
@@ -584,14 +584,14 @@ ILboolean iLoadDicomInternal(void)
 			break;
 
 		case IL_FLOAT:
-			for (i = 0; i < iCurImage->SizeOfData; i += 4) {
-				*((ILfloat*)(iCurImage->Data + i)) = GetFloat(&Header, 0);//GetLittleFloat();
+			for (i = 0; i < context->impl->iCurImage->SizeOfData; i += 4) {
+				*((ILfloat*)(context->impl->iCurImage->Data + i)) = GetFloat(context, &Header, 0);//GetLittleFloat();
 			}
 
 			// Swizzle the data from ABGR to RGBA.
 			if (Swizzle) {
-				FloatPtr = (ILfloat*)iCurImage->Data;
-				for (i = 0; i < iCurImage->SizeOfData / 4; i += 4) {
+				FloatPtr = (ILfloat*)context->impl->iCurImage->Data;
+				for (i = 0; i < context->impl->iCurImage->SizeOfData / 4; i += 4) {
 					TempF = FloatPtr[i];
 					FloatPtr[i] = FloatPtr[i+3];
 					FloatPtr[i+3] = TempF;
@@ -600,7 +600,7 @@ ILboolean iLoadDicomInternal(void)
 			break;
 	}
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 

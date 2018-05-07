@@ -19,7 +19,7 @@
 
 // Very simple right now.
 //	This will probably use Perlin noise and parameters in the future.
-ILboolean ILAPIENTRY iluNoisify(ILclampf Tolerance)
+ILboolean ILAPIENTRY iluNoisify(ILcontext* context, ILclampf Tolerance)
 {
 	ILuint		i, j, c, Factor, Factor2, NumPix;
 	ILint		Val;
@@ -27,13 +27,13 @@ ILboolean ILAPIENTRY iluNoisify(ILclampf Tolerance)
 	ILuint		*IntPtr;
 	ILubyte		*RegionMask;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	RegionMask = iScanFill();
+	RegionMask = iScanFill(context);
 
 	// @TODO:  Change this to work correctly without time()!
 	//srand(time(NULL));
@@ -200,9 +200,9 @@ ILboolean ILAPIENTRY iluNoisify()
 	ILuint x, y, c;
 	ILint Val;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 

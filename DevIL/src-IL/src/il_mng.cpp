@@ -54,7 +54,7 @@
 //---------------------------------------------------------------------------------------------
 mng_ptr MNG_DECL mymngalloc(mng_size_t size)
 {
-	return (mng_ptr)icalloc(1, size);
+	return (mng_ptr)icalloc(context, 1, size);
 }
 
 
@@ -100,7 +100,7 @@ mng_bool MNG_DECL mymngclosestream(mng_handle mng)
 mng_bool MNG_DECL mymngreadstream(mng_handle mng, mng_ptr buffer, mng_size_t size, mng_uint32 *bytesread)
 {
 	// read the requested amount of data from the file
-	*bytesread = iread(buffer, 1, (ILuint)size);
+	*bytesread = context->impl->iread(context, buffer, 1, (ILuint)size);
 
 	return MNG_TRUE;
 }
@@ -111,10 +111,10 @@ mng_bool MNG_DECL mymngreadstream(mng_handle mng, mng_ptr buffer, mng_size_t siz
 //---------------------------------------------------------------------------------------------
 mng_bool MNG_DECL mymngwritedata(mng_handle mng, mng_ptr buffer, mng_size_t size, mng_uint32 *byteswritten)
 {
-	*byteswritten = iwrite(buffer, 1, (ILuint)size);
+	*byteswritten = context->impl->iwrite(context, buffer, 1, (ILuint)size);
 
 	if (*byteswritten < size) {
-		ilSetError(IL_FILE_WRITE_ERROR);
+		ilSetError(context, IL_FILE_WRITE_ERROR);
 		return MNG_FALSE;
 	}
 
@@ -132,17 +132,17 @@ mng_bool MNG_DECL mymngprocessheader(mng_handle mng, mng_uint32 width, mng_uint3
 	AlphaDepth = mng_get_alphadepth(mng);
 
 	if (AlphaDepth == 0) {
-		ilTexImage(width, height, 1, 3, IL_BGR, IL_UNSIGNED_BYTE, NULL);
-		iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+		ilTexImage(context, width, height, 1, 3, IL_BGR, IL_UNSIGNED_BYTE, NULL);
+		context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
 		mng_set_canvasstyle(mng, MNG_CANVAS_BGR8);
 	}
 	else {  // Use alpha channel
-		ilTexImage(width, height, 1, 4, IL_BGRA, IL_UNSIGNED_BYTE, NULL);
-		iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+		ilTexImage(context, width, height, 1, 4, IL_BGRA, IL_UNSIGNED_BYTE, NULL);
+		context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
 		mng_set_canvasstyle(mng, MNG_CANVAS_BGRA8);
 	}
 
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
 	return MNG_TRUE;
 }
@@ -153,7 +153,7 @@ mng_bool MNG_DECL mymngprocessheader(mng_handle mng, mng_uint32 width, mng_uint3
 //---------------------------------------------------------------------------------------------
 mng_ptr MNG_DECL mymnggetcanvasline(mng_handle mng, mng_uint32 line)
 {
-	return (mng_ptr)(iCurImage->Data + iCurImage->Bps * line);
+	return (mng_ptr)(context->impl->iCurImage->Data + context->impl->iCurImage->Bps * line);
 }
 
 
@@ -201,7 +201,7 @@ mng_bool MNG_DECL mymngerror(
 }
 
 
-ILboolean iLoadMngInternal(void);
+ILboolean iLoadMngInternal(ILcontext* context);
 
 // Reads a file
 ILboolean ilLoadMng(ILconst_string FileName)
@@ -209,39 +209,39 @@ ILboolean ilLoadMng(ILconst_string FileName)
 	ILHANDLE	MngFile;
 	ILboolean	bMng = IL_FALSE;
 
-	MngFile = iopenr(FileName);
+	MngFile = context->impl->iopenr(FileName);
 	if (MngFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bMng;
 	}
 
 	bMng = ilLoadMngF(MngFile);
-	icloser(MngFile);
+	context->impl->icloser(MngFile);
 
 	return bMng;
 }
 
 
 // Reads an already-opened file
-ILboolean ilLoadMngF(ILHANDLE File)
+ILboolean ilLoadMngF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadMngInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadMngInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 // Reads from a memory "lump"
-ILboolean ilLoadMngL(const void *Lump, ILuint Size)
+ILboolean ilLoadMngL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadMngInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadMngInternal(context);
 }
 
 
@@ -249,14 +249,14 @@ ILboolean iLoadMngInternal()
 {
 	mng_handle mng;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	mng = mng_initialize(MNG_NULL, mymngalloc, mymngfree, MNG_NULL);
 	if (mng == MNG_NULL) {
-		ilSetError(IL_LIB_MNG_ERROR);
+		ilSetError(context, IL_LIB_MNG_ERROR);
 		return IL_FALSE;
 	}
 
@@ -277,11 +277,11 @@ ILboolean iLoadMngInternal()
 	mng_read(mng);
 	mng_display(mng);
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 
-ILboolean iSaveMngInternal(void);
+ILboolean iSaveMngInternal(ILcontext* context);
 
 //! Writes a Mng file
 ILboolean ilSaveMng(const ILstring FileName)
@@ -289,21 +289,21 @@ ILboolean ilSaveMng(const ILstring FileName)
 	ILHANDLE	MngFile;
 	ILuint		MngSize;
 
-	if (ilGetBoolean(IL_FILE_MODE) == IL_FALSE) {
+	if (ilGetBoolean(context, IL_FILE_MODE) == IL_FALSE) {
 		if (iFileExists(FileName)) {
-			ilSetError(IL_FILE_ALREADY_EXISTS);
+			ilSetError(context, IL_FILE_ALREADY_EXISTS);
 			return IL_FALSE;
 		}
 	}
 
-	MngFile = iopenw(FileName);
+	MngFile = context->impl->iopenw(FileName);
 	if (MngFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
 	MngSize = ilSaveMngF(MngFile);
-	iclosew(MngFile);
+	context->impl->iclosew(MngFile);
 
 	if (MngSize == 0)
 		return IL_FALSE;
@@ -312,25 +312,25 @@ ILboolean ilSaveMng(const ILstring FileName)
 
 
 //! Writes a Mng to an already-opened file
-ILuint ilSaveMngF(ILHANDLE File)
+ILuint ilSaveMngF(ILcontext* context, ILHANDLE File)
 {
-	ILuint Pos = itellw();
-	iSetOutputFile(File);
-	if (iSaveMngInternal() == IL_FALSE)
+	ILuint Pos = context->impl->itellw(context);
+	iSetOutputFile(context, File);
+	if (iSaveMngInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 //! Writes a Mng to a memory "lump"
-ILuint ilSaveMngL(void *Lump, ILuint Size)
+ILuint ilSaveMngL(ILcontext* context, void *Lump, ILuint Size)
 {
 	ILuint Pos;
-	iSetOutputLump(Lump, Size);
-	Pos = itellw();
-	if (iSaveMngInternal() == IL_FALSE)
+	iSetOutputLump(context, Lump, Size);
+	Pos = context->impl->itellw(context);
+	if (iSaveMngInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
@@ -340,17 +340,17 @@ ILboolean iSaveMngInternal()
 	//mng_handle mng;
 
 	// Not working yet, so just error out.
-	ilSetError(IL_INVALID_EXTENSION);
+	ilSetError(context, IL_INVALID_EXTENSION);
 	return IL_FALSE;
 
-	//if (iCurImage == NULL) {
-	//	ilSetError(IL_ILLEGAL_OPERATION);
+	//if (context->impl->iCurImage == NULL) {
+	//	ilSetError(context, IL_ILLEGAL_OPERATION);
 	//	return IL_FALSE;
 	//}
 
 	//mng = mng_initialize(MNG_NULL, mymngalloc, mymngfree, MNG_NULL);
 	//if (mng == MNG_NULL) {
-	//	ilSetError(IL_LIB_MNG_ERROR);
+	//	ilSetError(context, IL_LIB_MNG_ERROR);
 	//	return IL_FALSE;
 	//}
 
@@ -362,10 +362,10 @@ ILboolean iSaveMngInternal()
  //  	mng_create(mng);
 
 	//// Check return value.
-	//mng_putchunk_mhdr(mng, iCurImage->Width, iCurImage->Height, 1000, 3, 1, 3, 0x0047);
-	//mng_putchunk_basi(mng, iCurImage->Width, iCurImage->Height, 8, MNG_COLORTYPE_RGB, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 1);
+	//mng_putchunk_mhdr(mng, context->impl->iCurImage->Width, context->impl->iCurImage->Height, 1000, 3, 1, 3, 0x0047);
+	//mng_putchunk_basi(mng, context->impl->iCurImage->Width, context->impl->iCurImage->Height, 8, MNG_COLORTYPE_RGB, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF, 1);
 	//mng_putchunk_iend(mng);
-	//mng_putimgdata_ihdr(mng, iCurImage->Width, iCurImage->Height, MNG_COLORTYPE_RGB, 8, 0, 0, 0, 0, mymnggetcanvasline);
+	//mng_putimgdata_ihdr(mng, context->impl->iCurImage->Width, context->impl->iCurImage->Height, MNG_COLORTYPE_RGB, 8, 0, 0, 0, 0, mymnggetcanvasline);
 
 	//// Now write file:
 	//mng_write(mng);

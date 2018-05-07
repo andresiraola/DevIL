@@ -17,75 +17,75 @@
 
 
 //! Checks if the file specified in FileName is a valid Lif file.
-ILboolean ilIsValidLif(ILconst_string FileName)
+ILboolean ilIsValidLif(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	LifFile;
 	ILboolean	bLif = IL_FALSE;
 
 	if (!iCheckExtension(FileName, IL_TEXT("lif"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bLif;
 	}
 
-	LifFile = iopenr(FileName);
+	LifFile = context->impl->iopenr(FileName);
 	if (LifFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bLif;
 	}
 
-	bLif = ilIsValidLifF(LifFile);
-	icloser(LifFile);
+	bLif = ilIsValidLifF(context, LifFile);
+	context->impl->icloser(LifFile);
 
 	return bLif;
 }
 
 
 //! Checks if the ILHANDLE contains a valid Lif file at the current position.
-ILboolean ilIsValidLifF(ILHANDLE File)
+ILboolean ilIsValidLifF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidLif();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidLif(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid Lif lump.
-ILboolean ilIsValidLifL(const void *Lump, ILuint Size)
+ILboolean ilIsValidLifL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidLif();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidLif(context);
 }
 
 
 // Internal function used to get the Lif header from the current file.
-ILboolean iGetLifHead(LIF_HEAD *Header)
+ILboolean iGetLifHead(ILcontext* context, LIF_HEAD *Header)
 {
 
-	iread(Header->Id, 1, 8);
+	context->impl->iread(context, Header->Id, 1, 8);
 
-	Header->Version = GetLittleUInt();
+	Header->Version = GetLittleUInt(context);
 
-	Header->Flags = GetLittleUInt();
+	Header->Flags = GetLittleUInt(context);
 
-	Header->Width = GetLittleUInt();
+	Header->Width = GetLittleUInt(context);
 
-	Header->Height = GetLittleUInt();
+	Header->Height = GetLittleUInt(context);
 
-	Header->PaletteCRC = GetLittleUInt();
+	Header->PaletteCRC = GetLittleUInt(context);
 
-	Header->ImageCRC = GetLittleUInt();
+	Header->ImageCRC = GetLittleUInt(context);
 
-	Header->PalOffset = GetLittleUInt();
+	Header->PalOffset = GetLittleUInt(context);
 
-	Header->TeamEffect0 = GetLittleUInt();
+	Header->TeamEffect0 = GetLittleUInt(context);
 
-	Header->TeamEffect1 = GetLittleUInt();
+	Header->TeamEffect1 = GetLittleUInt(context);
 
 
 	return IL_TRUE;
@@ -93,13 +93,13 @@ ILboolean iGetLifHead(LIF_HEAD *Header)
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidLif()
+ILboolean iIsValidLif(ILcontext* context)
 {
 	LIF_HEAD	Head;
 
-	if (!iGetLifHead(&Head))
+	if (!iGetLifHead(context, &Head))
 		return IL_FALSE;
-	iseek(-(ILint)sizeof(LIF_HEAD), IL_SEEK_CUR);
+	context->impl->iseek(context, -(ILint)sizeof(LIF_HEAD), IL_SEEK_CUR);
 
 	return iCheckLif(&Head);
 }
@@ -117,82 +117,82 @@ ILboolean iCheckLif(LIF_HEAD *Header)
 
 
 //! Reads a .Lif file
-ILboolean ilLoadLif(ILconst_string FileName)
+ILboolean ilLoadLif(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	LifFile;
 	ILboolean	bLif = IL_FALSE;
 
-	LifFile = iopenr(FileName);
+	LifFile = context->impl->iopenr(FileName);
 	if (LifFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bLif;
 	}
 
-	bLif = ilLoadLifF(LifFile);
-	icloser(LifFile);
+	bLif = ilLoadLifF(context, LifFile);
+	context->impl->icloser(LifFile);
 
 	return bLif;
 }
 
 
 //! Reads an already-opened .Lif file
-ILboolean ilLoadLifF(ILHANDLE File)
+ILboolean ilLoadLifF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadLifInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadLifInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a .Lif
-ILboolean ilLoadLifL(const void *Lump, ILuint Size)
+ILboolean ilLoadLifL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadLifInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadLifInternal(context);
 }
 
 
-ILboolean iLoadLifInternal()
+ILboolean iLoadLifInternal(ILcontext* context)
 {
 	LIF_HEAD	LifHead;
 	ILuint		i;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	
-	if (!iGetLifHead(&LifHead))
+	if (!iGetLifHead(context, &LifHead))
 		return IL_FALSE;
 
-	if (!ilTexImage(LifHead.Width, LifHead.Height, 1, 1, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE, NULL)) {
+	if (!ilTexImage(context, LifHead.Width, LifHead.Height, 1, 1, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE, NULL)) {
 		return IL_FALSE;
 	}
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
-	iCurImage->Pal.Palette = (ILubyte*)ialloc(1024);
-	if (iCurImage->Pal.Palette == NULL)
+	context->impl->iCurImage->Pal.Palette = (ILubyte*)ialloc(context, 1024);
+	if (context->impl->iCurImage->Pal.Palette == NULL)
 		return IL_FALSE;
-	iCurImage->Pal.PalSize = 1024;
-	iCurImage->Pal.PalType = IL_PAL_RGBA32;
+	context->impl->iCurImage->Pal.PalSize = 1024;
+	context->impl->iCurImage->Pal.PalType = IL_PAL_RGBA32;
 
-	if (iread(iCurImage->Data, LifHead.Width * LifHead.Height, 1) != 1)
+	if (context->impl->iread(context, context->impl->iCurImage->Data, LifHead.Width * LifHead.Height, 1) != 1)
 		return IL_FALSE;
-	if (iread(iCurImage->Pal.Palette, 1, 1024) != 1024)
+	if (context->impl->iread(context, context->impl->iCurImage->Pal.Palette, 1, 1024) != 1024)
 		return IL_FALSE;
 
 	// Each data offset is offset by -1, so we add one.
-	for (i = 0; i < iCurImage->SizeOfData; i++) {
-		iCurImage->Data[i]++;
+	for (i = 0; i < context->impl->iCurImage->SizeOfData; i++) {
+		context->impl->iCurImage->Data[i]++;
 	}
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 #endif//IL_NO_LIF

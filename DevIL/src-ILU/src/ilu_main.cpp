@@ -44,26 +44,26 @@ BOOL APIENTRY DllMain(HANDLE hModule, DWORD ul_reason_for_call, LPVOID lpReserve
 #endif
 #endif
 
-void ILAPIENTRY iluInit()
+void ILAPIENTRY iluInit(ILcontext* context)
 {
 	// Used mostly for rotations
 	//IL_PI = 4 * atan(1);		// precomputed value of pi
 	//IL_DEGCONV = IL_PI / 180;	// division is slow on some computers
 
-	iluSetLanguage(ILU_ENGLISH);
+	iluSetLanguage(context, ILU_ENGLISH);
 	return;
 }
 
 
 //#ifndef _WIN32_WCE
-ILuint ILAPIENTRY iluLoadImage(ILconst_string FileName)
+ILuint ILAPIENTRY iluLoadImage(ILcontext* context, ILconst_string FileName)
 {
 	ILuint Id;
-	ilGenImages(1, &Id);
+	ilGenImages(context, 1, &Id);
 	if (Id == 0)
 		return 0;
-	if (!ilLoadImage(FileName)) {
-		ilDeleteImages(1, &Id);
+	if (!ilLoadImage(context, FileName)) {
+		ilDeleteImages(context, 1, &Id);
 		return 0;
 	}
 	return Id;

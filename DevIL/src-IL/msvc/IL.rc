@@ -7,7 +7,10 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+#include "resource.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -46,7 +49,7 @@ BEGIN
             VALUE "FileDescription", "DevIL: A portable image library in development"
             VALUE "FileVersion", "1.8.0.0"
             VALUE "InternalName", "Developer's Image Library (DevIL)"
-            VALUE "LegalCopyright", "Copyright © 2000-2016"
+            VALUE "LegalCopyright", "Copyright ï¿½ 2000-2016"
             VALUE "LegalTrademarks", "Under LGPL License"
             VALUE "OriginalFilename", "DevIL.dll"
             VALUE "PrivateBuild", "Open Source"
@@ -110,7 +113,8 @@ END
 //
 // Generated from the TEXTINCLUDE 3 resource.
 //
-
+
+
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 

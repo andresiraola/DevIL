@@ -31,32 +31,32 @@ typedef struct SCITEXHEAD
 	ILuint	WidthPixels;
 } SCITEXHEAD;
 
-ILboolean iIsValidScitex(void);
-ILboolean iLoadScitexInternal(void);
+ILboolean iIsValidScitex(ILcontext* context);
+ILboolean iLoadScitexInternal(ILcontext* context);
 ILboolean iCheckScitex(SCITEXHEAD *Header);
 
 
 // Internal function used to get the Scitex header from the current file.
-ILboolean iGetScitexHead(SCITEXHEAD *Header)
+ILboolean iGetScitexHead(ILcontext* context, SCITEXHEAD *Header)
 {
 	char HeightUnits[15], WidthUnits[15], HeightPixels[13], WidthPixels[13];
 
-	if (iread(Header->Comment, 1, 80) != 80)
+	if (context->impl->iread(context, Header->Comment, 1, 80) != 80)
 		return IL_FALSE;
-	if (iread(Header->Sig, 1, 2) != 2)
+	if (context->impl->iread(context, Header->Sig, 1, 2) != 2)
 		return IL_FALSE;
-	if (iseek(942, IL_SEEK_CUR) == -1)
+	if (context->impl->iseek(context, 942, IL_SEEK_CUR) == -1)
 		return IL_FALSE;
-	Header->Units = igetc();
-	Header->NumChans = igetc();
-	Header->ColorModel = GetBigUShort();
-	if (iread(&HeightUnits, 1, 14) != 14)
+	Header->Units = context->impl->igetc(context);
+	Header->NumChans = context->impl->igetc(context);
+	Header->ColorModel = GetBigUShort(context);
+	if (context->impl->iread(context, &HeightUnits, 1, 14) != 14)
 		return IL_FALSE;
-	if (iread(&WidthUnits, 1, 14) != 14)
+	if (context->impl->iread(context, &WidthUnits, 1, 14) != 14)
 		return IL_FALSE;
-	if (iread(&HeightPixels, 1, 12) != 12)
+	if (context->impl->iread(context, &HeightPixels, 1, 12) != 12)
 		return IL_FALSE;
-	if (iread(&WidthPixels, 1, 12) != 12)
+	if (context->impl->iread(context, &WidthPixels, 1, 12) != 12)
 		return IL_FALSE;
 
 	HeightUnits[14] = NULL;
@@ -88,60 +88,60 @@ ILboolean iGetScitexHead(SCITEXHEAD *Header)
 
 
 //! Checks if the file specified in FileName is a valid BLP file.
-ILboolean ilIsValidScitex(ILconst_string FileName)
+ILboolean ilIsValidScitex(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	ScitexFile;
 	ILboolean	bScitex = IL_FALSE;
 
 	if (!iCheckExtension(FileName, IL_TEXT("ct"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bScitex;
 	}
 
-	ScitexFile = iopenr(FileName);
+	ScitexFile = context->impl->iopenr(FileName);
 	if (ScitexFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bScitex;
 	}
 
-	bScitex = ilIsValidScitexF(ScitexFile);
-	icloser(ScitexFile);
+	bScitex = ilIsValidScitexF(context, ScitexFile);
+	context->impl->icloser(ScitexFile);
 
 	return bScitex;
 }
 
 
 //! Checks if the ILHANDLE contains a valid Scitex file at the current position.
-ILboolean ilIsValidScitexF(ILHANDLE File)
+ILboolean ilIsValidScitexF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidScitex();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidScitex(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid BLP lump.
-ILboolean ilIsValidScitexL(const void *Lump, ILuint Size)
+ILboolean ilIsValidScitexL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidScitex();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidScitex(context);
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidScitex(void)
+ILboolean iIsValidScitex(ILcontext* context)
 {
 	SCITEXHEAD Header;
 
-	if (!iGetScitexHead(&Header))
+	if (!iGetScitexHead(context, &Header))
 		return IL_FALSE;
-	iseek(-2048, IL_SEEK_CUR);
+	context->impl->iseek(context, -2048, IL_SEEK_CUR);
 
 	return iCheckScitex(&Header);
 }
@@ -169,115 +169,115 @@ ILboolean iCheckScitex(SCITEXHEAD *Header)
 
 
 //! Reads a BLP file
-ILboolean ilLoadScitex(ILconst_string FileName)
+ILboolean ilLoadScitex(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	ScitexFile;
 	ILboolean	bScitex = IL_FALSE;
 
-	ScitexFile = iopenr(FileName);
+	ScitexFile = context->impl->iopenr(FileName);
 	if (ScitexFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bScitex;
 	}
 
-	bScitex = ilLoadScitexF(ScitexFile);
-	icloser(ScitexFile);
+	bScitex = ilLoadScitexF(context, ScitexFile);
+	context->impl->icloser(ScitexFile);
 
 	return bScitex;
 }
 
 
 //! Reads an already-opened BLP file
-ILboolean ilLoadScitexF(ILHANDLE File)
+ILboolean ilLoadScitexF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadScitexInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadScitexInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a BLP
-ILboolean ilLoadScitexL(const void *Lump, ILuint Size)
+ILboolean ilLoadScitexL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadScitexInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadScitexInternal(context);
 }
 
 
 // Internal function used to load the BLP.
-ILboolean iLoadScitexInternal(void)
+ILboolean iLoadScitexInternal(ILcontext* context)
 {
 	SCITEXHEAD Header;
 	ILuint Pos = 0;
 	ILubyte *RowData;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	if (!iGetScitexHead(&Header)) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+	if (!iGetScitexHead(context, &Header)) {
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 	if (!iCheckScitex(&Header)) {
 		return IL_FALSE;
 	}
 
-	iseek(2048, IL_SEEK_SET);
-	RowData = (ILubyte*)ialloc(Header.WidthPixels);
+	context->impl->iseek(context, 2048, IL_SEEK_SET);
+	RowData = (ILubyte*)ialloc(context, Header.WidthPixels);
 	if (RowData == NULL)
 		return IL_FALSE;
 
 	switch (Header.ColorModel)
 	{
 		case 7:
-			if (!ilTexImage(Header.WidthPixels, Header.HeightPixels, 1, Header.NumChans, 0, IL_UNSIGNED_BYTE, NULL))
+			if (!ilTexImage(context, Header.WidthPixels, Header.HeightPixels, 1, Header.NumChans, 0, IL_UNSIGNED_BYTE, NULL))
 			{
 				ifree(RowData);
 				return IL_FALSE;
 			}
-			iCurImage->Format = IL_RGB;
+			context->impl->iCurImage->Format = IL_RGB;
 
-			for (ILuint h = 0; h < iCurImage->Height; h++)
+			for (ILuint h = 0; h < context->impl->iCurImage->Height; h++)
 			{
-				for (ILuint c = 0; c < iCurImage->Bpp; c++)
+				for (ILuint c = 0; c < context->impl->iCurImage->Bpp; c++)
 				{
-					if (iread(RowData, 1, Header.WidthPixels) != Header.WidthPixels)
+					if (context->impl->iread(context, RowData, 1, Header.WidthPixels) != Header.WidthPixels)
 					{
 						ifree(RowData);
 						return IL_FALSE;
 					}
-					for (ILuint w = 0; w < iCurImage->Width; w++)
+					for (ILuint w = 0; w < context->impl->iCurImage->Width; w++)
 					{
-						iCurImage->Data[Pos + w * 3 + c] = RowData[w];
+						context->impl->iCurImage->Data[Pos + w * 3 + c] = RowData[w];
 					}
-					if (iCurImage->Width % 2 != 0)  // Pads to even width
-						igetc();
+					if (context->impl->iCurImage->Width % 2 != 0)  // Pads to even width
+						context->impl->igetc(context);
 				}
 				Pos += Header.WidthPixels * 3;
 			}
 			break;
 
 		case 8:
-			if (!ilTexImage(Header.WidthPixels, Header.HeightPixels, 1, Header.NumChans, 0, IL_UNSIGNED_BYTE, NULL))
+			if (!ilTexImage(context, Header.WidthPixels, Header.HeightPixels, 1, Header.NumChans, 0, IL_UNSIGNED_BYTE, NULL))
 			{
 				ifree(RowData);
 				return IL_FALSE;
 			}
-			iCurImage->Format = IL_LUMINANCE;
+			context->impl->iCurImage->Format = IL_LUMINANCE;
 
-			for (ILuint h = 0; h < iCurImage->Height; h++)
+			for (ILuint h = 0; h < context->impl->iCurImage->Height; h++)
 			{
-				iread(iCurImage->Data + Pos, 1, iCurImage->Width);
-				if (iCurImage->Width % 2 != 0)  // Pads to even width
-					igetc();
+				context->impl->iread(context, context->impl->iCurImage->Data + Pos, 1, context->impl->iCurImage->Width);
+				if (context->impl->iCurImage->Width % 2 != 0)  // Pads to even width
+					context->impl->igetc(context);
 				Pos += Header.WidthPixels;
 			}
 
@@ -286,9 +286,9 @@ ILboolean iLoadScitexInternal(void)
 		//case 15:
 		//default:
 	}
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
-	return ilFixImage();
+	return ilFixImage(context);
 };
 
 

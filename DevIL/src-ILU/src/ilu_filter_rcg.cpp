@@ -223,7 +223,7 @@ CLIST	*contrib;		/* array of contribution lists */
 
 	Returns -1 if error, 0 otherwise.
 */
-int calc_x_contrib( CLIST *contribX, double xscale, double fwidth, int dstwidth, int srcwidth, double (*filterf)(double), int i) {
+int calc_x_contrib( ILcontext* context, CLIST *contribX, double xscale, double fwidth, int dstwidth, int srcwidth, double (*filterf)(double), int i) {
 	double width;
 	double fscale;
 	double center, left, right;
@@ -237,7 +237,7 @@ int calc_x_contrib( CLIST *contribX, double xscale, double fwidth, int dstwidth,
 		fscale = 1.0 / xscale;
 
 		contribX->n = 0;
-		contribX->p = (CONTRIB *)icalloc((int) (width * 2 + 1),
+		contribX->p = (CONTRIB *)icalloc(context, (int) (width * 2 + 1),
 				sizeof(CONTRIB));
 		if (contribX->p == NULL) {
 			return -1;
@@ -262,7 +262,7 @@ int calc_x_contrib( CLIST *contribX, double xscale, double fwidth, int dstwidth,
 	{
 		/* Expanding image */
 		contribX->n = 0;
-		contribX->p = (CONTRIB*)icalloc((int) (fwidth * 2 + 1),
+		contribX->p = (CONTRIB*)icalloc(context, (int) (fwidth * 2 + 1),
 				sizeof(CONTRIB));
 		if (contribX->p == NULL) {
 			return -1;
@@ -291,7 +291,7 @@ int calc_x_contrib( CLIST *contribX, double xscale, double fwidth, int dstwidth,
 	Resizes bitmaps while resampling them.
 	Returns -1 if error, 0 if success.
 */
-int zoom( ILimage *dst, ILimage *src, double (*filterf)(double), double fwidth) {
+int zoom( ILcontext* context, ILimage *dst, ILimage *src, double (*filterf)(double), double fwidth) {
 	ILubyte* tmp;
 	double xscale, yscale;		/* zoom scale factors */
 	int xx;
@@ -306,7 +306,7 @@ int zoom( ILimage *dst, ILimage *src, double (*filterf)(double), double fwidth) 
 	int		nRet = -1;
 
 	/* create intermediate column to hold horizontal dst column zoom */
-	tmp = (ILubyte*)ialloc(src->Height * sizeof(ILubyte));
+	tmp = (ILubyte*)ialloc(context, src->Height * sizeof(ILubyte));
 	if (tmp == NULL) {
 		return 0;
 	}
@@ -315,7 +315,7 @@ int zoom( ILimage *dst, ILimage *src, double (*filterf)(double), double fwidth) 
 
 	/* Build y weights */
 	/* pre-calculate filter contributions for a column */
-	contribY = (CLIST*)icalloc(dst->Height, sizeof(CLIST));
+	contribY = (CLIST*)icalloc(context, dst->Height, sizeof(CLIST));
 	if (contribY == NULL) {
 		ifree(tmp);
 		return -1;
@@ -330,7 +330,7 @@ int zoom( ILimage *dst, ILimage *src, double (*filterf)(double), double fwidth) 
 		for(i = 0; i < (ILint)dst->Height; ++i)
 		{
 			contribY[i].n = 0;
-			contribY[i].p = (CONTRIB*)icalloc((int) (width * 2 + 1),
+			contribY[i].p = (CONTRIB*)icalloc(context, (int) (width * 2 + 1),
 					sizeof(CONTRIB));
 			if(contribY[i].p == NULL) {
 				ifree(tmp);
@@ -352,7 +352,7 @@ int zoom( ILimage *dst, ILimage *src, double (*filterf)(double), double fwidth) 
 	} else {
 		for(i = 0; i < (ILint)dst->Height; ++i) {
 			contribY[i].n = 0;
-			contribY[i].p = (CONTRIB*)icalloc((int) (fwidth * 2 + 1),
+			contribY[i].p = (CONTRIB*)icalloc(context, (int) (fwidth * 2 + 1),
 					sizeof(CONTRIB));
 			if (contribY[i].p == NULL) {
 				ifree(tmp);
@@ -376,7 +376,7 @@ int zoom( ILimage *dst, ILimage *src, double (*filterf)(double), double fwidth) 
 
 	for(xx = 0; xx < (ILint)dst->Width; xx++)
 	{
-		if(0 != calc_x_contrib(&contribX, xscale, fwidth, 
+		if(0 != calc_x_contrib(context, &contribX, xscale, fwidth,
 								dst->Width, src->Width, filterf, xx))
 		{
 			goto __zoom_cleanup;
@@ -441,15 +441,15 @@ __zoom_cleanup:
 } /* zoom */
 
 
-ILuint iluScaleAdvanced(ILuint Width, ILuint Height, ILenum Filter)
+ILuint iluScaleAdvanced(ILcontext* context, ILuint Width, ILuint Height, ILenum Filter)
 {
 	double (*f)(double) = filter;
 	double s = filter_support;
 	ILimage *Dest;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -457,7 +457,7 @@ ILuint iluScaleAdvanced(ILuint Width, ILuint Height, ILenum Filter)
 	if (iluCurImage->Type != IL_UNSIGNED_BYTE ||
 		iluCurImage->Format == IL_COLOUR_INDEX ||
 		iluCurImage->Depth > 1) {
-			ilSetError(ILU_ILLEGAL_OPERATION);
+			ilSetError(context, ILU_ILLEGAL_OPERATION);
 			return IL_FALSE;
 	}
 
@@ -472,16 +472,16 @@ ILuint iluScaleAdvanced(ILuint Width, ILuint Height, ILenum Filter)
 		//case 'h': f=filter; s=filter_support; break;
 	}
 
-	Dest = ilNewImage(Width, Height, 1, iluCurImage->Bpp, 1);
+	Dest = ilNewImage(context, Width, Height, 1, iluCurImage->Bpp, 1);
 	Dest->Origin = iluCurImage->Origin;
 	Dest->Duration = iluCurImage->Duration;
 	for (c = 0; c < (ILuint)iluCurImage->Bpp; c++) {
-		if (zoom(Dest, iluCurImage, f, s) != 0) {
+		if (zoom(context, Dest, iluCurImage, f, s) != 0) {
 			return IL_FALSE;
 		}
 	}
 
-	ilTexImage(Width, Height, 1, iluCurImage->Bpp, iluCurImage->Format, iluCurImage->Type, Dest->Data);
+	ilTexImage(context, Width, Height, 1, iluCurImage->Bpp, iluCurImage->Format, iluCurImage->Type, Dest->Data);
 	iluCurImage->Origin = Dest->Origin;
 	iluCurImage->Duration = Dest->Duration;
 	ilCloseImage(Dest);

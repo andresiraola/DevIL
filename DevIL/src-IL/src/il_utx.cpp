@@ -18,73 +18,73 @@
 
 
 //! Reads a UTX file
-ILboolean ilLoadUtx(ILconst_string FileName)
+ILboolean ilLoadUtx(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	UtxFile;
 	ILboolean	bUtx = IL_FALSE;
 
-	UtxFile = iopenr(FileName);
+	UtxFile = context->impl->iopenr(FileName);
 	if (UtxFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bUtx;
 	}
 
-	bUtx = ilLoadUtxF(UtxFile);
-	icloser(UtxFile);
+	bUtx = ilLoadUtxF(context, UtxFile);
+	context->impl->icloser(UtxFile);
 
 	return bUtx;
 }
 
 
 //! Reads an already-opened UTX file
-ILboolean ilLoadUtxF(ILHANDLE File)
+ILboolean ilLoadUtxF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
 	try {
-		bRet = iLoadUtxInternal();
+		bRet = iLoadUtxInternal(context);
 	}
 	catch (bad_alloc &e) {
 		e;
-		ilSetError(IL_OUT_OF_MEMORY);
+		ilSetError(context, IL_OUT_OF_MEMORY);
 		return IL_FALSE;
 	}
-	iseek(FirstPos, IL_SEEK_SET);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a UTX
-ILboolean ilLoadUtxL(const void *Lump, ILuint Size)
+ILboolean ilLoadUtxL(ILcontext* context, const void *Lump, ILuint Size)
 {
 	try {
-		iSetInputLump(Lump, Size);
+		iSetInputLump(context, Lump, Size);
 	}
 	catch (bad_alloc &e) {
 		e;
-		ilSetError(IL_OUT_OF_MEMORY);
+		ilSetError(context, IL_OUT_OF_MEMORY);
 		return IL_FALSE;
 	}
-	return iLoadUtxInternal();
+	return iLoadUtxInternal(context);
 }
 
 
-ILboolean GetUtxHead(UTXHEADER &Header)
+ILboolean GetUtxHead(ILcontext* context, UTXHEADER &Header)
 {
-	Header.Signature = GetLittleUInt();
-	Header.Version = GetLittleUShort();
-	Header.LicenseMode = GetLittleUShort();
-	Header.Flags = GetLittleUInt();
-	Header.NameCount = GetLittleUInt();
-	Header.NameOffset = GetLittleUInt();
-	Header.ExportCount = GetLittleUInt();
-	Header.ExportOffset = GetLittleUInt();
-	Header.ImportCount = GetLittleUInt();
-	Header.ImportOffset = GetLittleUInt();
+	Header.Signature = GetLittleUInt(context);
+	Header.Version = GetLittleUShort(context);
+	Header.LicenseMode = GetLittleUShort(context);
+	Header.Flags = GetLittleUInt(context);
+	Header.NameCount = GetLittleUInt(context);
+	Header.NameOffset = GetLittleUInt(context);
+	Header.ExportCount = GetLittleUInt(context);
+	Header.ExportOffset = GetLittleUInt(context);
+	Header.ImportCount = GetLittleUInt(context);
+	Header.ImportOffset = GetLittleUInt(context);
 
 	return IL_TRUE;
 }
@@ -103,7 +103,7 @@ ILboolean CheckUtxHead(UTXHEADER &Header)
 
 
 // Gets a name variable from the file.  Keep in mind that the return value must be freed.
-string GetUtxName(UTXHEADER &Header)
+string GetUtxName(ILcontext* context, UTXHEADER &Header)
 {
 #define NAME_MAX_LEN 256  //@TODO: Figure out if these can possibly be longer.
 	char	Name[NAME_MAX_LEN];
@@ -112,8 +112,8 @@ string GetUtxName(UTXHEADER &Header)
 	// New style (Unreal Tournament) name.  This has a byte at the beginning telling
 	//  how long the string is (plus terminating 0), followed by the terminating 0. 
 	if (Header.Version >= 64) {
-		Length = igetc();
-		if (iread(Name, Length, 1) != 1)
+		Length = context->impl->igetc(context);
+		if (context->impl->iread(context, Name, Length, 1) != 1)
 			return "";
 		if (Name[Length-1] != 0)
 			return "";
@@ -123,8 +123,8 @@ string GetUtxName(UTXHEADER &Header)
 	// Old style (Unreal) name.  This string length is unknown, but it is terminated
 	//  by a 0.
 	do {
-		Name[Length++] = igetc();
-	} while (!ieof() && Name[Length-1] != 0 && Length < NAME_MAX_LEN);
+		Name[Length++] = context->impl->igetc(context);
+	} while (!context->impl->ieof(context) && Name[Length-1] != 0 && Length < NAME_MAX_LEN);
 
 	// Never reached the terminating 0.
 	if (Length == NAME_MAX_LEN && Name[Length-1] != 0)
@@ -135,26 +135,26 @@ string GetUtxName(UTXHEADER &Header)
 }
 
 
-bool GetUtxNameTable(vector <UTXENTRYNAME> &NameEntries, UTXHEADER &Header)
+bool GetUtxNameTable(ILcontext* context, vector <UTXENTRYNAME> &NameEntries, UTXHEADER &Header)
 {
 	ILuint	NumRead;
 
 	// Go to the name table.
-	iseek(Header.NameOffset, IL_SEEK_SET);
+	context->impl->iseek(context, Header.NameOffset, IL_SEEK_SET);
 
 	NameEntries.resize(Header.NameCount);
 
 	// Read in the name table.
 	for (NumRead = 0; NumRead < Header.NameCount; NumRead++) {
-		NameEntries[NumRead].Name = GetUtxName(Header);
+		NameEntries[NumRead].Name = GetUtxName(context, Header);
 		if (NameEntries[NumRead].Name == "")
 			break;
-		NameEntries[NumRead].Flags = GetLittleUInt();
+		NameEntries[NumRead].Flags = GetLittleUInt(context);
 	}
 
 	// Did not read all of the entries (most likely GetUtxName failed).
 	if (NumRead < Header.NameCount) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return false;
 	}
 
@@ -172,7 +172,7 @@ bool GetUtxNameTable(vector <UTXENTRYNAME> &NameEntries, UTXHEADER &Header)
 /// <remarks>FileReader is a System.IO.BinaryReader mapped
 /// to a file. Also, there may be better ways to implement
 /// this, but this is fast, and it works.</remarks>
-ILint UtxReadCompactInteger()
+ILint UtxReadCompactInteger(ILcontext* context)
 {
         int output = 0;
         ILboolean sign = IL_FALSE;
@@ -180,7 +180,7 @@ ILint UtxReadCompactInteger()
 		ILubyte x;
         for(i = 0; i < 5; i++)
         {
-                x = igetc();
+                x = context->impl->igetc(context);
                 // First byte
                 if(i == 0)
                 {
@@ -235,24 +235,24 @@ void ChangeObjectReference(ILint *ObjRef, ILboolean *IsImported)
 }
 
 
-bool GetUtxExportTable(vector <UTXEXPORTTABLE> &ExportTable, UTXHEADER &Header)
+bool GetUtxExportTable(ILcontext* context, vector <UTXEXPORTTABLE> &ExportTable, UTXHEADER &Header)
 {
 	ILuint i;
 
 	// Go to the name table.
-	iseek(Header.ExportOffset, IL_SEEK_SET);
+	context->impl->iseek(context, Header.ExportOffset, IL_SEEK_SET);
 
 	// Create ExportCount elements in our array.
 	ExportTable.resize(Header.ExportCount);
 
 	for (i = 0; i < Header.ExportCount; i++) {
-		ExportTable[i].Class = UtxReadCompactInteger();
-		ExportTable[i].Super = UtxReadCompactInteger();
-		ExportTable[i].Group = GetLittleUInt();
-		ExportTable[i].ObjectName = UtxReadCompactInteger();
-		ExportTable[i].ObjectFlags = GetLittleUInt();
-		ExportTable[i].SerialSize = UtxReadCompactInteger();
-		ExportTable[i].SerialOffset = UtxReadCompactInteger();
+		ExportTable[i].Class = UtxReadCompactInteger(context);
+		ExportTable[i].Super = UtxReadCompactInteger(context);
+		ExportTable[i].Group = GetLittleUInt(context);
+		ExportTable[i].ObjectName = UtxReadCompactInteger(context);
+		ExportTable[i].ObjectFlags = GetLittleUInt(context);
+		ExportTable[i].SerialSize = UtxReadCompactInteger(context);
+		ExportTable[i].SerialOffset = UtxReadCompactInteger(context);
 
 		ChangeObjectReference(&ExportTable[i].Class, &ExportTable[i].ClassImported);
 		ChangeObjectReference(&ExportTable[i].Super, &ExportTable[i].SuperImported);
@@ -263,21 +263,21 @@ bool GetUtxExportTable(vector <UTXEXPORTTABLE> &ExportTable, UTXHEADER &Header)
 }
 
 
-bool GetUtxImportTable(vector <UTXIMPORTTABLE> &ImportTable, UTXHEADER &Header)
+bool GetUtxImportTable(ILcontext* context, vector <UTXIMPORTTABLE> &ImportTable, UTXHEADER &Header)
 {
 	ILuint i;
 
 	// Go to the name table.
-	iseek(Header.ImportOffset, IL_SEEK_SET);
+	context->impl->iseek(context, Header.ImportOffset, IL_SEEK_SET);
 
 	// Allocate the name table.
 	ImportTable.resize(Header.ImportCount);
 
 	for (i = 0; i < Header.ImportCount; i++) {
-		ImportTable[i].ClassPackage = UtxReadCompactInteger();
-		ImportTable[i].ClassName = UtxReadCompactInteger();
-		ImportTable[i].Package = GetLittleUInt();
-		ImportTable[i].ObjectName = UtxReadCompactInteger();
+		ImportTable[i].ClassPackage = UtxReadCompactInteger(context);
+		ImportTable[i].ClassName = UtxReadCompactInteger(context);
+		ImportTable[i].Package = GetLittleUInt(context);
+		ImportTable[i].ObjectName = UtxReadCompactInteger(context);
 
 		ChangeObjectReference(&ImportTable[i].Package, &ImportTable[i].PackageImported);
 	}
@@ -324,7 +324,7 @@ ILuint UtxFormatToBpp(ILuint Format)
 
 
 // Internal function used to load the UTX.
-ILboolean iLoadUtxInternal(void)
+ILboolean iLoadUtxInternal(ILcontext* context)
 {
 	UTXHEADER		Header;
 	vector <UTXENTRYNAME> NameEntries;
@@ -342,24 +342,24 @@ ILboolean iLoadUtxInternal(void)
 	ILint		Format;
 	ILubyte		*CompData = NULL;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	if (!GetUtxHead(Header))
+	if (!GetUtxHead(context, Header))
 		return IL_FALSE;
 	if (!CheckUtxHead(Header))
 		return IL_FALSE;
 
 	// We grab the name table.
-	if (!GetUtxNameTable(NameEntries, Header))
+	if (!GetUtxNameTable(context, NameEntries, Header))
 		return IL_FALSE;
 	// Then we get the export table.
-	if (!GetUtxExportTable(ExportTable, Header))
+	if (!GetUtxExportTable(context, ExportTable, Header))
 		return IL_FALSE;
 	// Then the last table is the import table.
-	if (!GetUtxImportTable(ImportTable, Header))
+	if (!GetUtxImportTable(context, ImportTable, Header))
 		return IL_FALSE;
 
 	// Find the number of palettes in the export table.
@@ -374,11 +374,11 @@ ILboolean iLoadUtxInternal(void)
 	for (i = 0; i < Header.ExportCount; i++) {
 		if (NameEntries[ImportTable[ExportTable[i].Class].ObjectName].Name == "Palette") {
 			Palettes[NumPal].Name = i;
-			iseek(ExportTable[NumPal].SerialOffset, IL_SEEK_SET);
-			Name = igetc();  // Skip the 2.  @TODO: Can there be more in front of the palettes?
-			Palettes[NumPal].Count = UtxReadCompactInteger();
+			context->impl->iseek(context, ExportTable[NumPal].SerialOffset, IL_SEEK_SET);
+			Name = context->impl->igetc(context);  // Skip the 2.  @TODO: Can there be more in front of the palettes?
+			Palettes[NumPal].Count = UtxReadCompactInteger(context);
 			Palettes[NumPal].Pal = new ILubyte[Palettes[NumPal].Count * 4];
-			if (iread(Palettes[NumPal].Pal, Palettes[NumPal].Count * 4, 1) != 1)
+			if (context->impl->iread(context, Palettes[NumPal].Pal, Palettes[NumPal].Count * 4, 1) != 1)
 				return IL_FALSE;
 			NumPal++;
 		}
@@ -387,59 +387,59 @@ ILboolean iLoadUtxInternal(void)
 	for (i = 0; i < Header.ExportCount; i++) {
 		// Find textures in the file.
 		if (NameEntries[ImportTable[ExportTable[i].Class].ObjectName].Name == "Texture") {
-			iseek(ExportTable[i].SerialOffset, IL_SEEK_SET);
+			context->impl->iseek(context, ExportTable[i].SerialOffset, IL_SEEK_SET);
 			Width = -1;  Height = -1;  PalEntry = NumPal;  HasPal = IL_FALSE;  Format = -1;
 
 			do {
 				// Always starts with a comptact integer that gives us an entry into the name table.
-				Name = UtxReadCompactInteger();
+				Name = UtxReadCompactInteger(context);
 				if (NameEntries[Name].Name == "None")
 					break;
-				Type = igetc();
+				Type = context->impl->igetc(context);
 				Size = (Type & 0x70) >> 4;
 
 				if (Type == 0xA2)
-					igetc();  // Byte is 1 here...
+					context->impl->igetc(context);  // Byte is 1 here...
 
 				switch (Type & 0x0F)
 				{
 					case 1:  // Get a single byte.
-						Val = igetc();
+						Val = context->impl->igetc(context);
 						break;
 
 					case 2:  // Get unsigned integer.
-						Val = GetLittleUInt();
+						Val = GetLittleUInt(context);
 						break;
 
 					case 3:  // Boolean value is in the info byte.
-						igetc();
+						context->impl->igetc(context);
 						break;
 
 					case 4:  // Skip flaots for right now.
-						GetLittleFloat();
+						GetLittleFloat(context);
 						break;
 
 					case 5:
 					case 6:  // Get a compact integer - an object reference.
-						Val = UtxReadCompactInteger();
+						Val = UtxReadCompactInteger(context);
 						Val--;
 						break;
 
 					case 10:
-						Val = igetc();
+						Val = context->impl->igetc(context);
 						switch (Size)
 						{
 							case 0:
-								iseek(1, IL_SEEK_CUR);
+								context->impl->iseek(context, 1, IL_SEEK_CUR);
 								break;
 							case 1:
-								iseek(2, IL_SEEK_CUR);
+								context->impl->iseek(context, 2, IL_SEEK_CUR);
 								break;
 							case 2:
-								iseek(4, IL_SEEK_CUR);
+								context->impl->iseek(context, 4, IL_SEEK_CUR);
 								break;
 							case 3:
-								iseek(12, IL_SEEK_CUR);
+								context->impl->iseek(context, 12, IL_SEEK_CUR);
 								break;
 						}
 						break;
@@ -472,7 +472,7 @@ ILboolean iLoadUtxInternal(void)
 						if (Height == -1)
 							Height = Val;
 				}
-			} while (!ieof());
+			} while (!context->impl->ieof(context));
 
 			// If the format property is not present, it is a paletted (P8) image.
 			if (Format == -1)
@@ -482,11 +482,11 @@ ILboolean iLoadUtxInternal(void)
 				return IL_FALSE;
 			if (BaseCreated == IL_FALSE) {
 				BaseCreated = IL_TRUE;
-				ilTexImage(Width, Height, 1, UtxFormatToBpp(Format), UtxFormatToDevIL(Format), IL_UNSIGNED_BYTE, NULL);
-				Image = iCurImage;
+				ilTexImage(context, Width, Height, 1, UtxFormatToBpp(Format), UtxFormatToDevIL(Format), IL_UNSIGNED_BYTE, NULL);
+				Image = context->impl->iCurImage;
 			}
 			else {
-				Image->Next = ilNewImageFull(Width, Height, 1, UtxFormatToBpp(Format), UtxFormatToDevIL(Format), IL_UNSIGNED_BYTE, NULL);
+				Image->Next = ilNewImageFull(context, Width, Height, 1, UtxFormatToBpp(Format), UtxFormatToDevIL(Format), IL_UNSIGNED_BYTE, NULL);
 				if (Image->Next == NULL)
 					return IL_FALSE;
 				Image = Image->Next;
@@ -494,35 +494,35 @@ ILboolean iLoadUtxInternal(void)
 
 			// Skip the mipmap count, width offset and mipmap size entries.
 			//@TODO: Implement mipmaps.
-			iseek(5, IL_SEEK_CUR);
-			UtxReadCompactInteger();
+			context->impl->iseek(context, 5, IL_SEEK_CUR);
+			UtxReadCompactInteger(context);
 
 			switch (Format)
 			{
 				case UTX_P8:
 					Image->Pal.PalSize = Palettes[PalEntry].Count * 4;
-					Image->Pal.Palette = (ILubyte*)ialloc(Image->Pal.PalSize);
+					Image->Pal.Palette = (ILubyte*)ialloc(context, Image->Pal.PalSize);
 					if (Image->Pal.Palette == NULL)
 						return IL_FALSE;
 					memcpy(Image->Pal.Palette, Palettes[PalEntry].Pal, Image->Pal.PalSize);
 					Image->Pal.PalType = IL_PAL_RGBA32;
 
-					if (iread(Image->Data, Image->SizeOfData, 1) != 1)
+					if (context->impl->iread(context, Image->Data, Image->SizeOfData, 1) != 1)
 						return IL_FALSE;
 					break;
 
 				case UTX_DXT1:
 					Image->DxtcSize = IL_MAX(Image->Width * Image->Height / 2, 8);
-					CompData = (ILubyte*)ialloc(Image->DxtcSize);
+					CompData = (ILubyte*)ialloc(context, Image->DxtcSize);
 					if (CompData == NULL)
 						return IL_FALSE;
 
-					if (iread(CompData, Image->DxtcSize, 1) != 1) {
+					if (context->impl->iread(context, CompData, Image->DxtcSize, 1) != 1) {
 						ifree(CompData);
 						return IL_FALSE;
 					}
 					// Keep a copy of the DXTC data if the user wants it.
-					if (ilGetInteger(IL_KEEP_DXTC_DATA) == IL_TRUE) {
+					if (ilGetInteger(context, IL_KEEP_DXTC_DATA) == IL_TRUE) {
 						Image->DxtcData = CompData;
 						Image->DxtcFormat = IL_DXT1;
 						CompData = NULL;
@@ -538,7 +538,7 @@ ILboolean iLoadUtxInternal(void)
 		}
 	}
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 #endif//IL_NO_UTX

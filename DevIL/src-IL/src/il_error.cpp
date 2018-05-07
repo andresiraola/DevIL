@@ -14,40 +14,33 @@
 #include "il_internal.h"
 
 
-#define IL_ERROR_STACK_SIZE 32  // Needed elsewhere?
-
-
-ILenum	ilErrorNum[IL_ERROR_STACK_SIZE];
-ILint	ilErrorPlace = (-1);
-
-
 // Sets the current error
 //	If you go past the stack size for this, it cycles the errors, almost like a LRU algo.
-ILAPI void ILAPIENTRY ilSetError(ILenum Error)
+ILAPI void ILAPIENTRY ilSetError(ILcontext* context, ILenum Error)
 {
 	ILuint i;
 
-	ilErrorPlace++;
-	if (ilErrorPlace >= IL_ERROR_STACK_SIZE) {
+	context->impl->ilErrorPlace++;
+	if (context->impl->ilErrorPlace >= IL_ERROR_STACK_SIZE) {
 		for (i = 0; i < IL_ERROR_STACK_SIZE - 2; i++) {
-			ilErrorNum[i] = ilErrorNum[i+1];
+			context->impl->ilErrorNum[i] = context->impl->ilErrorNum[i+1];
 		}
-		ilErrorPlace = IL_ERROR_STACK_SIZE - 1;
+		context->impl->ilErrorPlace = IL_ERROR_STACK_SIZE - 1;
 	}
-	ilErrorNum[ilErrorPlace] = Error;
+	context->impl->ilErrorNum[context->impl->ilErrorPlace] = Error;
 
 	return;
 }
 
 
 //! Gets the last error on the error stack
-ILenum ILAPIENTRY ilGetError(void)
+ILenum ILAPIENTRY ilGetError(ILcontext* context)
 {
 	ILenum ilReturn;
 
-	if (ilErrorPlace >= 0) {
-		ilReturn = ilErrorNum[ilErrorPlace];
-		ilErrorPlace--;
+	if (context->impl->ilErrorPlace >= 0) {
+		ilReturn = context->impl->ilErrorNum[context->impl->ilErrorPlace];
+		context->impl->ilErrorPlace--;
 	}
 	else
 		ilReturn = IL_NO_ERROR;

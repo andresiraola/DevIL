@@ -41,15 +41,15 @@ typedef struct PPMINFO
 	ILubyte	TuplType;
 } PPMINFO;
 
-ILboolean	iIsValidPnm(void);
+ILboolean	iIsValidPnm(ILcontext* context);
 ILboolean	iCheckPnm(char Header[2]);
-ILboolean	iLoadPnmInternal(void);
-ILboolean	iSavePnmInternal(void);
-ILimage		*ilReadAsciiPpm(PPMINFO *Info);
-ILimage		*ilReadBinaryPpm(PPMINFO *Info);
-ILimage		*ilReadBitPbm(PPMINFO *Info);
-ILboolean	ilReadPam(void);
-ILboolean	iGetWord(ILboolean);
+ILboolean	iLoadPnmInternal(ILcontext* context);
+ILboolean	iSavePnmInternal(ILcontext* context);
+ILimage		*ilReadAsciiPpm(ILcontext* context, PPMINFO *Info);
+ILimage		*ilReadBinaryPpm(ILcontext* context, PPMINFO *Info);
+ILimage		*ilReadBitPbm(ILcontext* context, PPMINFO *Info);
+ILboolean	ilReadPam(ILcontext* context);
+ILboolean	iGetWord(ILcontext* context, ILboolean);
 void		PbmMaximize(ILimage *Image);
 ILint		DecodeTupleType(string &TupleStr);
 

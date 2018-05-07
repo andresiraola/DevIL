@@ -17,47 +17,47 @@
 #ifndef IL_NO_PCD
 
 
-ILboolean iLoadPcdInternal(void);
+ILboolean iLoadPcdInternal(ILcontext* context);
 
 //! Reads a .pcd file
-ILboolean ilLoadPcd(ILconst_string FileName)
+ILboolean ilLoadPcd(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	PcdFile;
 	ILboolean	bPcd = IL_FALSE;
 
-	PcdFile = iopenr(FileName);
+	PcdFile = context->impl->iopenr(FileName);
 	if (PcdFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bPcd;
 	}
 
-	bPcd = ilLoadPcdF(PcdFile);
-	icloser(PcdFile);
+	bPcd = ilLoadPcdF(context, PcdFile);
+	context->impl->icloser(PcdFile);
 
 	return bPcd;
 }
 
 
 //! Reads an already-opened .pcd file
-ILboolean ilLoadPcdF(ILHANDLE File)
+ILboolean ilLoadPcdF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadPcdInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadPcdInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a .pcd file
-ILboolean ilLoadPcdL(const void *Lump, ILuint Size)
+ILboolean ilLoadPcdL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadPcdInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadPcdInternal(context);
 }
 
 
@@ -103,54 +103,54 @@ void YCbCr2RGB(ILubyte Y, ILubyte Cb, ILubyte Cr, ILubyte *r, ILubyte *g, ILubyt
 }
 
 
-ILboolean iLoadPcdInternal()
+ILboolean iLoadPcdInternal(ILcontext* context)
 {
 	ILubyte	VertOrientation;
 	ILuint	Width, Height, i, Total, x, CurPos = 0;
 	ILubyte	*Y1=NULL, *Y2=NULL, *CbCr=NULL, r = 0, g = 0, b = 0;
 	ILuint	PicNum;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	iseek(72, IL_SEEK_CUR);
-	if (iread(&VertOrientation, 1, 1) != 1)
+	context->impl->iseek(context, 72, IL_SEEK_CUR);
+	if (context->impl->iread(context, &VertOrientation, 1, 1) != 1)
 		return IL_FALSE;
 
-	iseek(-72, IL_SEEK_CUR);  // Can't rewind
+	context->impl->iseek(context, -72, IL_SEEK_CUR);  // Can't rewind
 
-	PicNum = iGetInt(IL_PCD_PICNUM);
+	PicNum = iGetInt(context, IL_PCD_PICNUM);
 
 	switch (PicNum)
 	{
 		case 0:
-			iseek(0x02000, IL_SEEK_CUR);
+			context->impl->iseek(context, 0x02000, IL_SEEK_CUR);
 			Width = 192;
 			Height = 128;
 			break;
 		case 1:
-			iseek(0x0b800, IL_SEEK_CUR);
+			context->impl->iseek(context, 0x0b800, IL_SEEK_CUR);
 			Width = 384;
 			Height = 256;
 			break;
 		case 2:
-			iseek(0x30000, IL_SEEK_CUR);
+			context->impl->iseek(context, 0x30000, IL_SEEK_CUR);
 			Width = 768;
 			Height = 512;
 			break;
 		default:
-			ilSetError(IL_INVALID_PARAM);
+			ilSetError(context, IL_INVALID_PARAM);
 			return IL_FALSE;
 	}
 
-	if (itell() == IL_EOF)  // Supposed to have data here.
+	if (context->impl->itell(context) == IL_EOF)  // Supposed to have data here.
 		return IL_FALSE;
 
-	Y1 = (ILubyte*)ialloc(Width);
-	Y2 = (ILubyte*)ialloc(Width);
-	CbCr = (ILubyte*)ialloc(Width);
+	Y1 = (ILubyte*)ialloc(context, Width);
+	Y2 = (ILubyte*)ialloc(context, Width);
+	CbCr = (ILubyte*)ialloc(context, Width);
 	if (Y1 == NULL || Y2 == NULL || CbCr == NULL) {
 		ifree(Y1);
 		ifree(Y2);
@@ -158,16 +158,16 @@ ILboolean iLoadPcdInternal()
 		return IL_FALSE;
 	}
 
-	if (!ilTexImage(Width, Height, 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL)) {
+	if (!ilTexImage(context, Width, Height, 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL)) {
 		return IL_FALSE;
 	}
-	iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
 
 	Total = Height >> 1;
 	for (i = 0; i < Total; i++) {
-		iread(Y1, 1, Width);
-		iread(Y2, 1, Width);
-		if (iread(CbCr, 1, Width) != Width) {  // Only really need to check the last one.
+		context->impl->iread(context, Y1, 1, Width);
+		context->impl->iread(context, Y2, 1, Width);
+		if (context->impl->iread(context, CbCr, 1, Width) != Width) {  // Only really need to check the last one.
 			ifree(Y1);
 			ifree(Y2);
 			ifree(CbCr);
@@ -176,16 +176,16 @@ ILboolean iLoadPcdInternal()
 
 		for (x = 0; x < Width; x++) {
 			YCbCr2RGB(Y1[x], CbCr[x / 2], CbCr[(Width / 2) + (x / 2)], &r, &g, &b);
-			iCurImage->Data[CurPos++] = r;
-			iCurImage->Data[CurPos++] = g;
-			iCurImage->Data[CurPos++] = b;
+			context->impl->iCurImage->Data[CurPos++] = r;
+			context->impl->iCurImage->Data[CurPos++] = g;
+			context->impl->iCurImage->Data[CurPos++] = b;
 		}
 
 		for (x = 0; x < Width; x++) {
 			YCbCr2RGB(Y2[x], CbCr[x / 2], CbCr[(Width / 2) + (x / 2)], &r, &g, &b);
-			iCurImage->Data[CurPos++] = r;
-			iCurImage->Data[CurPos++] = g;
-			iCurImage->Data[CurPos++] = b;
+			context->impl->iCurImage->Data[CurPos++] = r;
+			context->impl->iCurImage->Data[CurPos++] = g;
+			context->impl->iCurImage->Data[CurPos++] = b;
 		}
 	}
 
@@ -195,11 +195,11 @@ ILboolean iLoadPcdInternal()
 
 	// Not sure how it is...the documentation is hard to understand
 	if ((VertOrientation & 0x3F) != 8)
-		iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+		context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
 	else
-		iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+		context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 

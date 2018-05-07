@@ -83,9 +83,9 @@ call ilInit before you before you do anything:
 ILuint devilError;
 
 
-ilInit();
+ILcontext* context = ilInit();
 
-devilError = ilGetError();
+devilError = ilGetError(context);
 
 if (devilError != IL_NO_ERROR) {
   printf ("Devil Error (ilInit: %s\n", iluGetErrorString (devilError));
@@ -100,7 +100,7 @@ ILuint devilID;
 ilGenImages(1, &devilID);
 ilBindImage(devilID);
 ilLoadImage("default1.tga");  // Loads into the current bound image
-devilError = ilGetError();
+devilError = ilGetError(context);
 
 if (devilError != IL_NO_ERROR) {
   printf ("Devil Error (ilLoadImage: %s\n", iluGetErrorString (devilError));
@@ -117,7 +117,7 @@ GLuint openglID, openglError;
 
 
 openglID   = ilutGLBindTexImage(); // This generates the texture for you
-devilError = ilGetError();
+devilError = ilGetError(context);
 
 if (devilError != IL_NO_ERROR) {
   printf ("Error: %s\n", iluGetErrorString (devilError));

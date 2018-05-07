@@ -43,61 +43,61 @@ enum {
 	CARD_SKIP
 };
 
-ILboolean	iIsValidFits(void);
-ILboolean	iCheckFits(FITSHEAD *Header);
-ILboolean	iLoadFitsInternal(void);
-ILenum		GetCardImage(FITSHEAD *Header);
+ILboolean	iIsValidFits(ILcontext* context);
+ILboolean	iCheckFits(ILcontext* context, FITSHEAD *Header);
+ILboolean	iLoadFitsInternal(ILcontext* context);
+ILenum		GetCardImage(ILcontext* context, FITSHEAD *Header);
 ILboolean	GetCardInt(char *Buffer, ILint *Val);
 
 //! Checks if the file specified in FileName is a valid FITS file.
-ILboolean ilIsValidFits(ILconst_string FileName)
+ILboolean ilIsValidFits(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	FitsFile;
 	ILboolean	bFits = IL_FALSE;
 	
 	if (!iCheckExtension(FileName, IL_TEXT("fits")) && !iCheckExtension(FileName, IL_TEXT("fit"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bFits;
 	}
 	
-	FitsFile = iopenr(FileName);
+	FitsFile = context->impl->iopenr(FileName);
 	if (FitsFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bFits;
 	}
 	
-	bFits = ilIsValidFitsF(FitsFile);
-	icloser(FitsFile);
+	bFits = ilIsValidFitsF(context, FitsFile);
+	context->impl->icloser(FitsFile);
 	
 	return bFits;
 }
 
 
 //! Checks if the ILHANDLE contains a valid FITS file at the current position.
-ILboolean ilIsValidFitsF(ILHANDLE File)
+ILboolean ilIsValidFitsF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidFits();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidFits(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid FITS lump.
-ILboolean ilIsValidFitsL(const void *Lump, ILuint Size)
+ILboolean ilIsValidFitsL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidFits();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidFits(context);
 }
 
 
 // Internal function used to get the FITS header from the current file.
-ILboolean iGetFitsHead(FITSHEAD *Header)
+ILboolean iGetFitsHead(ILcontext* context, FITSHEAD *Header)
 {
 	ILenum	CardKey;
 
@@ -105,21 +105,21 @@ ILboolean iGetFitsHead(FITSHEAD *Header)
 	memset(Header, 0, sizeof(Header));  // Clear the header to all 0s first.
 
 	do {
-		CardKey = GetCardImage(Header);
+		CardKey = GetCardImage(context, Header);
 		if (CardKey == CARD_END)  // End of the header
 			break;
 		if (CardKey == CARD_READ_FAIL)
 			return IL_FALSE;
 		if (CardKey == CARD_NOT_SIMPLE)
 			return IL_FALSE;
-	} while (!ieof());
+	} while (!context->impl->ieof(context));
 
 	// The header should never reach the end of the file.
-	if (ieof())
+	if (context->impl->ieof(context))
 		return IL_FALSE;  // Error needed?
 
 	// The header must always be a multiple of 2880, so we skip the padding bytes (spaces).
-	iseek((2880 - (itell() % 2880)) % 2880, IL_SEEK_CUR);
+	context->impl->iseek(context, (2880 - (context->impl->itell(context) % 2880)) % 2880, IL_SEEK_CUR);
 
 	switch (Header->BitsPixel)
 	{
@@ -139,7 +139,7 @@ ILboolean iGetFitsHead(FITSHEAD *Header)
 			Header->Type = IL_DOUBLE;
 			break;
 		default:
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return IL_FALSE;
 	}
 
@@ -165,7 +165,7 @@ ILboolean iGetFitsHead(FITSHEAD *Header)
 			break;
 
 		default:
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return IL_FALSE;
 	}
 
@@ -174,22 +174,22 @@ ILboolean iGetFitsHead(FITSHEAD *Header)
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidFits(void)
+ILboolean iIsValidFits(ILcontext* context)
 {
 	FITSHEAD	Header;
-	ILuint		Pos = itell();
+	ILuint		Pos = context->impl->itell(context);
 
-	if (!iGetFitsHead(&Header))
+	if (!iGetFitsHead(context, &Header))
 		return IL_FALSE;
 	// The length of the header varies, so we just go back to the original position.
-	iseek(Pos, IL_SEEK_CUR);
+	context->impl->iseek(context, Pos, IL_SEEK_CUR);
 
-	return iCheckFits(&Header);
+	return iCheckFits(context, &Header);
 }
 
 
 // Internal function used to check if the HEADER is a valid FITS header.
-ILboolean iCheckFits(FITSHEAD *Header)
+ILboolean iCheckFits(ILcontext* context, FITSHEAD *Header)
 {
 	switch (Header->BitsPixel)
 	{
@@ -215,7 +215,7 @@ ILboolean iCheckFits(FITSHEAD *Header)
 
 	// Possibility that one of these values is returned as <= 0 by atoi, which we cannot use.
 	if (Header->Width <= 0 || Header->Height <= 0 || Header->Depth <= 0) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
@@ -224,69 +224,69 @@ ILboolean iCheckFits(FITSHEAD *Header)
 
 
 //! Reads a FITS file
-ILboolean ilLoadFits(ILconst_string FileName)
+ILboolean ilLoadFits(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	FitsFile;
 	ILboolean	bFits = IL_FALSE;
 	
-	FitsFile = iopenr(FileName);
+	FitsFile = context->impl->iopenr(FileName);
 	if (FitsFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bFits;
 	}
 
-	bFits = ilLoadFitsF(FitsFile);
-	icloser(FitsFile);
+	bFits = ilLoadFitsF(context, FitsFile);
+	context->impl->icloser(FitsFile);
 
 	return bFits;
 }
 
 
 //! Reads an already-opened FITS file
-ILboolean ilLoadFitsF(ILHANDLE File)
+ILboolean ilLoadFitsF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadFitsInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadFitsInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a FITS
-ILboolean ilLoadFitsL(const void *Lump, ILuint Size)
+ILboolean ilLoadFitsL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadFitsInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadFitsInternal(context);
 }
 
 
 // Internal function used to load the FITS.
-ILboolean iLoadFitsInternal(void)
+ILboolean iLoadFitsInternal(ILcontext* context)
 {
 	FITSHEAD	Header;
 	ILuint		i, NumPix;
 	ILfloat		MaxF = 0.0f;
 	ILdouble	MaxD = 0.0f;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	if (!iGetFitsHead(&Header))
+	if (!iGetFitsHead(context, &Header))
 		return IL_FALSE;
-	if (!iCheckFits(&Header))
-		return IL_FALSE;
-
-	if (!ilTexImage(Header.Width, Header.Height, Header.Depth, Header.NumChans, Header.Format, Header.Type, NULL))
+	if (!iCheckFits(context, &Header))
 		return IL_FALSE;
 
-	/*if (iread(iCurImage->Data, 1, iCurImage->SizeOfData) != iCurImage->SizeOfData)
+	if (!ilTexImage(context, Header.Width, Header.Height, Header.Depth, Header.NumChans, Header.Format, Header.Type, NULL))
+		return IL_FALSE;
+
+	/*if (context->impl->iread(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfData) != context->impl->iCurImage->SizeOfData)
 		return IL_FALSE;*/
 
 	NumPix = Header.Width * Header.Height * Header.Depth;
@@ -294,62 +294,62 @@ ILboolean iLoadFitsInternal(void)
 	switch (Header.Type)
 	{
 		case IL_UNSIGNED_BYTE:
-			if (iread(iCurImage->Data, 1, iCurImage->SizeOfData) != iCurImage->SizeOfData)
+			if (context->impl->iread(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfData) != context->impl->iCurImage->SizeOfData)
 				return IL_FALSE;
 			break;
 		case IL_SHORT:
 			for (i = 0; i < NumPix; i++) {
-				((ILshort*)iCurImage->Data)[i] = GetBigShort();
+				((ILshort*)context->impl->iCurImage->Data)[i] = GetBigShort(context);
 			}
 			break;
 		case IL_INT:
 			for (i = 0; i < NumPix; i++) {
-				((ILint*)iCurImage->Data)[i] = GetBigInt();
+				((ILint*)context->impl->iCurImage->Data)[i] = GetBigInt(context);
 			}
 			break;
 		case IL_FLOAT:
 			for (i = 0; i < NumPix; i++) {
-				((ILfloat*)iCurImage->Data)[i] = GetBigFloat();
-				if (((ILfloat*)iCurImage->Data)[i] > MaxF)
-					MaxF = ((ILfloat*)iCurImage->Data)[i];
+				((ILfloat*)context->impl->iCurImage->Data)[i] = GetBigFloat(context);
+				if (((ILfloat*)context->impl->iCurImage->Data)[i] > MaxF)
+					MaxF = ((ILfloat*)context->impl->iCurImage->Data)[i];
 			}
 
 			// Renormalize to [0..1].
 			for (i = 0; i < NumPix; i++) {
 				// Change all negative numbers to 0.
-				if (((ILfloat*)iCurImage->Data)[i] < 0.0f)
-					((ILfloat*)iCurImage->Data)[i] = 0.0f;
+				if (((ILfloat*)context->impl->iCurImage->Data)[i] < 0.0f)
+					((ILfloat*)context->impl->iCurImage->Data)[i] = 0.0f;
 				// Do the renormalization now, dividing by the maximum value.
-				((ILfloat*)iCurImage->Data)[i] = ((ILfloat*)iCurImage->Data)[i] / MaxF;
+				((ILfloat*)context->impl->iCurImage->Data)[i] = ((ILfloat*)context->impl->iCurImage->Data)[i] / MaxF;
 			}
 			break;
 		case IL_DOUBLE:
 			for (i = 0; i < NumPix; i++) {
-				((ILdouble*)iCurImage->Data)[i] = GetBigDouble();
-				if (((ILdouble*)iCurImage->Data)[i] > MaxD)
-					MaxD = ((ILdouble*)iCurImage->Data)[i];
+				((ILdouble*)context->impl->iCurImage->Data)[i] = GetBigDouble(context);
+				if (((ILdouble*)context->impl->iCurImage->Data)[i] > MaxD)
+					MaxD = ((ILdouble*)context->impl->iCurImage->Data)[i];
 			}
 
 			// Renormalize to [0..1].
 			for (i = 0; i < NumPix; i++) {
 				// Change all negative numbers to 0.
-				if (((ILdouble*)iCurImage->Data)[i] < 0.0f)
-					((ILdouble*)iCurImage->Data)[i] = 0.0f;
+				if (((ILdouble*)context->impl->iCurImage->Data)[i] < 0.0f)
+					((ILdouble*)context->impl->iCurImage->Data)[i] = 0.0f;
 				// Do the renormalization now, dividing by the maximum value.
-				((ILdouble*)iCurImage->Data)[i] = ((ILdouble*)iCurImage->Data)[i] / MaxD;
+				((ILdouble*)context->impl->iCurImage->Data)[i] = ((ILdouble*)context->impl->iCurImage->Data)[i] / MaxD;
 			}			break;
 	}
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 
 //@TODO: NAXISx have to come in order.  Check this!
-ILenum GetCardImage(FITSHEAD *Header)
+ILenum GetCardImage(ILcontext* context, FITSHEAD *Header)
 {
 	char	Buffer[80];
 
-	if (iread(Buffer, 1, 80) != 80)  // Each card image is exactly 80 bytes long.
+	if (context->impl->iread(context, Buffer, 1, 80) != 80)  // Each card image is exactly 80 bytes long.
 		return CARD_READ_FAIL;
 
 //@TODO: Use something other than !strncmp?
@@ -361,7 +361,7 @@ ILenum GetCardImage(FITSHEAD *Header)
 		if (Buffer[29] != 'T') {
 			// We cannot support FITS files that do not correspond to the standard.
 			Header->IsSimple = IL_FALSE;  //@TODO: Does this even need to be set?  Should exit loading anyway.
-			ilSetError(IL_FORMAT_NOT_SUPPORTED);
+			ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 			return CARD_NOT_SIMPLE;
 		}
 		Header->IsSimple = IL_TRUE;
@@ -371,14 +371,14 @@ ILenum GetCardImage(FITSHEAD *Header)
 	else if (!strncmp(Buffer, "BITPIX ", 7)) {
 		// The specs state that BITPIX has to come after SIMPLE.
 		if (Header->IsSimple != IL_TRUE) {
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return CARD_READ_FAIL;
 		}
 		if (GetCardInt(Buffer, &Header->BitsPixel) != IL_TRUE)
 			return CARD_READ_FAIL;
 //@TODO: Should I do this check from the calling function?  Does it really matter?
 		if (Header->BitsPixel == 0) {
-			ilSetError(IL_FORMAT_NOT_SUPPORTED);
+			ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 			return CARD_READ_FAIL;
 		}
 		return CARD_BITPIX;
@@ -390,7 +390,7 @@ ILenum GetCardImage(FITSHEAD *Header)
 			return CARD_READ_FAIL;
 //@TODO: Should I do this check from the calling function?  Does it really matter?
 		if (Header->NumAxes < 1 || Header->NumAxes > 3) {
-			ilSetError(IL_FORMAT_NOT_SUPPORTED);
+			ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 			return CARD_READ_FAIL;
 		}
 		return CARD_NUMAXES;
@@ -398,7 +398,7 @@ ILenum GetCardImage(FITSHEAD *Header)
 
 	else if (!strncmp(Buffer, "NAXIS1 ", 7)) {
 		if (Header->NumAxes == 0) {  // Has not been initialized, and it has to come first.
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return CARD_READ_FAIL;
 		}
 		// First one will always be the width.
@@ -409,12 +409,12 @@ ILenum GetCardImage(FITSHEAD *Header)
 
 	else if (!strncmp(Buffer, "NAXIS2 ", 7)) {
 		if (Header->NumAxes == 0) {  // Has not been initialized, and it has to come first.
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return CARD_READ_FAIL;
 		}
 		// Cannot have a 2nd axis for 0 or 1.
 		if (Header->NumAxes == 0 || Header->NumAxes == 1) {
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return CARD_READ_FAIL;
 		}
 		
@@ -427,12 +427,12 @@ ILenum GetCardImage(FITSHEAD *Header)
 
 	else if (!strncmp(Buffer, "NAXIS3 ", 7)) {
 		if (Header->NumAxes == 0) {  // Has not been initialized, and it has to come first.
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return CARD_READ_FAIL;
 		}
 		// Cannot have a 3rd axis for 0, 1 and 2.
 		if (Header->NumAxes < 3) {
-			ilSetError(IL_INVALID_FILE_HEADER);
+			ilSetError(context, IL_INVALID_FILE_HEADER);
 			return CARD_READ_FAIL;
 		}
 

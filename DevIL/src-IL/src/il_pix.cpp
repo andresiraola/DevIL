@@ -32,30 +32,30 @@ typedef struct PIXHEAD
 #endif
 
 ILboolean iCheckPix(PIXHEAD *Header);
-ILboolean iLoadPixInternal(void);
+ILboolean iLoadPixInternal(ILcontext* context);
 
 
 // Internal function used to get the Pix header from the current file.
-ILboolean iGetPixHead(PIXHEAD *Header)
+ILboolean iGetPixHead(ILcontext* context, PIXHEAD *Header)
 {
-	Header->Width = GetBigUShort();
-	Header->Height = GetBigUShort();
-	Header->OffX = GetBigUShort();
-	Header->OffY = GetBigUShort();
-	Header->Bpp = GetBigUShort();
+	Header->Width = GetBigUShort(context);
+	Header->Height = GetBigUShort(context);
+	Header->OffX = GetBigUShort(context);
+	Header->OffY = GetBigUShort(context);
+	Header->Bpp = GetBigUShort(context);
 
 	return IL_TRUE;
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidPix()
+ILboolean iIsValidPix(ILcontext* context)
 {
 	PIXHEAD	Head;
 
-	if (!iGetPixHead(&Head))
+	if (!iGetPixHead(context, &Head))
 		return IL_FALSE;
-	iseek(-(ILint)sizeof(PIXHEAD), IL_SEEK_CUR);
+	context->impl->iseek(context, -(ILint)sizeof(PIXHEAD), IL_SEEK_CUR);
 
 	return iCheckPix(&Head);
 }
@@ -76,83 +76,83 @@ ILboolean iCheckPix(PIXHEAD *Header)
 
 
 //! Reads a Pix file
-ILboolean ilLoadPix(ILconst_string FileName)
+ILboolean ilLoadPix(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	PixFile;
 	ILboolean	bPix = IL_FALSE;
 
-	PixFile = iopenr(FileName);
+	PixFile = context->impl->iopenr(FileName);
 	if (PixFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bPix;
 	}
 
-	bPix = ilLoadPixF(PixFile);
-	icloser(PixFile);
+	bPix = ilLoadPixF(context, PixFile);
+	context->impl->icloser(PixFile);
 
 	return bPix;
 }
 
 
 //! Reads an already-opened Pix file
-ILboolean ilLoadPixF(ILHANDLE File)
+ILboolean ilLoadPixF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadPixInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadPixInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a Pix
-ILboolean ilLoadPixL(const void *Lump, ILuint Size)
+ILboolean ilLoadPixL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadPixInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadPixInternal(context);
 }
 
 
 // Internal function used to load the Pix.
-ILboolean iLoadPixInternal()
+ILboolean iLoadPixInternal(ILcontext* context)
 {
 	PIXHEAD	Header;
 	ILuint	i, j;
 	ILubyte	ByteHead, Colour[3];
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	if (!iGetPixHead(&Header))
+	if (!iGetPixHead(context, &Header))
 		return IL_FALSE;
 	if (!iCheckPix(&Header)) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
-	if (!ilTexImage(Header.Width, Header.Height, 1, 3, IL_BGR, IL_UNSIGNED_BYTE, NULL))
+	if (!ilTexImage(context, Header.Width, Header.Height, 1, 3, IL_BGR, IL_UNSIGNED_BYTE, NULL))
 		return IL_FALSE;
 
-	for (i = 0; i < iCurImage->SizeOfData; ) {
-		ByteHead = igetc();
-		if (iread(Colour, 1, 3) != 3)
+	for (i = 0; i < context->impl->iCurImage->SizeOfData; ) {
+		ByteHead = context->impl->igetc(context);
+		if (context->impl->iread(context, Colour, 1, 3) != 3)
 			return IL_FALSE;
 		for (j = 0; j < ByteHead; j++) {
-			iCurImage->Data[i++] = Colour[0];
-			iCurImage->Data[i++] = Colour[1];
-			iCurImage->Data[i++] = Colour[2];
+			context->impl->iCurImage->Data[i++] = Colour[0];
+			context->impl->iCurImage->Data[i++] = Colour[1];
+			context->impl->iCurImage->Data[i++] = Colour[2];
 		}
 	}
 
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 #endif//IL_NO_PIX

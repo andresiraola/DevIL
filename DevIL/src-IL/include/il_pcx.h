@@ -43,16 +43,16 @@ typedef struct PCXHEAD
 #endif
 
 // For checking and reading
-ILboolean iIsValidPcx(void);
+ILboolean iIsValidPcx(ILcontext* context);
 ILboolean iCheckPcx(PCXHEAD *Header);
-ILboolean iLoadPcxInternal(void);
-ILboolean iSavePcxInternal(void);
-ILboolean iUncompressPcx(PCXHEAD *Header);
-ILboolean iUncompressSmall(PCXHEAD *Header);
+ILboolean iLoadPcxInternal(ILcontext* context);
+ILboolean iSavePcxInternal(ILcontext* context);
+ILboolean iUncompressPcx(ILcontext* context, PCXHEAD *Header);
+ILboolean iUncompressSmall(ILcontext* context, PCXHEAD *Header);
 
 // For writing
-ILuint encput(ILubyte byt, ILubyte cnt);
-ILuint encLine(ILubyte *inBuff, ILint inLen, ILubyte Stride);
+ILuint encput(ILcontext* context, ILubyte byt, ILubyte cnt);
+ILuint encLine(ILcontext* context, ILubyte *inBuff, ILint inLen, ILubyte Stride);
 
 
 #endif//PCX_H

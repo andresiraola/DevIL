@@ -9,7 +9,7 @@
 
 // Could probably be optimized a bit...too many nested for loops.
 //! Pixelizes an image
-ILboolean ILAPIENTRY iluPixelize(ILuint PixSize)
+ILboolean ILAPIENTRY iluPixelize(ILcontext* context, ILuint PixSize)
 {
 	ILuint		x, y, z, i, j, k, c, r, Total, Tested;
 	ILushort	*ShortPtr;
@@ -17,9 +17,9 @@ ILboolean ILAPIENTRY iluPixelize(ILuint PixSize)
 	ILdouble	*DblPtr, DblTotal, DblTested;
 	ILubyte		*RegionMask;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -28,9 +28,9 @@ ILboolean ILAPIENTRY iluPixelize(ILuint PixSize)
 	r = 0;
 
 	if (iluCurImage->Format == IL_COLOUR_INDEX)
-		ilConvertImage(ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
+		ilConvertImage(context, ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
 
-	RegionMask = iScanFill();
+	RegionMask = iScanFill(context);
 
 	switch (iluCurImage->Bpc)
 	{
@@ -185,7 +185,7 @@ ILboolean ILAPIENTRY iluPixelize(ILuint PixSize)
 //	by Ender Wiggen, found at http://www.gamedev.net/reference/programming/features/edf/
 
 // Needs some SERIOUS optimization.
-ILubyte *Filter(ILimage *Image, const ILint *matrix, ILint scale, ILint bias)
+ILubyte *Filter(ILcontext* context, ILimage *Image, const ILint *matrix, ILint scale, ILint bias)
 {
     ILint		x, y, c, LastX, LastY, Offsets[9];
 	ILuint		i, Temp, z;
@@ -193,16 +193,16 @@ ILubyte *Filter(ILimage *Image, const ILint *matrix, ILint scale, ILint bias)
 	ILdouble	Num;
 	
 	if (Image == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return NULL;
 	}
 
-	Data = (ILubyte*)ialloc(Image->SizeOfData);
+	Data = (ILubyte*)ialloc(context, Image->SizeOfData);
 	if (Data == NULL) {
 		return NULL;
 	}
 
-	RegionMask = iScanFill();
+	RegionMask = iScanFill(context);
 
 	// Preserve original data.
 	ImgData = Image->Data;
@@ -410,32 +410,32 @@ ILubyte *Filter(ILimage *Image, const ILint *matrix, ILint scale, ILint bias)
 }
 
 
-ILboolean ILAPIENTRY iluEdgeDetectP()
+ILboolean ILAPIENTRY iluEdgeDetectP(ILcontext* context)
 {
 	ILubyte		*HPass, *VPass;
 	ILuint		i;
 	ILboolean	Palette = IL_FALSE, Converted = IL_FALSE;
 	ILenum		Type = 0;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if (iluCurImage->Format == IL_COLOUR_INDEX) {
 		Palette = IL_TRUE;
-		ilConvertImage(ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
+		ilConvertImage(context, ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
 	}
 	else if (iluCurImage->Type > IL_UNSIGNED_BYTE) {
 		Converted = IL_TRUE;
 		Type = iluCurImage->Type;
-		ilConvertImage(iluCurImage->Format, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, iluCurImage->Format, IL_UNSIGNED_BYTE);
 	}
 
 
-	HPass = Filter(iluCurImage, filter_h_prewitt, filter_h_prewitt_scale, filter_h_prewitt_bias);
-	VPass = Filter(iluCurImage, filter_v_prewitt, filter_v_prewitt_scale, filter_v_prewitt_bias);
+	HPass = Filter(context, iluCurImage, filter_h_prewitt, filter_h_prewitt_scale, filter_h_prewitt_bias);
+	VPass = Filter(context, iluCurImage, filter_v_prewitt, filter_v_prewitt_scale, filter_v_prewitt_bias);
 	if (!HPass || !VPass) {
 		ifree(HPass);
 		ifree(VPass);
@@ -461,39 +461,39 @@ ILboolean ILAPIENTRY iluEdgeDetectP()
 	ifree(VPass);
 
 	if (Palette)
-		ilConvertImage(IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
 	else if (Converted)
-		ilConvertImage(iluCurImage->Format, Type);
+		ilConvertImage(context, iluCurImage->Format, Type);
 
 	return IL_TRUE;
 }
 
 
-ILboolean ILAPIENTRY iluEdgeDetectS()
+ILboolean ILAPIENTRY iluEdgeDetectS(ILcontext* context)
 {
 	ILubyte		*HPass, *VPass;
 	ILuint		i;
 	ILboolean	Palette = IL_FALSE, Converted = IL_FALSE;
 	ILenum		Type = 0;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if (iluCurImage->Format == IL_COLOUR_INDEX) {
 		Palette = IL_TRUE;
-		ilConvertImage(ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
+		ilConvertImage(context, ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
 	}
 	else if (iluCurImage->Type > IL_UNSIGNED_BYTE) {
 		Converted = IL_TRUE;
 		Type = iluCurImage->Type;
-		ilConvertImage(iluCurImage->Format, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, iluCurImage->Format, IL_UNSIGNED_BYTE);
 	}
 
-	HPass = Filter(iluCurImage, filter_h_sobel, filter_h_sobel_scale, filter_h_sobel_bias);
-	VPass = Filter(iluCurImage, filter_v_sobel, filter_v_sobel_scale, filter_v_sobel_bias);
+	HPass = Filter(context, iluCurImage, filter_h_sobel, filter_h_sobel_scale, filter_h_sobel_bias);
+	VPass = Filter(context, iluCurImage, filter_v_sobel, filter_v_sobel_scale, filter_v_sobel_bias);
 	if (!HPass || !VPass) {
 		ifree(HPass);
 		ifree(VPass);
@@ -519,39 +519,39 @@ ILboolean ILAPIENTRY iluEdgeDetectS()
 	ifree(VPass);
 
 	if (Palette)
-		ilConvertImage(IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
 	else if (Converted)
-		ilConvertImage(iluCurImage->Format, Type);
+		ilConvertImage(context, iluCurImage->Format, Type);
 
 	return IL_TRUE;
 }
 
 
-ILboolean ILAPIENTRY iluBlurAvg(ILuint Iter)
+ILboolean ILAPIENTRY iluBlurAvg(ILcontext* context, ILuint Iter)
 {
 	ILubyte		*Data;
 	ILuint		i;
 	ILboolean	Palette = IL_FALSE, Converted = IL_FALSE;
 	ILenum		Type = 0;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if (iluCurImage->Format == IL_COLOUR_INDEX) {
 		Palette = IL_TRUE;
-		ilConvertImage(ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
+		ilConvertImage(context, ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
 	}
 	else if (iluCurImage->Type > IL_UNSIGNED_BYTE) {
 		Converted = IL_TRUE;
 		Type = iluCurImage->Type;
-		ilConvertImage(iluCurImage->Format, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, iluCurImage->Format, IL_UNSIGNED_BYTE);
 	}
 
 	for (i = 0; i < Iter; i++) {
-		Data = Filter(iluCurImage, filter_average, filter_average_scale, filter_average_bias);
+		Data = Filter(context, iluCurImage, filter_average, filter_average_scale, filter_average_bias);
 		if (!Data)
 			return IL_FALSE;
 		ifree(iluCurImage->Data);
@@ -559,39 +559,39 @@ ILboolean ILAPIENTRY iluBlurAvg(ILuint Iter)
 	}
 
 	if (Palette)
-		ilConvertImage(IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
 	else if (Converted)
-		ilConvertImage(iluCurImage->Format, Type);
+		ilConvertImage(context, iluCurImage->Format, Type);
 
 	return IL_TRUE;
 }
 
 
-ILboolean ILAPIENTRY iluBlurGaussian(ILuint Iter)
+ILboolean ILAPIENTRY iluBlurGaussian(ILcontext* context, ILuint Iter)
 {
 	ILubyte		*Data;
 	ILuint		i;
 	ILboolean	Palette = IL_FALSE, Converted = IL_FALSE;
 	ILenum		Type = 0;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if (iluCurImage->Format == IL_COLOUR_INDEX) {
 		Palette = IL_TRUE;
-		ilConvertImage(ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
+		ilConvertImage(context, ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
 	}
 	else if (iluCurImage->Type > IL_UNSIGNED_BYTE) {
 		Converted = IL_TRUE;
 		Type = iluCurImage->Type;
-		ilConvertImage(iluCurImage->Format, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, iluCurImage->Format, IL_UNSIGNED_BYTE);
 	}
 
 	for (i = 0; i < Iter; i++) {
-		Data = Filter(iluCurImage, filter_gaussian, filter_gaussian_scale, filter_gaussian_bias );
+		Data = Filter(context, iluCurImage, filter_gaussian, filter_gaussian_scale, filter_gaussian_bias );
 		if (!Data)
 			return IL_FALSE;
 		ifree(iluCurImage->Data);
@@ -599,46 +599,46 @@ ILboolean ILAPIENTRY iluBlurGaussian(ILuint Iter)
 	}
 
 	if (Palette)
-		ilConvertImage(IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
 	else if (Converted)
-		ilConvertImage(iluCurImage->Format, Type);
+		ilConvertImage(context, iluCurImage->Format, Type);
 
 	return IL_TRUE;
 }
 
 
-ILboolean ILAPIENTRY iluEmboss()
+ILboolean ILAPIENTRY iluEmboss(ILcontext* context)
 {
 	ILubyte		*Data;
 	ILboolean	Palette = IL_FALSE, Converted = IL_FALSE;
 	ILenum		Type = 0;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if (iluCurImage->Format == IL_COLOUR_INDEX) {
 		Palette = IL_TRUE;
-		ilConvertImage(ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
+		ilConvertImage(context, ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
 	}
 	else if (iluCurImage->Type > IL_UNSIGNED_BYTE) {
 		Converted = IL_TRUE;
 		Type = iluCurImage->Type;
-		ilConvertImage(iluCurImage->Format, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, iluCurImage->Format, IL_UNSIGNED_BYTE);
 	}
 
-	Data = Filter(iluCurImage, filter_emboss, filter_emboss_scale, filter_emboss_bias);
+	Data = Filter(context, iluCurImage, filter_emboss, filter_emboss_scale, filter_emboss_bias);
 	if (!Data)
 		return IL_FALSE;
 	ifree(iluCurImage->Data);
 	iluCurImage->Data = Data;
 
 	if (Palette)
-		ilConvertImage(IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
 	else if (Converted)
-		ilConvertImage(iluCurImage->Format, Type);
+		ilConvertImage(context, iluCurImage->Format, Type);
 
 	return IL_TRUE;
 }
@@ -648,13 +648,13 @@ ILboolean ILAPIENTRY iluEmboss()
 	ILuint	x, y, c, i = 0;
 	ILubyte	*Data;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	Data = (ILubyte*)ialloc(iluCurImage->SizeOfData);
+	Data = (ILubyte*)ialloc(context, iluCurImage->SizeOfData);
 	if (Data == NULL) {
 		return IL_FALSE;
 	}
@@ -675,55 +675,55 @@ ILboolean ILAPIENTRY iluEmboss()
 }*/
 
 
-ILboolean ILAPIENTRY iluEdgeDetectE()
+ILboolean ILAPIENTRY iluEdgeDetectE(ILcontext* context)
 {
 	ILubyte		*Data;
 	ILboolean	Palette = IL_FALSE, Converted = IL_FALSE;
 	ILenum		Type = 0;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if (iluCurImage->Format == IL_COLOUR_INDEX) {
 		Palette = IL_TRUE;
-		ilConvertImage(ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
+		ilConvertImage(context, ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
 	}
 	else if (iluCurImage->Type > IL_UNSIGNED_BYTE) {
 		Converted = IL_TRUE;
 		Type = iluCurImage->Type;
-		ilConvertImage(iluCurImage->Format, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, iluCurImage->Format, IL_UNSIGNED_BYTE);
 	}
 
-	Data = Filter(iluCurImage, filter_embossedge, filter_embossedge_scale, filter_embossedge_bias);
+	Data = Filter(context, iluCurImage, filter_embossedge, filter_embossedge_scale, filter_embossedge_bias);
 	if (!Data)
 		return IL_FALSE;
 	ifree(iluCurImage->Data);
 	iluCurImage->Data = Data;
 
 	if (Palette)
-		ilConvertImage(IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
 	else if (Converted)
-		ilConvertImage(iluCurImage->Format, Type);
+		ilConvertImage(context, iluCurImage->Format, Type);
 
 	return IL_TRUE;
 }
 
-ILboolean ILAPIENTRY iluScaleAlpha(ILfloat scale)
+ILboolean ILAPIENTRY iluScaleAlpha(ILcontext* context, ILfloat scale)
 {
 	ILuint		i;
 	ILint		alpha;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if( (iluCurImage->Format != IL_COLOUR_INDEX) && (iluCurImage->Type != IL_BYTE) ) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -744,7 +744,7 @@ ILboolean ILAPIENTRY iluScaleAlpha(ILfloat scale)
 			{
 				case IL_PAL_RGBA32:
 				case IL_PAL_BGRA32:
-					for (i = 0; i < iluCurImage->Pal.PalSize; i += ilGetInteger(IL_PALETTE_BPP)) {
+					for (i = 0; i < iluCurImage->Pal.PalSize; i += ilGetInteger(context, IL_PALETTE_BPP)) {
 						alpha = (ILint)(iluCurImage->Pal.Palette[i+3] * scale);
 						if (alpha > UCHAR_MAX) alpha = UCHAR_MAX;
 						if (alpha < 0) alpha = 0;
@@ -753,13 +753,13 @@ ILboolean ILAPIENTRY iluScaleAlpha(ILfloat scale)
 					break;
 
 				default:
-					ilSetError(ILU_ILLEGAL_OPERATION);
+					ilSetError(context, ILU_ILLEGAL_OPERATION);
 					return IL_FALSE;
 			}
 			break;
 
 		default:
-			ilSetError(ILU_ILLEGAL_OPERATION);
+			ilSetError(context, ILU_ILLEGAL_OPERATION);
 			return IL_FALSE;
 	}
 
@@ -772,21 +772,21 @@ ILboolean ILAPIENTRY iluScaleAlpha(ILfloat scale)
 
 // @TODO:  fast float to byte
 //! Scales image colours
-ILboolean ILAPIENTRY iluScaleColours(ILfloat r, ILfloat g, ILfloat b) {
+ILboolean ILAPIENTRY iluScaleColours(ILcontext* context, ILfloat r, ILfloat g, ILfloat b) {
 	ILuint		i;
 	ILint		red, grn, blu, grey;
 	ILushort	*ShortPtr;
 	ILuint		*IntPtr, NumPix;
 	ILdouble	*DblPtr;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if( (iluCurImage->Format != IL_COLOUR_INDEX) && (iluCurImage->Type != IL_BYTE) ) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -875,7 +875,7 @@ ILboolean ILAPIENTRY iluScaleColours(ILfloat r, ILfloat g, ILfloat b) {
 				case IL_PAL_RGB24:
 				case IL_PAL_RGB32:
 				case IL_PAL_RGBA32:
-					for (i = 0; i < iluCurImage->Pal.PalSize; i += ilGetInteger(IL_PALETTE_BPP)) {
+					for (i = 0; i < iluCurImage->Pal.PalSize; i += ilGetInteger(context, IL_PALETTE_BPP)) {
 						red = (ILint)(iluCurImage->Pal.Palette[i] * r);
 						grn = (ILint)(iluCurImage->Pal.Palette[i+1] * g);
 						blu = (ILint)(iluCurImage->Pal.Palette[i+2] * b);
@@ -894,7 +894,7 @@ ILboolean ILAPIENTRY iluScaleColours(ILfloat r, ILfloat g, ILfloat b) {
 				case IL_PAL_BGR24:
 				case IL_PAL_BGR32:
 				case IL_PAL_BGRA32:
-					for (i = 0; i < iluCurImage->Pal.PalSize; i += ilGetInteger(IL_PALETTE_BPP)) {
+					for (i = 0; i < iluCurImage->Pal.PalSize; i += ilGetInteger(context, IL_PALETTE_BPP)) {
 						red = (ILint)(iluCurImage->Pal.Palette[i+2] * r);
 						grn = (ILint)(iluCurImage->Pal.Palette[i+1] * g);
 						blu = (ILint)(iluCurImage->Pal.Palette[i] * b);
@@ -912,13 +912,13 @@ ILboolean ILAPIENTRY iluScaleColours(ILfloat r, ILfloat g, ILfloat b) {
 
 
 				default:
-					ilSetError(ILU_ILLEGAL_OPERATION);
+					ilSetError(context, ILU_ILLEGAL_OPERATION);
 					return IL_FALSE;
 			}
 			break;
 
 		default:
-			ilSetError(ILU_ILLEGAL_OPERATION);
+			ilSetError(context, ILU_ILLEGAL_OPERATION);
 			return IL_FALSE;
 	}
 
@@ -932,16 +932,16 @@ ILboolean ILAPIENTRY iluScaleColours(ILfloat r, ILfloat g, ILfloat b) {
 }*/
 
 
-ILboolean ILAPIENTRY iluGammaCorrect(ILfloat Gamma)
+ILboolean ILAPIENTRY iluGammaCorrect(ILcontext* context, ILfloat Gamma)
 {
 	ILfloat		Table[256];
 	ILuint		i, NumPix;
 	ILushort	*ShortPtr;
 	ILuint		*IntPtr;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -991,7 +991,7 @@ ILboolean ILAPIENTRY iluGammaCorrect(ILfloat Gamma)
 //
 
 
-void iApplyMatrix(ILimage *Image, ILfloat Mat[4][4])
+void iApplyMatrix(ILcontext* context, ILimage *Image, ILfloat Mat[4][4])
 {
 	ILubyte	*Data = Image->Data;
 	ILuint	i;
@@ -1032,7 +1032,7 @@ void iApplyMatrix(ILimage *Image, ILfloat Mat[4][4])
 			break;
 
 		default:
-			ilSetError(ILU_ILLEGAL_OPERATION);
+			ilSetError(context, ILU_ILLEGAL_OPERATION);
 			return;
 	}
 
@@ -1061,13 +1061,13 @@ void iIdentity(ILfloat *Matrix)
 }
 
 
-ILboolean ILAPIENTRY iluSaturate1f(ILfloat Saturation)
+ILboolean ILAPIENTRY iluSaturate1f(ILcontext* context, ILfloat Saturation)
 {
-	return iluSaturate4f(0.3086f, 0.6094f, 0.0820f, Saturation);
+	return iluSaturate4f(context, 0.3086f, 0.6094f, 0.0820f, Saturation);
 }
 
 
-ILboolean ILAPIENTRY iluSaturate4f(ILfloat r, ILfloat g, ILfloat b, ILfloat Saturation)
+ILboolean ILAPIENTRY iluSaturate4f(ILcontext* context, ILfloat r, ILfloat g, ILfloat b, ILfloat Saturation)
 {
 	ILfloat Mat[4][4];
 	ILfloat s = Saturation;
@@ -1092,13 +1092,13 @@ ILboolean ILAPIENTRY iluSaturate4f(ILfloat r, ILfloat g, ILfloat b, ILfloat Satu
 	Mat[3][2] = 0.0f;
 	Mat[3][3] = 1.0f;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	iApplyMatrix(iluCurImage, Mat);
+	iApplyMatrix(context, iluCurImage, Mat);
 
 	return IL_TRUE;
 }
@@ -1106,15 +1106,15 @@ ILboolean ILAPIENTRY iluSaturate4f(ILfloat r, ILfloat g, ILfloat b, ILfloat Satu
 
 
 //! Funny as hell filter that I stumbled upon accidentally
-ILboolean ILAPIENTRY iluAlienify(void)
+ILboolean ILAPIENTRY iluAlienify(ILcontext* context)
 {
 	ILfloat	Mat[3][3];
 	ILubyte	*Data;
 	ILuint	i;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	Data = iluCurImage->Data;
@@ -1148,7 +1148,7 @@ ILboolean ILAPIENTRY iluAlienify(void)
 		break;
 
 		default:
-			//ilSetError(ILU_ILLEGAL_OPERATION);
+			//ilSetError(context, ILU_ILLEGAL_OPERATION);
 			return IL_FALSE;
 	}
 
@@ -1196,9 +1196,9 @@ void iIntExtImg(ILimage *Image1, ILimage *Image2, ILfloat a)
 	ILimage	*Black;
 	ILuint	i;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -1220,18 +1220,18 @@ void iIntExtImg(ILimage *Image1, ILimage *Image2, ILfloat a)
 
 
 // Works best when Contrast is in the range [-0.5, 1.7].
-ILboolean ILAPIENTRY iluContrast(ILfloat Contrast)
+ILboolean ILAPIENTRY iluContrast(ILcontext* context, ILfloat Contrast)
 {
 	ILimage	*Grey;
 	ILuint	i;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	Grey = ilNewImage(iluCurImage->Width, iluCurImage->Height, iluCurImage->Depth, iluCurImage->Bpp, iluCurImage->Bpc);
+	Grey = ilNewImage(context, iluCurImage->Width, iluCurImage->Height, iluCurImage->Depth, iluCurImage->Bpp, iluCurImage->Bpc);
 	if (Grey == NULL) {
 		return IL_FALSE;
 	}
@@ -1250,68 +1250,68 @@ ILboolean ILAPIENTRY iluContrast(ILfloat Contrast)
 
 // Sharpens when Factor is in the range [1.0, 2.5].
 // Blurs when Factor is in the range [0.0, 1.0].
-ILboolean ILAPIENTRY iluSharpen(ILfloat Factor, ILuint Iter)
+ILboolean ILAPIENTRY iluSharpen(ILcontext* context, ILfloat Factor, ILuint Iter)
 {
 	ILimage	*Blur, *CurImage;  // iluBlur() changes iluCurImage
 	ILuint	i;
 	
-	CurImage = ilGetCurImage();
+	CurImage = ilGetCurImage(context);
 	if (CurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	Blur = ilNewImage(CurImage->Width, CurImage->Height, CurImage->Depth, CurImage->Bpp, CurImage->Bpc);
+	Blur = ilNewImage(context, CurImage->Width, CurImage->Height, CurImage->Depth, CurImage->Bpp, CurImage->Bpc);
 	if (Blur == NULL) {
 		return IL_FALSE;
 	}
-	ilCopyImageAttr(Blur, CurImage);
+	ilCopyImageAttr(context, Blur, CurImage);
 
-	ilCopyPixels(0, 0, 0, CurImage->Width, CurImage->Height, 1, CurImage->Format, CurImage->Type, Blur->Data);
-	ilSetCurImage(Blur);
-	iluBlurGaussian(1);
+	ilCopyPixels(context, 0, 0, 0, CurImage->Width, CurImage->Height, 1, CurImage->Format, CurImage->Type, Blur->Data);
+	ilSetCurImage(context, Blur);
+	iluBlurGaussian(context, 1);
 
 	for (i = 0; i < Iter; i++) {
 		iIntExtImg(Blur, CurImage, Factor);
 	}
 
 	ilCloseImage(Blur);
-	ilSetCurImage(CurImage);
+	ilSetCurImage(context, CurImage);
 
 	return IL_TRUE;
 }
 
 
-ILAPI ILboolean ILAPIENTRY iluConvolution(ILint *matrix, ILint scale, ILint bias) {
+ILAPI ILboolean ILAPIENTRY iluConvolution(ILcontext* context, ILint *matrix, ILint scale, ILint bias) {
 	ILubyte		*Data;
 	ILboolean	Palette = IL_FALSE, Converted = IL_FALSE;
 	ILenum		Type = 0;
-	ILimage		*iluCurImage = ilGetCurImage();
+	ILimage		*iluCurImage = ilGetCurImage(context);
 	
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	
 	if (iluCurImage->Format == IL_COLOUR_INDEX) {
 		Palette = IL_TRUE;
-		ilConvertImage(ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
+		ilConvertImage(context, ilGetPalBaseType(iluCurImage->Pal.PalType), IL_UNSIGNED_BYTE);
 	} else if (iluCurImage->Type > IL_UNSIGNED_BYTE) {
 		Converted = IL_TRUE;
 		Type = iluCurImage->Type;
-		ilConvertImage(iluCurImage->Format, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, iluCurImage->Format, IL_UNSIGNED_BYTE);
 	}
 	
-	Data = Filter(iluCurImage, matrix, scale, bias);
+	Data = Filter(context, iluCurImage, matrix, scale, bias);
 	if (!Data)
 		return IL_FALSE;
 	ifree(iluCurImage->Data);
 	iluCurImage->Data = Data;
 	
 	if (Palette)
-		ilConvertImage(IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
+		ilConvertImage(context, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
 	else if (Converted)
-		ilConvertImage(iluCurImage->Format, Type);
+		ilConvertImage(context, iluCurImage->Format, Type);
 	
 	return IL_TRUE;
 }
@@ -1319,17 +1319,17 @@ ILAPI ILboolean ILAPIENTRY iluConvolution(ILint *matrix, ILint scale, ILint bias
 
 // Sepia conversion values recommended by Microsoft and seen at
 //  http://stackoverflow.com/questions/1061093/how-is-a-sepia-tone-created
-ILboolean ILAPIENTRY iluSepia(void)
+ILboolean ILAPIENTRY iluSepia(ILcontext* context)
 {
 	ILubyte	*Data;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	if (iluCurImage->Type != IL_UNSIGNED_BYTE) {
-		ilSetError(ILU_INVALID_VALUE);  //@TODO: Support other types
+		ilSetError(context, ILU_INVALID_VALUE);  //@TODO: Support other types
 		return IL_FALSE;
 	}
 	Data = iluCurImage->Data;
@@ -1373,7 +1373,7 @@ ILboolean ILAPIENTRY iluSepia(void)
 		break;
 
 		default:
-			//ilSetError(ILU_ILLEGAL_OPERATION);
+			//ilSetError(context, ILU_ILLEGAL_OPERATION);
 			return IL_FALSE;
 	}
 

@@ -15,8 +15,8 @@
 
 #include "il_internal.h"
 
-ILboolean		iLoadJp2Internal(jas_stream_t *Stream, ILimage *Image);
-ILboolean		iSaveJp2Internal();
-jas_stream_t	*iJp2ReadStream();
+ILboolean		iLoadJp2Internal(ILcontext* context, jas_stream_t *Stream, ILimage *Image);
+ILboolean		iSaveJp2Internal(ILcontext* context);
+jas_stream_t	*iJp2ReadStream(ILcontext* context);
 
 #endif//JP2_H

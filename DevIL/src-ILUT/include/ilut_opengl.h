@@ -20,9 +20,9 @@
 #endif
 
 #ifdef ILUT_USE_OPENGL
-ILenum    ilutGLFormat(ILenum, ILubyte);
-ILimage*  MakeGLCompliant2D(ILimage *Src);
-ILimage*  MakeGLCompliant3D(ILimage *Src);
+ILenum    ilutGLFormat(ILcontext* context, ILenum, ILubyte);
+ILimage*  MakeGLCompliant2D(ILcontext* context, ILimage *Src);
+ILimage*  MakeGLCompliant3D(ILcontext* context, ILimage *Src);
 ILboolean IsExtensionSupported(const char *extension);
 
 

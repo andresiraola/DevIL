@@ -220,7 +220,7 @@ INLINE ILuint ILAPIENTRY ilHalfToFloat (ILushort y) {
 	return (s << 31) | (e << 23) | m;
 }
 
-void ILAPIENTRY iFlipBuffer(ILubyte *buff, ILuint depth, ILuint line_size, ILuint line_num)
+void ILAPIENTRY iFlipBuffer(ILcontext* context, ILubyte *buff, ILuint depth, ILuint line_size, ILuint line_num)
 {
 	ILubyte *StartPtr, *EndPtr;
 	ILuint y, d;
@@ -232,21 +232,21 @@ void ILAPIENTRY iFlipBuffer(ILubyte *buff, ILuint depth, ILuint line_size, ILuin
 
 		for (y = 0; y < (line_num/2); y++) {
 			EndPtr -= line_size; 
-			iMemSwap(StartPtr, EndPtr, line_size);
+			iMemSwap(context, StartPtr, EndPtr, line_size);
 			StartPtr += line_size;
 		}
 	}
 }
 
 // Just created for internal use.
-ILubyte* iFlipNewBuffer(ILubyte *buff, ILuint depth, ILuint line_size, ILuint line_num)
+ILubyte* iFlipNewBuffer(ILcontext* context, ILubyte *buff, ILuint depth, ILuint line_size, ILuint line_num)
 {
 	ILubyte *data;
 	ILubyte *s1, *s2;
 	ILuint y, d;
 	const ILuint size = line_num * line_size;
 
-	if ((data = (ILubyte*)ialloc(depth*size)) == NULL)
+	if ((data = (ILubyte*)ialloc(context, depth*size)) == NULL)
 		return IL_FALSE;
 
 	for (d = 0; d < depth; d++) {
@@ -264,35 +264,35 @@ ILubyte* iFlipNewBuffer(ILubyte *buff, ILuint depth, ILuint line_size, ILuint li
 
 
 // Flips an image over its x axis
-ILboolean ilFlipImage()
+ILboolean ilFlipImage(ILcontext* context)
 {
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	iCurImage->Origin = (iCurImage->Origin == IL_ORIGIN_LOWER_LEFT) ?
+	context->impl->iCurImage->Origin = (context->impl->iCurImage->Origin == IL_ORIGIN_LOWER_LEFT) ?
 						IL_ORIGIN_UPPER_LEFT : IL_ORIGIN_LOWER_LEFT;
 
-	iFlipBuffer(iCurImage->Data,iCurImage->Depth,iCurImage->Bps,iCurImage->Height);
+	iFlipBuffer(context, context->impl->iCurImage->Data,context->impl->iCurImage->Depth,context->impl->iCurImage->Bps,context->impl->iCurImage->Height);
 
 	return IL_TRUE;
 }
 
 // Just created for internal use.
-ILubyte* ILAPIENTRY iGetFlipped(ILimage *img)
+ILubyte* ILAPIENTRY iGetFlipped(ILcontext* context, ILimage *img)
 {
 	if (img == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return NULL;
 	}
-	return iFlipNewBuffer(img->Data,img->Depth,img->Bps,img->Height);
+	return iFlipNewBuffer(context, img->Data,img->Depth,img->Bps,img->Height);
 }
 
 
 //@JASON New routine created 28/03/2001
 //! Mirrors an image over its y axis
-ILboolean ILAPIENTRY iMirror() {
+ILboolean ILAPIENTRY iMirror(ILcontext* context) {
 	ILubyte		*Data, *DataPtr, *Temp;
 	ILuint		y, d, PixLine;
 	ILint		x, c;
@@ -300,26 +300,26 @@ ILboolean ILAPIENTRY iMirror() {
 	ILuint		*IntPtr, *TempInt;
 	ILdouble	*DblPtr, *TempDbl;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	Data = (ILubyte*)ialloc(iCurImage->SizeOfData);
+	Data = (ILubyte*)ialloc(context, context->impl->iCurImage->SizeOfData);
 	if (Data == NULL)
 		return IL_FALSE;
 
-	PixLine = iCurImage->Bps / iCurImage->Bpc;
-	switch (iCurImage->Bpc)
+	PixLine = context->impl->iCurImage->Bps / context->impl->iCurImage->Bpc;
+	switch (context->impl->iCurImage->Bpc)
 	{
 		case 1:
-			Temp = iCurImage->Data;
-			for (d = 0; d < iCurImage->Depth; d++) {
-				DataPtr = Data + d * iCurImage->SizeOfPlane;
-				for (y = 0; y < iCurImage->Height; y++) {
-					for (x = iCurImage->Width - 1; x >= 0; x--) {
-						for (c = 0; c < iCurImage->Bpp; c++, Temp++) {
-							DataPtr[y * PixLine + x * iCurImage->Bpp + c] = *Temp;
+			Temp = context->impl->iCurImage->Data;
+			for (d = 0; d < context->impl->iCurImage->Depth; d++) {
+				DataPtr = Data + d * context->impl->iCurImage->SizeOfPlane;
+				for (y = 0; y < context->impl->iCurImage->Height; y++) {
+					for (x = context->impl->iCurImage->Width - 1; x >= 0; x--) {
+						for (c = 0; c < context->impl->iCurImage->Bpp; c++, Temp++) {
+							DataPtr[y * PixLine + x * context->impl->iCurImage->Bpp + c] = *Temp;
 						}
 					}
 				}
@@ -327,13 +327,13 @@ ILboolean ILAPIENTRY iMirror() {
 			break;
 
 		case 2:
-			TempShort = (ILushort*)iCurImage->Data;
-			for (d = 0; d < iCurImage->Depth; d++) {
-				ShortPtr = (ILushort*)(Data + d * iCurImage->SizeOfPlane);
-				for (y = 0; y < iCurImage->Height; y++) {
-					for (x = iCurImage->Width - 1; x >= 0; x--) {
-						for (c = 0; c < iCurImage->Bpp; c++, TempShort++) {
-							ShortPtr[y * PixLine + x * iCurImage->Bpp + c] = *TempShort;
+			TempShort = (ILushort*)context->impl->iCurImage->Data;
+			for (d = 0; d < context->impl->iCurImage->Depth; d++) {
+				ShortPtr = (ILushort*)(Data + d * context->impl->iCurImage->SizeOfPlane);
+				for (y = 0; y < context->impl->iCurImage->Height; y++) {
+					for (x = context->impl->iCurImage->Width - 1; x >= 0; x--) {
+						for (c = 0; c < context->impl->iCurImage->Bpp; c++, TempShort++) {
+							ShortPtr[y * PixLine + x * context->impl->iCurImage->Bpp + c] = *TempShort;
 						}
 					}
 				}
@@ -341,13 +341,13 @@ ILboolean ILAPIENTRY iMirror() {
 			break;
 
 		case 4:
-			TempInt = (ILuint*)iCurImage->Data;
-			for (d = 0; d < iCurImage->Depth; d++) {
-				IntPtr = (ILuint*)(Data + d * iCurImage->SizeOfPlane);
-				for (y = 0; y < iCurImage->Height; y++) {
-					for (x = iCurImage->Width - 1; x >= 0; x--) {
-						for (c = 0; c < iCurImage->Bpp; c++, TempInt++) {
-							IntPtr[y * PixLine + x * iCurImage->Bpp + c] = *TempInt;
+			TempInt = (ILuint*)context->impl->iCurImage->Data;
+			for (d = 0; d < context->impl->iCurImage->Depth; d++) {
+				IntPtr = (ILuint*)(Data + d * context->impl->iCurImage->SizeOfPlane);
+				for (y = 0; y < context->impl->iCurImage->Height; y++) {
+					for (x = context->impl->iCurImage->Width - 1; x >= 0; x--) {
+						for (c = 0; c < context->impl->iCurImage->Bpp; c++, TempInt++) {
+							IntPtr[y * PixLine + x * context->impl->iCurImage->Bpp + c] = *TempInt;
 						}
 					}
 				}
@@ -355,13 +355,13 @@ ILboolean ILAPIENTRY iMirror() {
 			break;
 
 		case 8:
-			TempDbl = (ILdouble*)iCurImage->Data;
-			for (d = 0; d < iCurImage->Depth; d++) {
-				DblPtr = (ILdouble*)(Data + d * iCurImage->SizeOfPlane);
-				for (y = 0; y < iCurImage->Height; y++) {
-					for (x = iCurImage->Width - 1; x >= 0; x--) {
-						for (c = 0; c < iCurImage->Bpp; c++, TempDbl++) {
-							DblPtr[y * PixLine + x * iCurImage->Bpp + c] = *TempDbl;
+			TempDbl = (ILdouble*)context->impl->iCurImage->Data;
+			for (d = 0; d < context->impl->iCurImage->Depth; d++) {
+				DblPtr = (ILdouble*)(Data + d * context->impl->iCurImage->SizeOfPlane);
+				for (y = 0; y < context->impl->iCurImage->Height; y++) {
+					for (x = context->impl->iCurImage->Width - 1; x >= 0; x--) {
+						for (c = 0; c < context->impl->iCurImage->Bpp; c++, TempDbl++) {
+							DblPtr[y * PixLine + x * context->impl->iCurImage->Bpp + c] = *TempDbl;
 						}
 					}
 				}
@@ -369,8 +369,8 @@ ILboolean ILAPIENTRY iMirror() {
 			break;
 	}
 
-	ifree(iCurImage->Data);
-	iCurImage->Data = Data;
+	ifree(context->impl->iCurImage->Data);
+	context->impl->iCurImage->Data = Data;
 
 	return IL_TRUE;
 }
@@ -378,23 +378,23 @@ ILboolean ILAPIENTRY iMirror() {
 
 // Should we add type to the parameter list?
 // Copies a 1d block of pixels to the buffer pointed to by Data.
-ILboolean ilCopyPixels1D(ILuint XOff, ILuint Width, void *Data)
+ILboolean ilCopyPixels1D(ILcontext* context, ILuint XOff, ILuint Width, void *Data)
 {
 	ILuint	x, c, NewBps, NewOff, PixBpp;
-	ILubyte	*Temp = (ILubyte*)Data, *TempData = iCurImage->Data;
+	ILubyte	*Temp = (ILubyte*)Data, *TempData = context->impl->iCurImage->Data;
 
-	if (ilIsEnabled(IL_ORIGIN_SET)) {
-		if ((ILenum)ilGetInteger(IL_ORIGIN_MODE) != iCurImage->Origin) {
-			TempData = iGetFlipped(iCurImage);
+	if (ilIsEnabled(context, IL_ORIGIN_SET)) {
+		if ((ILenum)ilGetInteger(context, IL_ORIGIN_MODE) != context->impl->iCurImage->Origin) {
+			TempData = iGetFlipped(context, context->impl->iCurImage);
 			if (TempData == NULL)
 				return IL_FALSE;
 		}
 	}
 
-	PixBpp = iCurImage->Bpp * iCurImage->Bpc;
+	PixBpp = context->impl->iCurImage->Bpp * context->impl->iCurImage->Bpc;
 
-	if (iCurImage->Width < XOff + Width) {
-		NewBps = (iCurImage->Width - XOff) * PixBpp;
+	if (context->impl->iCurImage->Width < XOff + Width) {
+		NewBps = (context->impl->iCurImage->Width - XOff) * PixBpp;
 	}
 	else {
 		NewBps = Width * PixBpp;
@@ -407,7 +407,7 @@ ILboolean ilCopyPixels1D(ILuint XOff, ILuint Width, void *Data)
 		}
 	}
 
-	if (TempData != iCurImage->Data)
+	if (TempData != context->impl->iCurImage->Data)
 		ifree(TempData);
 
 	return IL_TRUE;
@@ -415,28 +415,28 @@ ILboolean ilCopyPixels1D(ILuint XOff, ILuint Width, void *Data)
 
 
 // Copies a 2d block of pixels to the buffer pointed to by Data.
-ILboolean ilCopyPixels2D(ILuint XOff, ILuint YOff, ILuint Width, ILuint Height, void *Data)
+ILboolean ilCopyPixels2D(ILcontext* context, ILuint XOff, ILuint YOff, ILuint Width, ILuint Height, void *Data)
 {
 	ILuint	x, y, c, NewBps, DataBps, NewXOff, NewHeight, PixBpp;
-	ILubyte	*Temp = (ILubyte*)Data, *TempData = iCurImage->Data;
+	ILubyte	*Temp = (ILubyte*)Data, *TempData = context->impl->iCurImage->Data;
 
-	if (ilIsEnabled(IL_ORIGIN_SET)) {
-		if ((ILenum)ilGetInteger(IL_ORIGIN_MODE) != iCurImage->Origin) {
-			TempData = iGetFlipped(iCurImage);
+	if (ilIsEnabled(context, IL_ORIGIN_SET)) {
+		if ((ILenum)ilGetInteger(context, IL_ORIGIN_MODE) != context->impl->iCurImage->Origin) {
+			TempData = iGetFlipped(context, context->impl->iCurImage);
 			if (TempData == NULL)
 				return IL_FALSE;
 		}
 	}
 
-	PixBpp = iCurImage->Bpp * iCurImage->Bpc;
+	PixBpp = context->impl->iCurImage->Bpp * context->impl->iCurImage->Bpc;
 
-	if (iCurImage->Width < XOff + Width)
-		NewBps = (iCurImage->Width - XOff) * PixBpp;
+	if (context->impl->iCurImage->Width < XOff + Width)
+		NewBps = (context->impl->iCurImage->Width - XOff) * PixBpp;
 	else
 		NewBps = Width * PixBpp;
 
-	if (iCurImage->Height < YOff + Height)
-		NewHeight = iCurImage->Height - YOff;
+	if (context->impl->iCurImage->Height < YOff + Height)
+		NewHeight = context->impl->iCurImage->Height - YOff;
 	else
 		NewHeight = Height;
 
@@ -447,12 +447,12 @@ ILboolean ilCopyPixels2D(ILuint XOff, ILuint YOff, ILuint Width, ILuint Height, 
 		for (x = 0; x < NewBps; x += PixBpp) {
 			for (c = 0; c < PixBpp; c++) {
 				Temp[y * DataBps + x + c] = 
-					TempData[(y + YOff) * iCurImage->Bps + x + NewXOff + c];
+					TempData[(y + YOff) * context->impl->iCurImage->Bps + x + NewXOff + c];
 			}
 		}
 	}
 
-	if (TempData != iCurImage->Data)
+	if (TempData != context->impl->iCurImage->Data)
 		ifree(TempData);
 
 	return IL_TRUE;
@@ -460,33 +460,33 @@ ILboolean ilCopyPixels2D(ILuint XOff, ILuint YOff, ILuint Width, ILuint Height, 
 
 
 // Copies a 3d block of pixels to the buffer pointed to by Data.
-ILboolean ilCopyPixels3D(ILuint XOff, ILuint YOff, ILuint ZOff, ILuint Width, ILuint Height, ILuint Depth, void *Data)
+ILboolean ilCopyPixels3D(ILcontext* context, ILuint XOff, ILuint YOff, ILuint ZOff, ILuint Width, ILuint Height, ILuint Depth, void *Data)
 {
 	ILuint	x, y, z, c, NewBps, DataBps, NewSizePlane, NewH, NewD, NewXOff, PixBpp;
-	ILubyte	*Temp = (ILubyte*)Data, *TempData = iCurImage->Data;
+	ILubyte	*Temp = (ILubyte*)Data, *TempData = context->impl->iCurImage->Data;
 
-	if (ilIsEnabled(IL_ORIGIN_SET)) {
-		if ((ILenum)ilGetInteger(IL_ORIGIN_MODE) != iCurImage->Origin) {
-			TempData = iGetFlipped(iCurImage);
+	if (ilIsEnabled(context, IL_ORIGIN_SET)) {
+		if ((ILenum)ilGetInteger(context, IL_ORIGIN_MODE) != context->impl->iCurImage->Origin) {
+			TempData = iGetFlipped(context, context->impl->iCurImage);
 			if (TempData == NULL)
 				return IL_FALSE;
 		}
 	}
 
-	PixBpp = iCurImage->Bpp * iCurImage->Bpc;
+	PixBpp = context->impl->iCurImage->Bpp * context->impl->iCurImage->Bpc;
 
-	if (iCurImage->Width < XOff + Width)
-		NewBps = (iCurImage->Width - XOff) * PixBpp;
+	if (context->impl->iCurImage->Width < XOff + Width)
+		NewBps = (context->impl->iCurImage->Width - XOff) * PixBpp;
 	else
 		NewBps = Width * PixBpp;
 
-	if (iCurImage->Height < YOff + Height)
-		NewH = iCurImage->Height - YOff;
+	if (context->impl->iCurImage->Height < YOff + Height)
+		NewH = context->impl->iCurImage->Height - YOff;
 	else
 		NewH = Height;
 
-	if (iCurImage->Depth < ZOff + Depth)
-		NewD = iCurImage->Depth - ZOff;
+	if (context->impl->iCurImage->Depth < ZOff + Depth)
+		NewD = context->impl->iCurImage->Depth - ZOff;
 	else
 		NewD = Depth;
 
@@ -500,28 +500,28 @@ ILboolean ilCopyPixels3D(ILuint XOff, ILuint YOff, ILuint ZOff, ILuint Width, IL
 			for (x = 0; x < NewBps; x += PixBpp) {
 				for (c = 0; c < PixBpp; c++) {
 					Temp[z * NewSizePlane + y * DataBps + x + c] = 
-						TempData[(z + ZOff) * iCurImage->SizeOfPlane + (y + YOff) * iCurImage->Bps + x + NewXOff + c];
-						//TempData[(z + ZOff) * iCurImage->SizeOfPlane + (y + YOff) * iCurImage->Bps + (x + XOff) * iCurImage->Bpp + c];
+						TempData[(z + ZOff) * context->impl->iCurImage->SizeOfPlane + (y + YOff) * context->impl->iCurImage->Bps + x + NewXOff + c];
+						//TempData[(z + ZOff) * context->impl->iCurImage->SizeOfPlane + (y + YOff) * context->impl->iCurImage->Bps + (x + XOff) * context->impl->iCurImage->Bpp + c];
 				}
 			}
 		}
 	}
 
-	if (TempData != iCurImage->Data)
+	if (TempData != context->impl->iCurImage->Data)
 		ifree(TempData);
 
 	return IL_TRUE;
 }
 
 
-ILuint ILAPIENTRY ilCopyPixels(ILuint XOff, ILuint YOff, ILuint ZOff, ILuint Width, ILuint Height, ILuint Depth, ILenum Format, ILenum Type, void *Data)
+ILuint ILAPIENTRY ilCopyPixels(ILcontext* context, ILuint XOff, ILuint YOff, ILuint ZOff, ILuint Width, ILuint Height, ILuint Depth, ILenum Format, ILenum Type, void *Data)
 {
 	void	*Converted = NULL;
 	ILubyte	*TempBuff = NULL;
 	ILuint	SrcSize, DestSize;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return 0;
 	}
 	DestSize = Width * Height * Depth * ilGetBppFormat(Format) * ilGetBpcType(Type);
@@ -529,42 +529,42 @@ ILuint ILAPIENTRY ilCopyPixels(ILuint XOff, ILuint YOff, ILuint ZOff, ILuint Wid
 		return DestSize;
 	}
 	if (Data == NULL || Format == IL_COLOUR_INDEX) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return 0;
 	}
-	SrcSize = Width * Height * Depth * iCurImage->Bpp * iCurImage->Bpc;
+	SrcSize = Width * Height * Depth * context->impl->iCurImage->Bpp * context->impl->iCurImage->Bpc;
 
-	if (Format == iCurImage->Format && Type == iCurImage->Type) {
+	if (Format == context->impl->iCurImage->Format && Type == context->impl->iCurImage->Type) {
 		TempBuff = (ILubyte*)Data;
 	}
 	else {
-		TempBuff = (ILubyte*)ialloc(SrcSize);
+		TempBuff = (ILubyte*)ialloc(context, SrcSize);
 		if (TempBuff == NULL) {
 			return 0;
 		}
 	}
 
 	if (YOff + Height <= 1) {
-		if (!ilCopyPixels1D(XOff, Width, TempBuff)) {
+		if (!ilCopyPixels1D(context, XOff, Width, TempBuff)) {
 			goto failed;
 		}
 	}
 	else if (ZOff + Depth <= 1) {
-		if (!ilCopyPixels2D(XOff, YOff, Width, Height, TempBuff)) {
+		if (!ilCopyPixels2D(context, XOff, YOff, Width, Height, TempBuff)) {
 			goto failed;
 		}
 	}
 	else {
-		if (!ilCopyPixels3D(XOff, YOff, ZOff, Width, Height, Depth, TempBuff)) {
+		if (!ilCopyPixels3D(context, XOff, YOff, ZOff, Width, Height, Depth, TempBuff)) {
 			goto failed;
 		}
 	}
 
-	if (Format == iCurImage->Format && Type == iCurImage->Type) {
+	if (Format == context->impl->iCurImage->Format && Type == context->impl->iCurImage->Type) {
 		return DestSize;
 	}
 
-	Converted = ilConvertBuffer(SrcSize, iCurImage->Format, Format, iCurImage->Type, Type, &iCurImage->Pal, TempBuff);
+	Converted = ilConvertBuffer(context, SrcSize, context->impl->iCurImage->Format, Format, context->impl->iCurImage->Type, Type, &context->impl->iCurImage->Pal, TempBuff);
 	if (Converted == NULL)
 		goto failed;
 
@@ -584,29 +584,29 @@ failed:
 }
 
 
-ILboolean ilSetPixels1D(ILint XOff, ILuint Width, void *Data)
+ILboolean ilSetPixels1D(ILcontext* context, ILint XOff, ILuint Width, void *Data)
 {
 	ILuint	c, SkipX = 0, PixBpp;
 	ILint	x, NewWidth;
-	ILubyte	*Temp = (ILubyte*)Data, *TempData = iCurImage->Data;
+	ILubyte	*Temp = (ILubyte*)Data, *TempData = context->impl->iCurImage->Data;
 
-	if (ilIsEnabled(IL_ORIGIN_SET)) {
-		if ((ILenum)ilGetInteger(IL_ORIGIN_MODE) != iCurImage->Origin) {
-			TempData = iGetFlipped(iCurImage);
+	if (ilIsEnabled(context, IL_ORIGIN_SET)) {
+		if ((ILenum)ilGetInteger(context, IL_ORIGIN_MODE) != context->impl->iCurImage->Origin) {
+			TempData = iGetFlipped(context, context->impl->iCurImage);
 			if (TempData == NULL)
 				return IL_FALSE;
 		}
 	}
 
-	PixBpp = iCurImage->Bpp * iCurImage->Bpc;
+	PixBpp = context->impl->iCurImage->Bpp * context->impl->iCurImage->Bpc;
 
 	if (XOff < 0) {
 		SkipX = abs(XOff);
 		XOff = 0;
 	}
 
-	if (iCurImage->Width < XOff + Width) {
-		NewWidth = iCurImage->Width - XOff;
+	if (context->impl->iCurImage->Width < XOff + Width) {
+		NewWidth = context->impl->iCurImage->Width - XOff;
 	}
 	else {
 		NewWidth = Width;
@@ -620,30 +620,30 @@ ILboolean ilSetPixels1D(ILint XOff, ILuint Width, void *Data)
 		}
 	}
 
-	if (TempData != iCurImage->Data) {
-		ifree(iCurImage->Data);
-		iCurImage->Data = TempData;
+	if (TempData != context->impl->iCurImage->Data) {
+		ifree(context->impl->iCurImage->Data);
+		context->impl->iCurImage->Data = TempData;
 	}
 
 	return IL_TRUE;
 }
 
 
-ILboolean ilSetPixels2D(ILint XOff, ILint YOff, ILuint Width, ILuint Height, void *Data)
+ILboolean ilSetPixels2D(ILcontext* context, ILint XOff, ILint YOff, ILuint Width, ILuint Height, void *Data)
 {
 	ILuint	c, SkipX = 0, SkipY = 0, NewBps, PixBpp;
 	ILint	x, y, NewWidth, NewHeight;
-	ILubyte	*Temp = (ILubyte*)Data, *TempData = iCurImage->Data;
+	ILubyte	*Temp = (ILubyte*)Data, *TempData = context->impl->iCurImage->Data;
 
-	if (ilIsEnabled(IL_ORIGIN_SET)) {
-		if ((ILenum)ilGetInteger(IL_ORIGIN_MODE) != iCurImage->Origin) {
-			TempData = iGetFlipped(iCurImage);
+	if (ilIsEnabled(context, IL_ORIGIN_SET)) {
+		if ((ILenum)ilGetInteger(context, IL_ORIGIN_MODE) != context->impl->iCurImage->Origin) {
+			TempData = iGetFlipped(context, context->impl->iCurImage);
 			if (TempData == NULL)
 				return IL_FALSE;
 		}
 	}
 
-	PixBpp = iCurImage->Bpp * iCurImage->Bpc;
+	PixBpp = context->impl->iCurImage->Bpp * context->impl->iCurImage->Bpc;
 
 	if (XOff < 0) {
 		SkipX = abs(XOff);
@@ -654,14 +654,14 @@ ILboolean ilSetPixels2D(ILint XOff, ILint YOff, ILuint Width, ILuint Height, voi
 		YOff = 0;
 	}
 
-	if (iCurImage->Width < XOff + Width)
-		NewWidth = iCurImage->Width - XOff;
+	if (context->impl->iCurImage->Width < XOff + Width)
+		NewWidth = context->impl->iCurImage->Width - XOff;
 	else
 		NewWidth = Width;
 	NewBps = Width * PixBpp;
 
-	if (iCurImage->Height < YOff + Height)
-		NewHeight = iCurImage->Height - YOff;
+	if (context->impl->iCurImage->Height < YOff + Height)
+		NewHeight = context->impl->iCurImage->Height - YOff;
 	else
 		NewHeight = Height;
 
@@ -671,36 +671,36 @@ ILboolean ilSetPixels2D(ILint XOff, ILint YOff, ILuint Width, ILuint Height, voi
 	for (y = 0; y < NewHeight; y++) {
 		for (x = 0; x < NewWidth; x++) {
 			for (c = 0; c < PixBpp; c++) {
-				TempData[(y + YOff) * iCurImage->Bps + (x + XOff) * PixBpp + c] =
+				TempData[(y + YOff) * context->impl->iCurImage->Bps + (x + XOff) * PixBpp + c] =
 					Temp[(y + SkipY) * NewBps + (x + SkipX) * PixBpp + c];					
 			}
 		}
 	}
 
-	if (TempData != iCurImage->Data) {
-		ifree(iCurImage->Data);
-		iCurImage->Data = TempData;
+	if (TempData != context->impl->iCurImage->Data) {
+		ifree(context->impl->iCurImage->Data);
+		context->impl->iCurImage->Data = TempData;
 	}
 
 	return IL_TRUE;
 }
 
 
-ILboolean ilSetPixels3D(ILint XOff, ILint YOff, ILint ZOff, ILuint Width, ILuint Height, ILuint Depth, void *Data)
+ILboolean ilSetPixels3D(ILcontext* context, ILint XOff, ILint YOff, ILint ZOff, ILuint Width, ILuint Height, ILuint Depth, void *Data)
 {
 	ILuint	SkipX = 0, SkipY = 0, SkipZ = 0, c, NewBps, NewSizePlane, PixBpp;
 	ILint	x, y, z, NewW, NewH, NewD;
-	ILubyte	*Temp = (ILubyte*)Data, *TempData = iCurImage->Data;
+	ILubyte	*Temp = (ILubyte*)Data, *TempData = context->impl->iCurImage->Data;
 
-	if (ilIsEnabled(IL_ORIGIN_SET)) {
-		if ((ILenum)ilGetInteger(IL_ORIGIN_MODE) != iCurImage->Origin) {
-			TempData = iGetFlipped(iCurImage);
+	if (ilIsEnabled(context, IL_ORIGIN_SET)) {
+		if ((ILenum)ilGetInteger(context, IL_ORIGIN_MODE) != context->impl->iCurImage->Origin) {
+			TempData = iGetFlipped(context, context->impl->iCurImage);
 			if (TempData == NULL)
 				return IL_FALSE;
 		}
 	}
 
-	PixBpp = iCurImage->Bpp * iCurImage->Bpc;
+	PixBpp = context->impl->iCurImage->Bpp * context->impl->iCurImage->Bpc;
 
 	if (XOff < 0) {
 		SkipX = abs(XOff);
@@ -715,19 +715,19 @@ ILboolean ilSetPixels3D(ILint XOff, ILint YOff, ILint ZOff, ILuint Width, ILuint
 		ZOff = 0;
 	}
 
-	if (iCurImage->Width < XOff + Width)
-		NewW = iCurImage->Width - XOff;
+	if (context->impl->iCurImage->Width < XOff + Width)
+		NewW = context->impl->iCurImage->Width - XOff;
 	else
 		NewW = Width;
 	NewBps = Width * PixBpp;
 
-	if (iCurImage->Height < YOff + Height)
-		NewH = iCurImage->Height - YOff;
+	if (context->impl->iCurImage->Height < YOff + Height)
+		NewH = context->impl->iCurImage->Height - YOff;
 	else
 		NewH = Height;
 
-	if (iCurImage->Depth < ZOff + Depth)
-		NewD = iCurImage->Depth - ZOff;
+	if (context->impl->iCurImage->Depth < ZOff + Depth)
+		NewD = context->impl->iCurImage->Depth - ZOff;
 	else
 		NewD = Depth;
 	NewSizePlane = NewBps * Height;
@@ -740,55 +740,55 @@ ILboolean ilSetPixels3D(ILint XOff, ILint YOff, ILint ZOff, ILuint Width, ILuint
 		for (y = 0; y < NewH; y++) {
 			for (x = 0; x < NewW; x++) {
 				for (c = 0; c < PixBpp; c++) {
-					TempData[(z + ZOff) * iCurImage->SizeOfPlane + (y + YOff) * iCurImage->Bps + (x + XOff) * PixBpp + c] =
+					TempData[(z + ZOff) * context->impl->iCurImage->SizeOfPlane + (y + YOff) * context->impl->iCurImage->Bps + (x + XOff) * PixBpp + c] =
 						Temp[(z + SkipZ) * NewSizePlane + (y + SkipY) * NewBps + (x + SkipX) * PixBpp + c];
 				}
 			}
 		}
 	}
 
-	if (TempData != iCurImage->Data) {
-		ifree(iCurImage->Data);
-		iCurImage->Data = TempData;
+	if (TempData != context->impl->iCurImage->Data) {
+		ifree(context->impl->iCurImage->Data);
+		context->impl->iCurImage->Data = TempData;
 	}
 
 	return IL_TRUE;
 }
 
 
-void ILAPIENTRY ilSetPixels(ILint XOff, ILint YOff, ILint ZOff, ILuint Width, ILuint Height, ILuint Depth, ILenum Format, ILenum Type, void *Data)
+void ILAPIENTRY ilSetPixels(ILcontext* context, ILint XOff, ILint YOff, ILint ZOff, ILuint Width, ILuint Height, ILuint Depth, ILenum Format, ILenum Type, void *Data)
 {
 	void *Converted;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return;
 	}
 	if (Data == NULL) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return;
 	}
 
-	if (Format == iCurImage->Format && Type == iCurImage->Type) {
+	if (Format == context->impl->iCurImage->Format && Type == context->impl->iCurImage->Type) {
 		Converted = (void*)Data;
 	}
 	else {
-		Converted = ilConvertBuffer(Width * Height * Depth * ilGetBppFormat(Format) * ilGetBpcType(Type), Format, iCurImage->Format, Type, iCurImage->Type, NULL, Data);
+		Converted = ilConvertBuffer(context, Width * Height * Depth * ilGetBppFormat(Format) * ilGetBpcType(Type), Format, context->impl->iCurImage->Format, Type, context->impl->iCurImage->Type, NULL, Data);
 		if (!Converted)
 			return;
 	}
 
 	if (YOff + Height <= 1) {
-		ilSetPixels1D(XOff, Width, Converted);
+		ilSetPixels1D(context, XOff, Width, Converted);
 	}
 	else if (ZOff + Depth <= 1) {
-		ilSetPixels2D(XOff, YOff, Width, Height, Converted);
+		ilSetPixels2D(context, XOff, YOff, Width, Height, Converted);
 	}
 	else {
-		ilSetPixels3D(XOff, YOff, ZOff, Width, Height, Depth, Converted);
+		ilSetPixels3D(context, XOff, YOff, ZOff, Width, Height, Depth, Converted);
 	}
 
-	if (Format == iCurImage->Format && Type == iCurImage->Type) {
+	if (Format == context->impl->iCurImage->Format && Type == context->impl->iCurImage->Type) {
 		return;
 	}
 
@@ -804,7 +804,7 @@ void ILAPIENTRY ilSetPixels(ILint XOff, ILint YOff, ILint ZOff, ILuint Width, IL
 //	This could very well easily be changed to a 128x128 image instead...needed?
 
 //! Creates an ugly 64x64 black and yellow checkerboard image.
-ILboolean ILAPIENTRY ilDefaultImage()
+ILboolean ILAPIENTRY ilDefaultImage(ILcontext* context)
 {
 	ILubyte *TempData;
 	ILubyte Yellow[3] = { 18, 246, 243 };
@@ -815,16 +815,16 @@ ILboolean ILAPIENTRY ilDefaultImage()
 	// Loop Variables
 	ILint v, w, x, y;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	if (!ilTexImage(64, 64, 1, 3, IL_BGR, IL_UNSIGNED_BYTE, NULL)) {
+	if (!ilTexImage(context, 64, 64, 1, 3, IL_BGR, IL_UNSIGNED_BYTE, NULL)) {
 		return IL_FALSE;
 	}
-	iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
-	TempData = iCurImage->Data;
+	context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
+	TempData = context->impl->iCurImage->Data;
 
 	for (v = 0; v < 8; v++) {
 		// We do this because after a "block" line ends, the next row of blocks
@@ -840,7 +840,7 @@ ILboolean ILAPIENTRY ilDefaultImage()
 
 		for (w = 0; w < 8; w++) {
 			for (x = 0; x < 8; x++) {
-				for (y = 0; y < 8; y++, TempData += iCurImage->Bpp) {
+				for (y = 0; y < 8; y++, TempData += context->impl->iCurImage->Bpp) {
 					TempData[0] = ColorPtr[0];
 					TempData[1] = ColorPtr[1];
 					TempData[2] = ColorPtr[2];
@@ -863,7 +863,7 @@ ILboolean ILAPIENTRY ilDefaultImage()
 }
 
 
-ILubyte* ILAPIENTRY ilGetAlpha(ILenum Type)
+ILubyte* ILAPIENTRY ilGetAlpha(ILcontext* context, ILenum Type)
 {
 	ILimage		*TempImage;
 	ILubyte		*Alpha;
@@ -872,29 +872,29 @@ ILubyte* ILAPIENTRY ilGetAlpha(ILenum Type)
 	ILdouble	*AlphaDbl;
 	ILuint		i, j, Bpc, Size, AlphaOff;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	Bpc = ilGetBpcType(Type);
 	if (Bpc == 0) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return NULL;
 	}
 
-	if (iCurImage->Type == Type) {
-		TempImage = iCurImage;
+	if (context->impl->iCurImage->Type == Type) {
+		TempImage = context->impl->iCurImage;
 	} else {
-		TempImage = iConvertImage(iCurImage, iCurImage->Format, Type);
+		TempImage = iConvertImage(context, context->impl->iCurImage, context->impl->iCurImage->Format, Type);
 		if (TempImage == NULL)
 			return NULL;
 	}
 
-	Size = iCurImage->Width * iCurImage->Height * iCurImage->Depth * TempImage->Bpp;
-	Alpha = (ILubyte*)ialloc(Size / TempImage->Bpp * Bpc);
+	Size = context->impl->iCurImage->Width * context->impl->iCurImage->Height * context->impl->iCurImage->Depth * TempImage->Bpp;
+	Alpha = (ILubyte*)ialloc(context, Size / TempImage->Bpp * Bpc);
 	if (Alpha == NULL) {
-		if (TempImage != iCurImage)
+		if (TempImage != context->impl->iCurImage)
 			ilCloseImage(TempImage);
 		return NULL;
 	}
@@ -906,7 +906,7 @@ ILubyte* ILAPIENTRY ilGetAlpha(ILenum Type)
 		case IL_LUMINANCE:
 		case IL_COLOUR_INDEX:  // @TODO: Make IL_COLOUR_INDEX separate.
 			memset(Alpha, 0xFF, Size / TempImage->Bpp * Bpc);
-			if (TempImage != iCurImage)
+			if (TempImage != context->impl->iCurImage)
 				ilCloseImage(TempImage);
 			return Alpha;
 	}
@@ -952,22 +952,22 @@ ILubyte* ILAPIENTRY ilGetAlpha(ILenum Type)
 			break;
 	}
 
-	if (TempImage != iCurImage)
+	if (TempImage != context->impl->iCurImage)
 		ilCloseImage(TempImage);
 
 	return Alpha;
 }
 
 // sets the Alpha value to a specific value for each pixel in the image
-ILboolean ILAPIENTRY ilSetAlpha(ILdouble AlphaValue)
+ILboolean ILAPIENTRY ilSetAlpha(ILcontext* context, ILdouble AlphaValue)
 {
 	ILboolean	ret = IL_TRUE;
 	ILuint		i,Size;
-	ILimage		*Image = iCurImage;
+	ILimage		*Image = context->impl->iCurImage;
 	ILuint		AlphaOff;
 
 	if (Image == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -976,24 +976,24 @@ ILboolean ILAPIENTRY ilSetAlpha(ILdouble AlphaValue)
 	switch (Image->Format)
 	{
 		case IL_RGB:
-			ret = ilConvertImage(IL_RGBA, Image->Type);
+			ret = ilConvertImage(context, IL_RGBA, Image->Type);
 		case IL_RGBA:
 			AlphaOff = 4;
 		break;
 		case IL_BGR:
-			ret = ilConvertImage(IL_BGRA, Image->Type);
+			ret = ilConvertImage(context, IL_BGRA, Image->Type);
 		case IL_BGRA:
 			AlphaOff = 4;
 			break;
 		case IL_LUMINANCE:
-			ret = ilConvertImage(IL_LUMINANCE_ALPHA, Image->Type);
+			ret = ilConvertImage(context, IL_LUMINANCE_ALPHA, Image->Type);
 		case IL_LUMINANCE_ALPHA:
 			AlphaOff = 2;
 			break;
 		case IL_ALPHA:
 			AlphaOff = 1;
 		case IL_COLOUR_INDEX: //@TODO use palette with alpha
-			ret = ilConvertImage(IL_RGBA, Image->Type);
+			ret = ilConvertImage(context, IL_RGBA, Image->Type);
 			AlphaOff = 4;
 			break;
 	}
@@ -1003,7 +1003,7 @@ ILboolean ILAPIENTRY ilSetAlpha(ILdouble AlphaValue)
 	}
 	Size = Image->Width * Image->Height * Image->Depth * Image->Bpp;
 
-	switch (iCurImage->Type)
+	switch (context->impl->iCurImage->Type)
 	{
 		case IL_BYTE: 
 		case IL_UNSIGNED_BYTE: {
@@ -1043,7 +1043,7 @@ ILboolean ILAPIENTRY ilSetAlpha(ILdouble AlphaValue)
 	return IL_TRUE;
 }
 
-void ILAPIENTRY ilModAlpha(ILdouble AlphaValue)
+void ILAPIENTRY ilModAlpha(ILcontext* context, ILdouble AlphaValue)
 {
     ILuint AlphaOff = 0;
     ILboolean ret = IL_FALSE;
@@ -1058,64 +1058,64 @@ void ILAPIENTRY ilModAlpha(ILdouble AlphaValue)
     } Alpha;
 
     
-    if (iCurImage == NULL) {
-        ilSetError(IL_ILLEGAL_OPERATION);
+    if (context->impl->iCurImage == NULL) {
+        ilSetError(context, IL_ILLEGAL_OPERATION);
         return;
     }
     
-    switch (iCurImage->Format)
+    switch (context->impl->iCurImage->Format)
 	{
             case IL_RGB:
-                ret = ilConvertImage(IL_RGBA,iCurImage->Type);
+                ret = ilConvertImage(context, IL_RGBA,context->impl->iCurImage->Type);
                 AlphaOff = 4;
                 break;
             case IL_BGR:
-                ret = ilConvertImage(IL_BGRA,iCurImage->Type);
+                ret = ilConvertImage(context, IL_BGRA,context->impl->iCurImage->Type);
                 AlphaOff = 4;
                 break;
             case IL_LUMINANCE:
-                ret = ilConvertImage(IL_LUMINANCE_ALPHA,iCurImage->Type);
+                ret = ilConvertImage(context, IL_LUMINANCE_ALPHA,context->impl->iCurImage->Type);
                 AlphaOff = 2;
                 break;
             case IL_COLOUR_INDEX:
-                ret = ilConvertImage(IL_RGBA,iCurImage->Type);
+                ret = ilConvertImage(context, IL_RGBA,context->impl->iCurImage->Type);
                 AlphaOff = 4;
                 break;
     }    
-    Size = iCurImage->Width * iCurImage->Height * iCurImage->Depth * iCurImage->Bpp;
+    Size = context->impl->iCurImage->Width * context->impl->iCurImage->Height * context->impl->iCurImage->Depth * context->impl->iCurImage->Bpp;
     
     if (!ret)
 		return;
 
-    switch (iCurImage->Type)
+    switch (context->impl->iCurImage->Type)
 	{
         case IL_BYTE:
         case IL_UNSIGNED_BYTE:
             Alpha.alpha_byte = (ILubyte)(AlphaValue * 0x000000FF + .5);
             for (i = AlphaOff-1, j = 0; i < Size; i += AlphaOff, j++)
-                iCurImage->Data[i] = Alpha.alpha_byte;
+                context->impl->iCurImage->Data[i] = Alpha.alpha_byte;
             break;
         case IL_SHORT:
         case IL_UNSIGNED_SHORT:
             Alpha.alpha_short = (ILushort)(AlphaValue * 0x0000FFFF + .5);
             for (i = AlphaOff-1, j = 0; i < Size; i += AlphaOff, j++)
-                ((ILushort*)iCurImage->Data)[i] = Alpha.alpha_short;
+                ((ILushort*)context->impl->iCurImage->Data)[i] = Alpha.alpha_short;
             break;
         case IL_INT:
         case IL_UNSIGNED_INT:
             Alpha.alpha_int = (ILuint)(AlphaValue * 0xFFFFFFFF + .5);
             for (i = AlphaOff-1, j = 0; i < Size; i += AlphaOff, j++)
-                ((ILuint*)iCurImage->Data)[i] = Alpha.alpha_int;
+                ((ILuint*)context->impl->iCurImage->Data)[i] = Alpha.alpha_int;
             break;
         case IL_FLOAT:
             Alpha.alpha_float = (ILfloat)AlphaValue;
             for (i = AlphaOff-1, j = 0; i < Size; i += AlphaOff, j++)
-                ((ILfloat*)iCurImage->Data)[i] = Alpha.alpha_float;
+                ((ILfloat*)context->impl->iCurImage->Data)[i] = Alpha.alpha_float;
             break;
         case IL_DOUBLE:
             Alpha.alpha_double = AlphaValue;
             for (i = AlphaOff-1, j = 0; i < Size; i += AlphaOff, j++)
-                ((ILdouble*)iCurImage->Data)[i] = Alpha.alpha_double;
+                ((ILdouble*)context->impl->iCurImage->Data)[i] = Alpha.alpha_double;
             break;
     }
 
@@ -1126,26 +1126,26 @@ void ILAPIENTRY ilModAlpha(ILdouble AlphaValue)
 //! Clamps data values of unsigned bytes from 16 to 235 for display on an
 //   NTSC television.  Reasoning for this is given at
 //   http://msdn.microsoft.com/en-us/library/bb174608.aspx.
-ILboolean ILAPIENTRY ilClampNTSC(void)
+ILboolean ILAPIENTRY ilClampNTSC(ILcontext* context)
 {
 	ILuint x, y, z, c;
 	ILuint Offset = 0;
 
-    if (iCurImage == NULL) {
-        ilSetError(IL_ILLEGAL_OPERATION);
+    if (context->impl->iCurImage == NULL) {
+        ilSetError(context, IL_ILLEGAL_OPERATION);
         return IL_FALSE;
     }
 
-	if (iCurImage->Type != IL_UNSIGNED_BYTE)  // Should we set an error here?
+	if (context->impl->iCurImage->Type != IL_UNSIGNED_BYTE)  // Should we set an error here?
 		return IL_FALSE;
 
-	for (z = 0; z < iCurImage->Depth; z++) {
-		for (y = 0; y < iCurImage->Height; y++) {
-			for (x = 0; x < iCurImage->Width; x++) {
-				for (c = 0; c < iCurImage->Bpp; c++) {
-					iCurImage->Data[Offset + c] = IL_LIMIT(iCurImage->Data[Offset + c], 16, 235);
+	for (z = 0; z < context->impl->iCurImage->Depth; z++) {
+		for (y = 0; y < context->impl->iCurImage->Height; y++) {
+			for (x = 0; x < context->impl->iCurImage->Width; x++) {
+				for (c = 0; c < context->impl->iCurImage->Bpp; c++) {
+					context->impl->iCurImage->Data[Offset + c] = IL_LIMIT(context->impl->iCurImage->Data[Offset + c], 16, 235);
 				}
-			Offset += iCurImage->Bpp;
+			Offset += context->impl->iCurImage->Bpp;
 			}
 		}
 	}

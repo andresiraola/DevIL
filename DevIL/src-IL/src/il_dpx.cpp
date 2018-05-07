@@ -18,148 +18,148 @@
 #include "il_dpx.h"
 #include "il_bits.h"
 
-ILboolean iLoadDpxInternal(void);
+ILboolean iLoadDpxInternal(ILcontext* context);
 
 
 //! Reads a DPX file
-ILboolean ilLoadDpx(ILconst_string FileName)
+ILboolean ilLoadDpx(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	DpxFile;
 	ILboolean	bDpx = IL_FALSE;
 
-	DpxFile = iopenr(FileName);
+	DpxFile = context->impl->iopenr(FileName);
 	if (DpxFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bDpx;
 	}
 
-	bDpx = ilLoadDpxF(DpxFile);
-	icloser(DpxFile);
+	bDpx = ilLoadDpxF(context, DpxFile);
+	context->impl->icloser(DpxFile);
 
 	return bDpx;
 }
 
 
 //! Reads an already-opened DPX file
-ILboolean ilLoadDpxF(ILHANDLE File)
+ILboolean ilLoadDpxF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadDpxInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadDpxInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a DPX
-ILboolean ilLoadDpxL(const void *Lump, ILuint Size)
+ILboolean ilLoadDpxL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadDpxInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadDpxInternal(context);
 }
 
 
-ILboolean DpxGetFileInfo(DPX_FILE_INFO *FileInfo)
+ILboolean DpxGetFileInfo(ILcontext* context, DPX_FILE_INFO *FileInfo)
 {
-	//if (iread(FileInfo, 768, 1) != 1)
+	//if (context->impl->iread(context, FileInfo, 768, 1) != 1)
 	//	return IL_FALSE;
 
-	FileInfo->MagicNum = GetBigUInt();
-	FileInfo->Offset = GetBigUInt();
-	iread(FileInfo->Vers, 8, 1);
-	FileInfo->FileSize = GetBigUInt();
-	FileInfo->DittoKey = GetBigUInt();
-	FileInfo->GenHdrSize = GetBigUInt();
-	FileInfo->IndHdrSize = GetBigUInt();
-	FileInfo->UserDataSize = GetBigUInt();
-	iread(FileInfo->FileName, 100, 1);
-	iread(FileInfo->CreateTime, 24, 1);
-	iread(FileInfo->Creator, 100, 1);
-	iread(FileInfo->Project, 200, 1);
-	if (iread(FileInfo->Copyright, 200, 1) != 1)
+	FileInfo->MagicNum = GetBigUInt(context);
+	FileInfo->Offset = GetBigUInt(context);
+	context->impl->iread(context, FileInfo->Vers, 8, 1);
+	FileInfo->FileSize = GetBigUInt(context);
+	FileInfo->DittoKey = GetBigUInt(context);
+	FileInfo->GenHdrSize = GetBigUInt(context);
+	FileInfo->IndHdrSize = GetBigUInt(context);
+	FileInfo->UserDataSize = GetBigUInt(context);
+	context->impl->iread(context, FileInfo->FileName, 100, 1);
+	context->impl->iread(context, FileInfo->CreateTime, 24, 1);
+	context->impl->iread(context, FileInfo->Creator, 100, 1);
+	context->impl->iread(context, FileInfo->Project, 200, 1);
+	if (context->impl->iread(context, FileInfo->Copyright, 200, 1) != 1)
 		return IL_FALSE;
-	FileInfo->Key = GetBigUInt();
-	iseek(104, IL_SEEK_CUR);  // Skip reserved section.
+	FileInfo->Key = GetBigUInt(context);
+	context->impl->iseek(context, 104, IL_SEEK_CUR);  // Skip reserved section.
 
 	return IL_TRUE;
 }
 
 
-ILboolean GetImageElement(DPX_IMAGE_ELEMENT *ImageElement)
+ILboolean GetImageElement(ILcontext* context, DPX_IMAGE_ELEMENT *ImageElement)
 {
-	ImageElement->DataSign = GetBigUInt();
-	ImageElement->RefLowData = GetBigUInt();
-	iread(&ImageElement->RefLowQuantity, 1, 4);
-	ImageElement->RefHighData = GetBigUInt();
-	iread(&ImageElement->RefHighQuantity, 1, 4);
-	ImageElement->Descriptor = igetc();
-	ImageElement->Transfer = igetc();
-	ImageElement->Colorimetric = igetc();
-	ImageElement->BitSize = igetc();
-	ImageElement->Packing = GetBigUShort();
-	ImageElement->Encoding = GetBigUShort();
-	ImageElement->DataOffset = GetBigUInt();
-	ImageElement->EolPadding = GetBigUInt();
-	ImageElement->EoImagePadding = GetBigUInt();
-	if (iread(ImageElement->Description, 32, 1) != 1)
+	ImageElement->DataSign = GetBigUInt(context);
+	ImageElement->RefLowData = GetBigUInt(context);
+	context->impl->iread(context, &ImageElement->RefLowQuantity, 1, 4);
+	ImageElement->RefHighData = GetBigUInt(context);
+	context->impl->iread(context, &ImageElement->RefHighQuantity, 1, 4);
+	ImageElement->Descriptor = context->impl->igetc(context);
+	ImageElement->Transfer = context->impl->igetc(context);
+	ImageElement->Colorimetric = context->impl->igetc(context);
+	ImageElement->BitSize = context->impl->igetc(context);
+	ImageElement->Packing = GetBigUShort(context);
+	ImageElement->Encoding = GetBigUShort(context);
+	ImageElement->DataOffset = GetBigUInt(context);
+	ImageElement->EolPadding = GetBigUInt(context);
+	ImageElement->EoImagePadding = GetBigUInt(context);
+	if (context->impl->iread(context, ImageElement->Description, 32, 1) != 1)
 		return IL_FALSE;
 
 	return IL_TRUE;
 }
 
 
-ILboolean DpxGetImageInfo(DPX_IMAGE_INFO *ImageInfo)
+ILboolean DpxGetImageInfo(ILcontext* context, DPX_IMAGE_INFO *ImageInfo)
 {
 	ILuint i;
 
-	//if (iread(ImageInfo, sizeof(DPX_IMAGE_INFO), 1) != 1)
+	//if (context->impl->iread(context, ImageInfo, sizeof(DPX_IMAGE_INFO), 1) != 1)
 	//	return IL_FALSE;
-	ImageInfo->Orientation = GetBigUShort();
-	ImageInfo->NumElements = GetBigUShort();
-	ImageInfo->Width = GetBigUInt();
-	ImageInfo->Height = GetBigUInt();
+	ImageInfo->Orientation = GetBigUShort(context);
+	ImageInfo->NumElements = GetBigUShort(context);
+	ImageInfo->Width = GetBigUInt(context);
+	ImageInfo->Height = GetBigUInt(context);
 
 	for (i = 0; i < 8; i++) {
-		GetImageElement(&ImageInfo->ImageElement[i]);
+		GetImageElement(context, &ImageInfo->ImageElement[i]);
 	}
 
-	iseek(52, IL_SEEK_CUR);  // Skip padding bytes.
+	context->impl->iseek(context, 52, IL_SEEK_CUR);  // Skip padding bytes.
 
 	return IL_TRUE;
 }
 
 
-ILboolean DpxGetImageOrient(DPX_IMAGE_ORIENT *ImageOrient)
+ILboolean DpxGetImageOrient(ILcontext* context, DPX_IMAGE_ORIENT *ImageOrient)
 {
-	ImageOrient->XOffset = GetBigUInt();
-	ImageOrient->YOffset = GetBigUInt();
-	iread(&ImageOrient->XCenter, 4, 1);
-	iread(&ImageOrient->YCenter, 4, 1);
-	ImageOrient->XOrigSize = GetBigUInt();
-	ImageOrient->YOrigSize = GetBigUInt();
-	iread(ImageOrient->FileName, 100, 1);
-	iread(ImageOrient->CreationTime, 24, 1);
-	iread(ImageOrient->InputDev, 32, 1);
-	if (iread(ImageOrient->InputSerial, 32, 1) != 1)
+	ImageOrient->XOffset = GetBigUInt(context);
+	ImageOrient->YOffset = GetBigUInt(context);
+	context->impl->iread(context, &ImageOrient->XCenter, 4, 1);
+	context->impl->iread(context, &ImageOrient->YCenter, 4, 1);
+	ImageOrient->XOrigSize = GetBigUInt(context);
+	ImageOrient->YOrigSize = GetBigUInt(context);
+	context->impl->iread(context, ImageOrient->FileName, 100, 1);
+	context->impl->iread(context, ImageOrient->CreationTime, 24, 1);
+	context->impl->iread(context, ImageOrient->InputDev, 32, 1);
+	if (context->impl->iread(context, ImageOrient->InputSerial, 32, 1) != 1)
 		return IL_FALSE;
-	ImageOrient->Border[0] = GetBigUShort();
-	ImageOrient->Border[1] = GetBigUShort();
-	ImageOrient->Border[2] = GetBigUShort();
-	ImageOrient->Border[3] = GetBigUShort();
-	ImageOrient->PixelAspect[0] = GetBigUInt();
-	ImageOrient->PixelAspect[1] = GetBigUInt();
-	iseek(28, IL_SEEK_CUR);  // Skip reserved bytes.
+	ImageOrient->Border[0] = GetBigUShort(context);
+	ImageOrient->Border[1] = GetBigUShort(context);
+	ImageOrient->Border[2] = GetBigUShort(context);
+	ImageOrient->Border[3] = GetBigUShort(context);
+	ImageOrient->PixelAspect[0] = GetBigUInt(context);
+	ImageOrient->PixelAspect[1] = GetBigUInt(context);
+	context->impl->iseek(context, 28, IL_SEEK_CUR);  // Skip reserved bytes.
 
 	return IL_TRUE;
 }
 
 
 // Internal function used to load the DPX.
-ILboolean iLoadDpxInternal(void)
+ILboolean iLoadDpxInternal(ILcontext* context)
 {
 	DPX_FILE_INFO		FileInfo;
 	DPX_IMAGE_INFO		ImageInfo;
@@ -172,19 +172,19 @@ ILboolean iLoadDpxInternal(void)
 	ILubyte		NumChans = 0;
 
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 	
-	if (!DpxGetFileInfo(&FileInfo))
+	if (!DpxGetFileInfo(context, &FileInfo))
 		return IL_FALSE;
-	if (!DpxGetImageInfo(&ImageInfo))
+	if (!DpxGetImageInfo(context, &ImageInfo))
 		return IL_FALSE;
-	if (!DpxGetImageOrient(&ImageOrient))
+	if (!DpxGetImageOrient(context, &ImageOrient))
 		return IL_FALSE;
 
-	iseek(ImageInfo.ImageElement[CurElem].DataOffset, IL_SEEK_SET);
+	context->impl->iseek(context, ImageInfo.ImageElement[CurElem].DataOffset, IL_SEEK_SET);
 
 //@TODO: Deal with different origins!
 
@@ -203,7 +203,7 @@ ILboolean iLoadDpxInternal(void)
 			NumChans = 4;
 			break;
 		default:
-			ilSetError(IL_FORMAT_NOT_SUPPORTED);
+			ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 			return IL_FALSE;
 	}
 
@@ -213,10 +213,10 @@ ILboolean iLoadDpxInternal(void)
 		case 8:
 		case 16:
 		case 32:
-			if (!ilTexImage(ImageInfo.Width, ImageInfo.Height, 1, NumChans, Format, IL_UNSIGNED_BYTE, NULL))
+			if (!ilTexImage(context, ImageInfo.Width, ImageInfo.Height, 1, NumChans, Format, IL_UNSIGNED_BYTE, NULL))
 				return IL_FALSE;
-			iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
-			if (iread(iCurImage->Data, iCurImage->SizeOfData, 1) != 1)
+			context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+			if (context->impl->iread(context, context->impl->iCurImage->Data, context->impl->iCurImage->SizeOfData, 1) != 1)
 				return IL_FALSE;
 			goto finish;
 	}
@@ -229,34 +229,34 @@ ILboolean iLoadDpxInternal(void)
 			case 10:
 				//@TODO: Support other formats!
 				/*if (Format != IL_RGB) {
-					ilSetError(IL_FORMAT_NOT_SUPPORTED);
+					ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 					return IL_FALSE;
 				}*/
 				switch (Format)
 				{
 					case IL_LUMINANCE:
-						if (!ilTexImage(ImageInfo.Width, ImageInfo.Height, 1, 1, IL_LUMINANCE, IL_UNSIGNED_SHORT, NULL))
+						if (!ilTexImage(context, ImageInfo.Width, ImageInfo.Height, 1, 1, IL_LUMINANCE, IL_UNSIGNED_SHORT, NULL))
 							return IL_FALSE;
-						iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
-						ShortData = (ILushort*)iCurImage->Data;
-						NumElements = iCurImage->SizeOfData / 2;
+						context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+						ShortData = (ILushort*)context->impl->iCurImage->Data;
+						NumElements = context->impl->iCurImage->SizeOfData / 2;
 
 						for (i = 0; i < NumElements;) {
-							iread(Data, 1, 2);
+							context->impl->iread(context, Data, 1, 2);
 							Val = ((Data[0] << 2) + ((Data[1] & 0xC0) >> 6)) << 6;  // Use the first 10 bits of the word-aligned data.
 							ShortData[i++] = Val | ((Val & 0x3F0) >> 4);  // Fill in the lower 6 bits with a copy of the higher bits.
 						}
 						break;
 
 					case IL_RGB:
-						if (!ilTexImage(ImageInfo.Width, ImageInfo.Height, 1, 3, IL_RGB, IL_UNSIGNED_SHORT, NULL))
+						if (!ilTexImage(context, ImageInfo.Width, ImageInfo.Height, 1, 3, IL_RGB, IL_UNSIGNED_SHORT, NULL))
 							return IL_FALSE;
-						iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
-						ShortData = (ILushort*)iCurImage->Data;
-						NumElements = iCurImage->SizeOfData / 2;
+						context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+						ShortData = (ILushort*)context->impl->iCurImage->Data;
+						NumElements = context->impl->iCurImage->SizeOfData / 2;
 
 						for (i = 0; i < NumElements;) {
-							iread(Data, 1, 4);
+							context->impl->iread(context, Data, 1, 4);
 							Val = ((Data[0] << 2) + ((Data[1] & 0xC0) >> 6)) << 6;  // Use the first 10 bits of the word-aligned data.
 							ShortData[i++] = Val | ((Val & 0x3F0) >> 4);  // Fill in the lower 6 bits with a copy of the higher bits.
 							Val = (((Data[1] & 0x3F) << 4) + ((Data[2] & 0xF0) >> 4)) << 6;  // Use the next 10 bits.
@@ -267,14 +267,14 @@ ILboolean iLoadDpxInternal(void)
 						break;
 
 					case IL_RGBA:  // Is this even a possibility?  There is a ton of wasted space here!
-						if (!ilTexImage(ImageInfo.Width, ImageInfo.Height, 1, 4, IL_RGBA, IL_UNSIGNED_SHORT, NULL))
+						if (!ilTexImage(context, ImageInfo.Width, ImageInfo.Height, 1, 4, IL_RGBA, IL_UNSIGNED_SHORT, NULL))
 							return IL_FALSE;
-						iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
-						ShortData = (ILushort*)iCurImage->Data;
-						NumElements = iCurImage->SizeOfData / 2;
+						context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+						ShortData = (ILushort*)context->impl->iCurImage->Data;
+						NumElements = context->impl->iCurImage->SizeOfData / 2;
 
 						for (i = 0; i < NumElements;) {
-							iread(Data, 1, 8);
+							context->impl->iread(context, Data, 1, 8);
 							Val = (Data[0] << 2) + ((Data[1] & 0xC0) >> 6);  // Use the first 10 bits of the word-aligned data.
 							ShortData[i++] = (Val << 6) | ((Val & 0x3F0) >> 4);  // Fill in the lower 6 bits with a copy of the higher bits.
 							Val = ((Data[1] & 0x3F) << 4) + ((Data[2] & 0xF0) >> 4);  // Use the next 10 bits.
@@ -291,7 +291,7 @@ ILboolean iLoadDpxInternal(void)
 			//case 1:
 			//case 12:
 			default:
-				ilSetError(IL_FORMAT_NOT_SUPPORTED);
+				ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 				return IL_FALSE;
 		}
 	}
@@ -300,8 +300,8 @@ ILboolean iLoadDpxInternal(void)
 		/*File = bfile(iGetFile());
 		if (File == NULL)
 			return IL_FALSE;  //@TODO: Error?
-		ShortData = (ILushort*)iCurImage->Data;
-		NumElements = iCurImage->SizeOfData / 2;
+		ShortData = (ILushort*)context->impl->iCurImage->Data;
+		NumElements = context->impl->iCurImage->SizeOfData / 2;
 		for (i = 0; i < NumElements; i++) {
 			//bread(&Val, 1, 10, File);
 			Val = breadVal(10, File);
@@ -309,16 +309,16 @@ ILboolean iLoadDpxInternal(void)
 		}
 		bclose(File);*/
 
-		ilSetError(IL_FORMAT_NOT_SUPPORTED);
+		ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 		return IL_FALSE;
 	}
 	else {
-		ilSetError(IL_ILLEGAL_FILE_VALUE);
+		ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 		return IL_FALSE;  //@TODO: Take care of this in an iCheckDpx* function.
 	}
 
 finish:
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 #endif//IL_NO_DPX

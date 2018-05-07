@@ -31,13 +31,13 @@
 #ifndef IL_NO_ILBM
 #include <stdlib.h>
 
-ILboolean   iIsValidIlbm(void);
-ILboolean   iLoadIlbmInternal(void);
-static ILboolean load_ilbm(void);
-static int isLBM(void );
+ILboolean   iIsValidIlbm(ILcontext* context);
+ILboolean   iLoadIlbmInternal(ILcontext* context);
+static ILboolean load_ilbm(ILcontext* context);
+static int isLBM(ILcontext* context);
 
 
-ILboolean ilIsValidIlbm(ILconst_string FileName)
+ILboolean ilIsValidIlbm(ILcontext* context, ILconst_string FileName)
 {
     ILHANDLE    f;
     ILboolean   bIlbm = IL_FALSE;
@@ -46,109 +46,109 @@ ILboolean ilIsValidIlbm(ILconst_string FileName)
         !iCheckExtension(FileName, IL_TEXT("ilbm")) &&
         !iCheckExtension(FileName, IL_TEXT("lbm")) &&
         !iCheckExtension(FileName, IL_TEXT("ham")) ) {
-        ilSetError(IL_INVALID_EXTENSION);
+        ilSetError(context, IL_INVALID_EXTENSION);
         return bIlbm;
     }
 
-    f = iopenr(FileName);
+    f = context->impl->iopenr(FileName);
     if (f == NULL) {
-        ilSetError(IL_COULD_NOT_OPEN_FILE);
+        ilSetError(context, IL_COULD_NOT_OPEN_FILE);
         return bIlbm;
     }
 
-    bIlbm = ilIsValidIlbmF(f);
-    icloser(f);
+    bIlbm = ilIsValidIlbmF(context, f);
+    context->impl->icloser(f);
 
     return bIlbm;
 }
 
 
-ILboolean ilIsValidIlbmF(ILHANDLE File)
+ILboolean ilIsValidIlbmF(ILcontext* context, ILHANDLE File)
 {
     ILuint      FirstPos;
     ILboolean   bRet;
 
-    iSetInputFile(File);
-    FirstPos = itell();
-    bRet = iIsValidIlbm();
-    iseek(FirstPos, IL_SEEK_SET);
+    iSetInputFile(context, File);
+    FirstPos = context->impl->itell(context);
+    bRet = iIsValidIlbm(context);
+    context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
     return bRet;
 }
 
 
-ILboolean ilIsValidIlbmL(const void *Lump, ILuint Size)
+ILboolean ilIsValidIlbmL(ILcontext* context, const void *Lump, ILuint Size)
 {
-    iSetInputLump(Lump, Size);
-    return iIsValidIlbm();
+    iSetInputLump(context, Lump, Size);
+    return iIsValidIlbm(context);
 }
 
 
-ILboolean iIsValidIlbm()
+ILboolean iIsValidIlbm(ILcontext* context)
 {
-    return isLBM() ? IL_TRUE:IL_FALSE;
+    return isLBM(context) ? IL_TRUE:IL_FALSE;
 }
 
 
 // Reads a file
-ILboolean ilLoadIlbm(ILconst_string FileName)
+ILboolean ilLoadIlbm(ILcontext* context, ILconst_string FileName)
 {
     ILHANDLE    IlbmFile;
     ILboolean   bIlbm = IL_FALSE;
 
-    IlbmFile = iopenr(FileName);
+    IlbmFile = context->impl->iopenr(FileName);
     if (IlbmFile == NULL) {
-        ilSetError(IL_COULD_NOT_OPEN_FILE);
+        ilSetError(context, IL_COULD_NOT_OPEN_FILE);
         return bIlbm;
     }
 
-    bIlbm = ilLoadIlbmF(IlbmFile);
-    icloser(IlbmFile);
+    bIlbm = ilLoadIlbmF(context, IlbmFile);
+    context->impl->icloser(IlbmFile);
 
     return bIlbm;
 }
 
 
 // Reads an already-opened file
-ILboolean ilLoadIlbmF(ILHANDLE File)
+ILboolean ilLoadIlbmF(ILcontext* context, ILHANDLE File)
 {
     ILuint      FirstPos;
     ILboolean   bRet;
 
-    iSetInputFile(File);
-    FirstPos = itell();
-    bRet = iLoadIlbmInternal();
-    iseek(FirstPos, IL_SEEK_SET);
+    iSetInputFile(context, File);
+    FirstPos = context->impl->itell(context);
+    bRet = iLoadIlbmInternal(context);
+    context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
     return bRet;
 }
 
 
 // Reads from a memory "lump"
-ILboolean ilLoadIlbmL(const void *Lump, ILuint Size)
+ILboolean ilLoadIlbmL(ILcontext* context, const void *Lump, ILuint Size)
 {
-    iSetInputLump(Lump, Size);
-    return iLoadIlbmInternal();
+    iSetInputLump(context, Lump, Size);
+    return iLoadIlbmInternal(context);
 }
 
 
-ILboolean iLoadIlbmInternal()
+ILboolean iLoadIlbmInternal(ILcontext* context)
 {
-    if (iCurImage == NULL) {
-        ilSetError(IL_ILLEGAL_OPERATION);
+    if (context->impl->iCurImage == NULL) {
+        ilSetError(context, IL_ILLEGAL_OPERATION);
         return IL_FALSE;
     }
-    if (!iIsValidIlbm()) {
-        ilSetError(IL_INVALID_VALUE);
+    if (!iIsValidIlbm(context)) {
+        ilSetError(context, IL_INVALID_VALUE);
         return IL_FALSE;
     }
 
-    if (!load_ilbm() )
+    if (!load_ilbm(context) )
     {
         return IL_FALSE;
     }
 
-    return ilFixImage();
+    return ilFixImage(context);
 }
 
 
@@ -168,9 +168,9 @@ ILboolean iLoadIlbmInternal()
 #define Uint32 ILuint
 
 #define SDL_RWops void
-#define SDL_RWtell(s) itell()
-#define SDL_RWread(s,ptr,size,nmemb) iread(ptr,size,nmemb)
-#define SDL_RWseek(s,offset,whence) iseek(offset, IL_ ## whence)
+#define SDL_RWtell(context,s) context->impl->itell(context)
+#define SDL_RWread(context,s,ptr,size,nmemb) context->impl->iread(context,ptr,size,nmemb)
+#define SDL_RWseek(context,s,offset,whence) context->impl->iseek(context,offset, IL_ ## whence)
 
 
 /* use different function names to avoid any possible symbol contamination
@@ -218,16 +218,16 @@ typedef struct
     Sint16  Hpage;      /* height of the screen in pixels */
 } BMHD;
 
-static int isLBM()
+static int isLBM(ILcontext* context)
 {
     SDL_RWops* src = 0;
     int start;
     int   is_LBM;
     Uint8 magic[4+4+4];
 
-    start = SDL_RWtell(src);
+    start = SDL_RWtell(context, src);
     is_LBM = 0;
-    if ( SDL_RWread( src, magic, sizeof(magic), 1 ) )
+    if ( SDL_RWread( context, src, magic, sizeof(magic), 1 ) )
     {
         if ( !memcmp( magic, "FORM", 4 ) &&
             ( !memcmp( magic + 8, "PBM ", 4 ) ||
@@ -236,11 +236,11 @@ static int isLBM()
             is_LBM = 1;
         }
     }
-    SDL_RWseek(src, start, SEEK_SET);
+    SDL_RWseek(context, src, start, SEEK_SET);
     return( is_LBM );
 }
 
-static ILboolean load_ilbm(void)
+static ILboolean load_ilbm(ILcontext* context)
 {
     SDL_RWops* src = 0;
     struct { Uint8 r; Uint8 g; Uint8 b; } scratch_pal[MAXCOLORS];
@@ -259,15 +259,15 @@ static ILboolean load_ilbm(void)
     error   = NULL;
     MiniBuf = NULL;
 
-    start = SDL_RWtell(src);
-    if ( !SDL_RWread( src, id, 4, 1 ) )
+    start = SDL_RWtell(context, src);
+    if ( !SDL_RWread( context, src, id, 4, 1 ) )
     {
         error=(char*)"error reading IFF chunk";
         goto done;
     }
 
     /* Should be the size of the file minus 4+4 ( 'FORM'+size ) */
-    if ( !SDL_RWread( src, &size, 4, 1 ) )
+    if ( !SDL_RWread( context, src, &size, 4, 1 ) )
     {
         error=(char*)"error reading IFF chunk size";
         goto done;
@@ -277,12 +277,12 @@ static ILboolean load_ilbm(void)
 
     if ( memcmp( id, "FORM", 4 ) != 0 )
     {
-        ilSetError(IL_INVALID_FILE_HEADER);
+        ilSetError(context, IL_INVALID_FILE_HEADER);
         error=(char*)"not a IFF file";
         goto done;
     }
 
-    if ( !SDL_RWread( src, id, 4, 1 ) )
+    if ( !SDL_RWread( context, src, id, 4, 1 ) )
     {
         error=(char*)"error reading IFF chunk";
         goto done;
@@ -294,7 +294,7 @@ static ILboolean load_ilbm(void)
     if ( !memcmp( id, "PBM ", 4 ) ) pbm = 1;
     else if ( memcmp( id, "ILBM", 4 ) )
     {
-        ilSetError(IL_INVALID_FILE_HEADER);
+        ilSetError(context, IL_INVALID_FILE_HEADER);
         error=(char*)"not a IFF picture";
         goto done;
     }
@@ -307,13 +307,13 @@ static ILboolean load_ilbm(void)
 
     while ( memcmp( id, "BODY", 4 ) != 0 )
     {
-        if ( !SDL_RWread( src, id, 4, 1 ) ) 
+        if ( !SDL_RWread( context, src, id, 4, 1 ) ) 
         {
             error=(char*)"error reading IFF chunk";
             goto done;
         }
 
-        if ( !SDL_RWread( src, &size, 4, 1 ) )
+        if ( !SDL_RWread( context, src, &size, 4, 1 ) )
         {
             error=(char*)"error reading IFF chunk size";
             goto done;
@@ -325,7 +325,7 @@ static ILboolean load_ilbm(void)
 
         if ( !memcmp( id, "BMHD", 4 ) ) /* Bitmap header */
         {
-            if ( !SDL_RWread( src, &bmhd, sizeof( BMHD ), 1 ) )
+            if ( !SDL_RWread( context, src, &bmhd, sizeof( BMHD ), 1 ) )
             {
                 error=(char*)"error reading BMHD chunk";
                 goto done;
@@ -344,7 +344,7 @@ static ILboolean load_ilbm(void)
 
         if ( !memcmp( id, "CMAP", 4 ) ) /* palette ( Color Map ) */
         {
-            if ( !SDL_RWread( src, &colormap, size, 1 ) )
+            if ( !SDL_RWread( context, src, &colormap, size, 1 ) )
             {
                 error=(char*)"error reading CMAP chunk";
                 goto done;
@@ -357,7 +357,7 @@ static ILboolean load_ilbm(void)
         if ( !memcmp( id, "CAMG", 4 ) ) /* Amiga ViewMode  */
         {
             Uint32 viewmodes;
-            if ( !SDL_RWread( src, &viewmodes, sizeof(viewmodes), 1 ) )
+            if ( !SDL_RWread( context, src, &viewmodes, sizeof(viewmodes), 1 ) )
             {
                 error=(char*)"error reading CAMG chunk";
                 goto done;
@@ -376,7 +376,7 @@ static ILboolean load_ilbm(void)
             if ( size & 1 ) ++size;     /* padding ! */
             size -= bytesloaded;
             /* skip the remaining bytes of this chunk */
-            if ( size ) SDL_RWseek( src, size, SEEK_CUR );
+            if ( size ) SDL_RWseek( context, src, size, SEEK_CUR );
         }
     }
 
@@ -402,7 +402,7 @@ static ILboolean load_ilbm(void)
 	//@TODO: Why do we have a malloc here instead of ialloc?
     if ( ( MiniBuf = (ILubyte*)malloc( bytesperline * nbplanes ) ) == NULL )
     {
-        ilSetError( IL_OUT_OF_MEMORY );
+        ilSetError( context, IL_OUT_OF_MEMORY );
         error=(char*)"not enough memory for temporary buffer";
         goto done;
     }
@@ -412,9 +412,9 @@ static ILboolean load_ilbm(void)
     } else {
         format = IL_COLOUR_INDEX;
     }
-    if( !ilTexImage( width, bmhd.h, 1, (format==IL_COLOUR_INDEX)?1:3, format, IL_UNSIGNED_BYTE, NULL ) )
+    if( !ilTexImage( context, width, bmhd.h, 1, (format==IL_COLOUR_INDEX)?1:3, format, IL_UNSIGNED_BYTE, NULL ) )
         goto done;
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
 #if 0 /*  No transparent colour support in DevIL? (TODO: confirm) */
     if ( bmhd.mask & 2 )               /* There is a transparent color */
@@ -466,7 +466,7 @@ static ILboolean load_ilbm(void)
         }
 
         if ( !pbm )
-            ilRegisterPal( scratch_pal, 3*nbrcolorsfinal, IL_PAL_RGB24 );
+            ilRegisterPal( context, scratch_pal, 3*nbrcolorsfinal, IL_PAL_RGB24 );
 
     }
 
@@ -486,7 +486,7 @@ static ILboolean load_ilbm(void)
             {
                 do
                 {
-                    if ( !SDL_RWread( src, &count, 1, 1 ) )
+                    if ( !SDL_RWread( context, src, &count, 1, 1 ) )
                     {
                         error=(char*)"error reading BODY chunk";
                         goto done;
@@ -497,10 +497,10 @@ static ILboolean load_ilbm(void)
                         count ^= 0xFF;
                         count += 2; /* now it */
 
-                        if ( ( count > remainingbytes ) || !SDL_RWread( src, &color, 1, 1 ) )
+                        if ( ( count > remainingbytes ) || !SDL_RWread( context, src, &color, 1, 1 ) )
                         {
                             if( count>remainingbytes)
-                                ilSetError(IL_ILLEGAL_FILE_VALUE );
+                                ilSetError(context, IL_ILLEGAL_FILE_VALUE );
                            error=(char*)"error reading BODY chunk";
                             goto done;
                         }
@@ -510,10 +510,10 @@ static ILboolean load_ilbm(void)
                     {
                         ++count;
 
-                        if ( ( count > remainingbytes ) || !SDL_RWread( src, ptr, count, 1 ) )
+                        if ( ( count > remainingbytes ) || !SDL_RWread( context, src, ptr, count, 1 ) )
                         {
                             if( count>remainingbytes)
-                                ilSetError(IL_ILLEGAL_FILE_VALUE );
+                                ilSetError(context, IL_ILLEGAL_FILE_VALUE );
                            error=(char*)"error reading BODY chunk";
                             goto done;
                         }
@@ -526,7 +526,7 @@ static ILboolean load_ilbm(void)
             }
             else
             {
-                if ( !SDL_RWread( src, ptr, bytesperline, 1 ) )
+                if ( !SDL_RWread( context, src, ptr, bytesperline, 1 ) )
                 {
                     error=(char*)"error reading BODY chunk";
                     goto done;
@@ -536,7 +536,7 @@ static ILboolean load_ilbm(void)
 
         /* One line has been read, store it ! */
 
-        ptr = ilGetData();
+        ptr = ilGetData(context);
         if ( nbplanes==24 || flagHAM==1 )
             ptr += h * width * 3;
         else

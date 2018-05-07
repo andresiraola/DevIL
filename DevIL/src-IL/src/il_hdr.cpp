@@ -18,54 +18,54 @@
 
 
 //! Checks if the file specified in FileName is a valid .hdr file.
-ILboolean ilIsValidHdr(ILconst_string FileName)
+ILboolean ilIsValidHdr(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	HdrFile;
 	ILboolean	bHdr = IL_FALSE;
 
 	if (!iCheckExtension(FileName, IL_TEXT("hdr"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bHdr;
 	}
 
-	HdrFile = iopenr(FileName);
+	HdrFile = context->impl->iopenr(FileName);
 	if (HdrFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bHdr;
 	}
 
-	bHdr = ilIsValidHdrF(HdrFile);
-	icloser(HdrFile);
+	bHdr = ilIsValidHdrF(context, HdrFile);
+	context->impl->icloser(HdrFile);
 
 	return bHdr;
 }
 
 
 //! Checks if the ILHANDLE contains a valid .hdr file at the current position.
-ILboolean ilIsValidHdrF(ILHANDLE File)
+ILboolean ilIsValidHdrF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidHdr();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidHdr(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid .hdr lump.
-ILboolean ilIsValidHdrL(const void *Lump, ILuint Size)
+ILboolean ilIsValidHdrL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidHdr();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidHdr(context);
 }
 
 
 // Internal function used to get the .hdr header from the current file.
-ILboolean iGetHdrHead(HDRHEADER *Header)
+ILboolean iGetHdrHead(ILcontext* context, HDRHEADER *Header)
 {
 	ILboolean done = IL_FALSE;
 	char a, b;
@@ -73,7 +73,7 @@ ILboolean iGetHdrHead(HDRHEADER *Header)
 	char buff[81]; // 01-19-2009: Added space for the '\0'.
 	ILuint count = 0;
 
-	iread(Header->Signature, 1, 10);
+	context->impl->iread(context, Header->Signature, 1, 10);
 
 	//skip lines until an empty line is found.
 	//this marks the end of header information,
@@ -82,11 +82,11 @@ ILboolean iGetHdrHead(HDRHEADER *Header)
 	//TODO: read header contents into variables
 	//(EXPOSURE, orientation, xyz correction, ...)
 
-	if (iread(&a, 1, 1) != 1)
+	if (context->impl->iread(context, &a, 1, 1) != 1)
 		return IL_FALSE;
 
 	while (!done) {
-		if (iread(&b, 1, 1) != 1)
+		if (context->impl->iread(context, &b, 1, 1) != 1)
 			return IL_FALSE;
 		if (b == '\n' && a == '\n')
 			done = IL_TRUE;
@@ -95,13 +95,13 @@ ILboolean iGetHdrHead(HDRHEADER *Header)
 	}
 
 	//read dimensions (note that this assumes a somewhat valid image)
-	if (iread(&a, 1, 1) != 1)
+	if (context->impl->iread(context, &a, 1, 1) != 1)
 		return IL_FALSE;
 	while (a != '\n') {
 		if (count >= 80)  // Line shouldn't be this long at all.
 			return IL_FALSE;
 		buff[count] = a;
-		if (iread(&a, 1, 1) != 1)
+		if (context->impl->iread(context, &a, 1, 1) != 1)
 			return IL_FALSE;
 		++count;
 	}
@@ -124,13 +124,13 @@ ILboolean iGetHdrHead(HDRHEADER *Header)
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidHdr()
+ILboolean iIsValidHdr(ILcontext* context)
 {
 	char	Head[10];
 	ILint	Read;
 
-	Read = iread(Head, 1, 10);
-	iseek(-Read, IL_SEEK_CUR);  // Go ahead and restore to previous state
+	Read = context->impl->iread(context, Head, 1, 10);
+	context->impl->iseek(context, -Read, IL_SEEK_CUR);  // Go ahead and restore to previous state
 	if (Read != 10)
 		return IL_FALSE;
 
@@ -150,84 +150,84 @@ ILboolean iCheckHdr(HDRHEADER *Header)
 
 
 //! Reads a .hdr file
-ILboolean ilLoadHdr(ILconst_string FileName)
+ILboolean ilLoadHdr(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	HdrFile;
 	ILboolean	bHdr = IL_FALSE;
 
-	HdrFile = iopenr(FileName);
+	HdrFile = context->impl->iopenr(FileName);
 	if (HdrFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bHdr;
 	}
 
-	bHdr = ilLoadHdrF(HdrFile);
-	icloser(HdrFile);
+	bHdr = ilLoadHdrF(context, HdrFile);
+	context->impl->icloser(HdrFile);
 
 	return bHdr;
 }
 
 
 //! Reads an already-opened .hdr file
-ILboolean ilLoadHdrF(ILHANDLE File)
+ILboolean ilLoadHdrF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadHdrInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadHdrInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a .hdr
-ILboolean ilLoadHdrL(const void *Lump, ILuint Size)
+ILboolean ilLoadHdrL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadHdrInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadHdrInternal(context);
 }
 
 
 // Internal function used to load the .hdr.
-ILboolean iLoadHdrInternal()
+ILboolean iLoadHdrInternal(ILcontext* context)
 {
 	HDRHEADER	Header;
 	ILfloat *data;
 	ILubyte *scanline;
 	ILuint i, j, e, r, g, b;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	if (!iGetHdrHead(&Header)) {
-		ilSetError(IL_INVALID_FILE_HEADER);
+	if (!iGetHdrHead(context, &Header)) {
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 	if (!iCheckHdr(&Header)) {
-		//iseek(-(ILint)sizeof(HDRHEAD), IL_SEEK_CUR);
-		ilSetError(IL_INVALID_FILE_HEADER);
+		//context->impl->iseek(context, -(ILint)sizeof(HDRHEAD), IL_SEEK_CUR);
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
 	// Update the current image with the new dimensions
-	if (!ilTexImage(Header.Width, Header.Height, 1, 3, IL_RGB, IL_FLOAT, NULL)) {
+	if (!ilTexImage(context, Header.Width, Header.Height, 1, 3, IL_RGB, IL_FLOAT, NULL)) {
 		return IL_FALSE;
 	}
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
 	//read image data
-	if (iGetHint(IL_MEM_SPEED_HINT) == IL_FASTEST)
-		iPreCache(iCurImage->Width / 8 * iCurImage->Height);
+	if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
+		iPreCache(context, context->impl->iCurImage->Width / 8 * context->impl->iCurImage->Height);
 
-	data = (ILfloat*)iCurImage->Data;
-	scanline = (ILubyte*)ialloc(Header.Width*4);
+	data = (ILfloat*)context->impl->iCurImage->Data;
+	scanline = (ILubyte*)ialloc(context, Header.Width*4);
 	for (i = 0; i < Header.Height; ++i) {
-		ReadScanline(scanline, Header.Width);
+		ReadScanline(context, scanline, Header.Width);
 
 		//convert hdrs internal format to floats
 		for (j = 0; j < 4*Header.Width; j += 4) {
@@ -254,20 +254,20 @@ ILboolean iLoadHdrInternal()
 			data += 3;
 		}
 	}
-	iUnCache();
+	iUnCache(context);
 	ifree(scanline);
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
-void ReadScanline(ILubyte *scanline, ILuint w) {
+void ReadScanline(ILcontext* context, ILubyte *scanline, ILuint w) {
 	ILubyte *runner;
 	ILuint r, g, b, e, read, shift;
 
-	r = igetc();
-	g = igetc();
-	b = igetc();
-	e = igetc();
+	r = context->impl->igetc(context);
+	g = context->impl->igetc(context);
+	b = context->impl->igetc(context);
+	e = context->impl->igetc(context);
 
 	//check if the scanline is in the new format
 	//if so, e, r, g, g are stored separated and are
@@ -281,9 +281,9 @@ void ReadScanline(ILubyte *scanline, ILuint w) {
 			runner = scanline + k;
 			j = 0;
 			while (j < length) {
-				t = igetc();
+				t = context->impl->igetc(context);
 				if (t > 128) { //Run?
-					ILubyte val = igetc();
+					ILubyte val = context->impl->igetc(context);
 					t &= 127;
 					//copy current byte
 					while (t > 0 && j < length) {
@@ -296,7 +296,7 @@ void ReadScanline(ILubyte *scanline, ILuint w) {
 				else { //No Run.
 					//read new bytes
 					while (t > 0 && j < length) {
-						*runner = igetc();
+						*runner = context->impl->igetc(context);
 						runner += 4;
 						--t;
 						++j;
@@ -313,10 +313,10 @@ void ReadScanline(ILubyte *scanline, ILuint w) {
 	runner = scanline;
 	while (read < w) {
 		if (read != 0) {
-			r = igetc();
-			g = igetc();
-			b = igetc();
-			e = igetc();
+			r = context->impl->igetc(context);
+			g = context->impl->igetc(context);
+			b = context->impl->igetc(context);
+			e = context->impl->igetc(context);
 		}
 
 		//if all three mantissas are 1, then this is a rle
@@ -351,26 +351,26 @@ void ReadScanline(ILubyte *scanline, ILuint w) {
 
 
 //! Writes a Hdr file
-ILboolean ilSaveHdr(const ILstring FileName)
+ILboolean ilSaveHdr(ILcontext* context, const ILstring FileName)
 {
 	ILHANDLE	HdrFile;
 	ILuint		HdrSize;
 
-	if (ilGetBoolean(IL_FILE_MODE) == IL_FALSE) {
+	if (ilGetBoolean(context, IL_FILE_MODE) == IL_FALSE) {
 		if (iFileExists(FileName)) {
-			ilSetError(IL_FILE_ALREADY_EXISTS);
+			ilSetError(context, IL_FILE_ALREADY_EXISTS);
 			return IL_FALSE;
 		}
 	}
 
-	HdrFile = iopenw(FileName);
+	HdrFile = context->impl->iopenw(FileName);
 	if (HdrFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	HdrSize = ilSaveHdrF(HdrFile);
-	iclosew(HdrFile);
+	HdrSize = ilSaveHdrF(context, HdrFile);
+	context->impl->iclosew(HdrFile);
 
 	if (HdrSize == 0)
 		return IL_FALSE;
@@ -379,26 +379,26 @@ ILboolean ilSaveHdr(const ILstring FileName)
 
 
 //! Writes a Hdr to an already-opened file
-ILuint ilSaveHdrF(ILHANDLE File)
+ILuint ilSaveHdrF(ILcontext* context, ILHANDLE File)
 {
 	ILuint Pos;
-	iSetOutputFile(File);
-	Pos = itellw();
-	if (iSaveHdrInternal() == IL_FALSE)
+	iSetOutputFile(context, File);
+	Pos = context->impl->itellw(context);
+	if (iSaveHdrInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 //! Writes a Hdr to a memory "lump"
-ILuint ilSaveHdrL(void *Lump, ILuint Size)
+ILuint ilSaveHdrL(ILcontext* context, void *Lump, ILuint Size)
 {
 	ILuint Pos;
-	iSetOutputLump(Lump, Size);
-	Pos = itellw();
-	if (iSaveHdrInternal() == IL_FALSE)
+	iSetOutputLump(context, Lump, Size);
+	Pos = context->impl->itellw(context);
+	if (iSaveHdrInternal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
@@ -461,26 +461,26 @@ typedef struct {
 
 
 /* default minimal header. modify if you want more information in header */
-ILboolean RGBE_WriteHeader(ILuint width, ILuint height, rgbe_header_info *info)
+ILboolean RGBE_WriteHeader(ILcontext* context, ILuint width, ILuint height, rgbe_header_info *info)
 {
 	char *programtype = (char*)"RGBE";
 
 	if (info && (info->valid & RGBE_VALID_PROGRAMTYPE))
 		programtype = (char*)info->programtype;
-	if (ilprintf("#?%s\n",programtype) < 0)
+	if (ilprintf(context, "#?%s\n",programtype) < 0)
 		return IL_FALSE;
 	/* The #? is to identify file type, the programtype is optional. */
 	if (info && (info->valid & RGBE_VALID_GAMMA)) {
-		if (ilprintf("GAMMA=%g\n",info->gamma) < 0)
+		if (ilprintf(context, "GAMMA=%g\n",info->gamma) < 0)
 		  return IL_FALSE;
 	}
 	if (info && (info->valid & RGBE_VALID_EXPOSURE)) {
-		if (ilprintf("EXPOSURE=%g\n",info->exposure) < 0)
+		if (ilprintf(context, "EXPOSURE=%g\n",info->exposure) < 0)
 		  return IL_FALSE;
 	}
-	if (ilprintf("FORMAT=32-bit_rle_rgbe\n\n") < 0)
+	if (ilprintf(context, "FORMAT=32-bit_rle_rgbe\n\n") < 0)
 		return IL_FALSE;
-	if (ilprintf("-Y %d +X %d\n", height, width) < 0)
+	if (ilprintf(context, "-Y %d +X %d\n", height, width) < 0)
 		return IL_FALSE;
 	return IL_TRUE;
 }
@@ -488,15 +488,15 @@ ILboolean RGBE_WriteHeader(ILuint width, ILuint height, rgbe_header_info *info)
 
 /* simple write routine that does not use run length encoding */
 /* These routines can be made faster by allocating a larger buffer and
-   fread-ing and iwrite-ing the data in larger chunks */
-int RGBE_WritePixels(float *data, int numpixels)
+   fread-ing and context->impl->iwrite(-ing the data in larger chunks */
+int RGBE_WritePixels(ILcontext* context, float *data, int numpixels)
 {
 	unsigned char rgbe[4];
 
 	while (numpixels-- > 0) {
 		float2rgbe(rgbe,data[RGBE_DATA_RED],data[RGBE_DATA_GREEN],data[RGBE_DATA_BLUE]);
 		data += RGBE_DATA_SIZE;
-		if (iwrite(rgbe, sizeof(rgbe), 1) < 1)
+		if (context->impl->iwrite(context, rgbe, sizeof(rgbe), 1) < 1)
 			return IL_FALSE;
 	}
 	return IL_TRUE;
@@ -508,7 +508,7 @@ int RGBE_WritePixels(float *data, int numpixels)
 /* save some space.  For each scanline, each channel (r,g,b,e) is */
 /* encoded separately for better compression. */
 
-ILboolean RGBE_WriteBytes_RLE(ILubyte *data, ILuint numbytes)
+ILboolean RGBE_WriteBytes_RLE(ILcontext* context, ILubyte *data, ILuint numbytes)
 {
 #define MINRUNLENGTH 4
 	ILuint	cur, beg_run, run_count, old_run_count, nonrun_count;
@@ -533,7 +533,7 @@ ILboolean RGBE_WriteBytes_RLE(ILubyte *data, ILuint numbytes)
 		if ((old_run_count > 1)&&(old_run_count == beg_run - cur)) {
 			buf[0] = 128 + old_run_count;   /*write short run*/
 			buf[1] = data[cur];
-			if (iwrite(buf,sizeof(buf[0])*2,1) < 1)
+			if (context->impl->iwrite(context, buf,sizeof(buf[0])*2,1) < 1)
 				return IL_FALSE;
 			cur = beg_run;
 		}
@@ -543,9 +543,9 @@ ILboolean RGBE_WriteBytes_RLE(ILubyte *data, ILuint numbytes)
 			if (nonrun_count > 128) 
 				nonrun_count = 128;
 			buf[0] = nonrun_count;
-			if (iwrite(buf,sizeof(buf[0]),1) < 1)
+			if (context->impl->iwrite(context, buf,sizeof(buf[0]),1) < 1)
 				return IL_FALSE;
-			if (iwrite(&data[cur],sizeof(data[0])*nonrun_count,1) < 1)
+			if (context->impl->iwrite(context, &data[cur],sizeof(data[0])*nonrun_count,1) < 1)
 				return IL_FALSE;
 			cur += nonrun_count;
 		}
@@ -553,7 +553,7 @@ ILboolean RGBE_WriteBytes_RLE(ILubyte *data, ILuint numbytes)
 		if (run_count >= MINRUNLENGTH) {
 			buf[0] = 128 + run_count;
 			buf[1] = data[beg_run];
-			if (iwrite(buf,sizeof(buf[0])*2,1) < 1)
+			if (context->impl->iwrite(context, buf,sizeof(buf[0])*2,1) < 1)
 				return IL_FALSE;
 			cur += run_count;
 		}
@@ -564,7 +564,7 @@ ILboolean RGBE_WriteBytes_RLE(ILubyte *data, ILuint numbytes)
 
 
 // Internal function used to save the Hdr.
-ILboolean iSaveHdrInternal()
+ILboolean iSaveHdrInternal(ILcontext* context)
 {
 	ILimage *TempImage;
 	rgbe_header_info stHeader;
@@ -574,8 +574,8 @@ ILboolean iSaveHdrInternal()
 	ILuint		i;
 	ILboolean	bRet;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -584,33 +584,33 @@ ILboolean iSaveHdrInternal()
 	stHeader.programtype[0] = 0;
 	stHeader.valid = 0;
 
-	if (iCurImage->Format != IL_UNSIGNED_BYTE) {
-		TempImage = iConvertImage(iCurImage, IL_RGB, IL_FLOAT);
+	if (context->impl->iCurImage->Format != IL_UNSIGNED_BYTE) {
+		TempImage = iConvertImage(context, context->impl->iCurImage, IL_RGB, IL_FLOAT);
 		if (TempImage == NULL)
 			return IL_FALSE;
 	}
 	else
-		TempImage = iCurImage;
+		TempImage = context->impl->iCurImage;
 
-	if (!RGBE_WriteHeader(TempImage->Width, TempImage->Height, &stHeader))
+	if (!RGBE_WriteHeader(context, TempImage->Width, TempImage->Height, &stHeader))
 		return IL_FALSE;
 
 	if (TempImage->Origin == IL_ORIGIN_LOWER_LEFT)
-		iFlipBuffer(TempImage->Data, TempImage->Depth, TempImage->Bps, TempImage->Height);
+		iFlipBuffer(context, TempImage->Data, TempImage->Depth, TempImage->Bps, TempImage->Height);
 	data = (ILfloat*)TempImage->Data;
 
 	if ((TempImage->Width < 8)||(TempImage->Width > 0x7fff)) {
 		/* run length encoding is not allowed so write flat*/
-		bRet = RGBE_WritePixels(data,TempImage->Width*TempImage->Height);
-		if (iCurImage != TempImage)
+		bRet = RGBE_WritePixels(context, data,TempImage->Width*TempImage->Height);
+		if (context->impl->iCurImage != TempImage)
 			ilCloseImage(TempImage);
 		return bRet;
 	}
-	buffer = (ILubyte*)ialloc(sizeof(ILubyte)*4*TempImage->Width);
+	buffer = (ILubyte*)ialloc(context, sizeof(ILubyte)*4*TempImage->Width);
 	if (buffer == NULL) {
 		/* no buffer space so write flat */
-		bRet = RGBE_WritePixels(data,TempImage->Width*TempImage->Height);
-		if (iCurImage != TempImage)
+		bRet = RGBE_WritePixels(context, data,TempImage->Width*TempImage->Height);
+		if (context->impl->iCurImage != TempImage)
 			ilCloseImage(TempImage);
 		return bRet;
 	}
@@ -620,9 +620,9 @@ ILboolean iSaveHdrInternal()
 		rgbe[1] = 2;
 		rgbe[2] = TempImage->Width >> 8;
 		rgbe[3] = TempImage->Width & 0xFF;
-		if (iwrite(rgbe, sizeof(rgbe), 1) < 1) {
+		if (context->impl->iwrite(context, rgbe, sizeof(rgbe), 1) < 1) {
 			free(buffer);
-			if (iCurImage != TempImage)
+			if (context->impl->iCurImage != TempImage)
 				ilCloseImage(TempImage);
 			return IL_FALSE;
 		}
@@ -638,9 +638,9 @@ ILboolean iSaveHdrInternal()
 		/* write out each of the four channels separately run length encoded */
 		/* first red, then green, then blue, then exponent */
 		for(i=0;i<4;i++) {
-			if (RGBE_WriteBytes_RLE(&buffer[i*TempImage->Width],TempImage->Width) != IL_TRUE) {
+			if (RGBE_WriteBytes_RLE(context, &buffer[i*TempImage->Width],TempImage->Width) != IL_TRUE) {
 				ifree(buffer);
-				if (iCurImage != TempImage)
+				if (context->impl->iCurImage != TempImage)
 					ilCloseImage(TempImage);
 				return IL_FALSE;
 			}
@@ -648,7 +648,7 @@ ILboolean iSaveHdrInternal()
 	}
 	ifree(buffer);
 
-	if (iCurImage != TempImage)
+	if (context->impl->iCurImage != TempImage)
 		ilCloseImage(TempImage);
 	return IL_TRUE;
 }

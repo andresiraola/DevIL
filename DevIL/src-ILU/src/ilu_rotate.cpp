@@ -15,38 +15,38 @@
 #include "ilu_states.h"
 
 
-ILboolean ILAPIENTRY iluRotate(ILfloat Angle)
+ILboolean ILAPIENTRY iluRotate(ILcontext* context, ILfloat Angle)
 {
 	ILimage	*Temp, *Temp1, *CurImage = NULL;
 	ILenum	PalType = 0;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	if (iluCurImage == NULL) {
-		ilSetError(ILU_ILLEGAL_OPERATION);
+		ilSetError(context, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if (iluCurImage->Format == IL_COLOUR_INDEX) {
 		PalType = iluCurImage->Pal.PalType;
 		CurImage = iluCurImage;
-		iluCurImage = iConvertImage(iluCurImage, ilGetPalBaseType(CurImage->Pal.PalType), IL_UNSIGNED_BYTE);
+		iluCurImage = iConvertImage(context, iluCurImage, ilGetPalBaseType(CurImage->Pal.PalType), IL_UNSIGNED_BYTE);
 	}
 
-	Temp = iluRotate_(iluCurImage, Angle);
+	Temp = iluRotate_(context, iluCurImage, Angle);
 	if (Temp != NULL) {
 		if (PalType != 0) {
 			ilCloseImage(iluCurImage);
-			Temp1 = iConvertImage(Temp, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
+			Temp1 = iConvertImage(context, Temp, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE);
 			ilCloseImage(Temp);
 			Temp = Temp1;
-			ilSetCurImage(CurImage);
+			ilSetCurImage(context, CurImage);
 		}
-		ilTexImage(Temp->Width, Temp->Height, Temp->Depth, Temp->Bpp, Temp->Format, Temp->Type, Temp->Data);
+		ilTexImage(context, Temp->Width, Temp->Height, Temp->Depth, Temp->Bpp, Temp->Format, Temp->Type, Temp->Data);
 		if (PalType != 0) {
-			iluCurImage = ilGetCurImage();
+			iluCurImage = ilGetCurImage(context);
 			iluCurImage->Pal.PalSize = Temp->Pal.PalSize;
 			iluCurImage->Pal.PalType = Temp->Pal.PalType;
-			iluCurImage->Pal.Palette = (ILubyte*)ialloc(Temp->Pal.PalSize);
+			iluCurImage->Pal.Palette = (ILubyte*)ialloc(context, Temp->Pal.PalSize);
 			if (iluCurImage->Pal.Palette == NULL) {
 				ilCloseImage(Temp);
 				return IL_FALSE;
@@ -62,18 +62,18 @@ ILboolean ILAPIENTRY iluRotate(ILfloat Angle)
 }
 
 
-ILboolean ILAPIENTRY iluRotate3D(ILfloat x, ILfloat y, ILfloat z, ILfloat Angle)
+ILboolean ILAPIENTRY iluRotate3D(ILcontext* context, ILfloat x, ILfloat y, ILfloat z, ILfloat Angle)
 {
 	ILimage *Temp;
 
 // return IL_FALSE;
 
-	iluCurImage = ilGetCurImage();
+	iluCurImage = ilGetCurImage(context);
 	Temp = iluRotate3D_(iluCurImage, x, y, z, Angle);
 	if (Temp != NULL) {
-		ilTexImage(Temp->Width, Temp->Height, Temp->Depth, Temp->Bpp, Temp->Format, Temp->Type, Temp->Data);
+		ilTexImage(context, Temp->Width, Temp->Height, Temp->Depth, Temp->Bpp, Temp->Format, Temp->Type, Temp->Data);
 		iluCurImage->Origin = Temp->Origin;
-		ilSetPal(&Temp->Pal);
+		ilSetPal(context, &Temp->Pal);
 		ilCloseImage(Temp);
 		return IL_TRUE;
 	}
@@ -83,7 +83,7 @@ ILboolean ILAPIENTRY iluRotate3D(ILfloat x, ILfloat y, ILfloat z, ILfloat Angle)
 
 //! Rotates a bitmap any angle.
 //  Code help comes from http://www.leunen.com/cbuilder/rotbmp.html.
-ILAPI ILimage* ILAPIENTRY iluRotate_(ILimage *Image, ILfloat Angle)
+ILAPI ILimage* ILAPIENTRY iluRotate_(ILcontext* context, ILimage *Image, ILfloat Angle)
 {
 	ILimage		*Rotated = NULL;
 	ILint		x, y, c;
@@ -116,20 +116,20 @@ ILAPI ILimage* ILAPIENTRY iluRotate_(ILimage *Image, ILfloat Angle)
 	MaxX = (ILint)IL_MAX(Point1x, IL_MAX(Point2x, Point3x));
 	MaxY = (ILint)IL_MAX(Point1y, IL_MAX(Point2y, Point3y));
 
-	Rotated = (ILimage*)icalloc(1, sizeof(ILimage));
+	Rotated = (ILimage*)icalloc(context, 1, sizeof(ILimage));
 	if (Rotated == NULL)
 		return NULL;
-	if (ilCopyImageAttr(Rotated, Image) == IL_FALSE) {
+	if (ilCopyImageAttr(context, Rotated, Image) == IL_FALSE) {
 		ilCloseImage(Rotated);
 		return NULL;
 	}
 
-	if (ilResizeImage(Rotated, (ILuint)ceil(fabs(MaxX) - MinX), (ILuint)ceil(fabs(MaxY) - MinY), 1, Image->Bpp, Image->Bpc) == IL_FALSE) {
+	if (ilResizeImage(context, Rotated, (ILuint)ceil(fabs(MaxX) - MinX), (ILuint)ceil(fabs(MaxY) - MinY), 1, Image->Bpp, Image->Bpc) == IL_FALSE) {
 		ilCloseImage(Rotated);
 		return IL_FALSE;
 	}
 
-	ilClearImage_(Rotated);
+	ilClearImage_(context, Rotated);
 
 	ShortPtr = (ILushort*)iluCurImage->Data;
 	IntPtr = (ILuint*)iluCurImage->Data;

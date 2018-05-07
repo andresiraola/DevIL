@@ -59,7 +59,7 @@ void	ilutDefaultStates(void);
 
 // ImageLib Utility Toolkit's OpenGL Functions
 #ifdef ILUT_USE_OPENGL
-	ILboolean ilutGLInit();
+	ILboolean ilutGLInit(ILcontext* context);
 #endif
 
 // ImageLib Utility Toolkit's Win32 Functions

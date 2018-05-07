@@ -21,7 +21,7 @@
 	BITFILE *ToReturn = NULL;
 
 	if (FileName != NULL) {
-		ToReturn = (BITFILE*)ialloc(sizeof(BITFILE));
+		ToReturn = (BITFILE*)ialloc(context, sizeof(BITFILE));
 		if (ToReturn != NULL) {
 			iopenr((char*)FileName);
 			ToReturn->File = iGetFile();
@@ -36,15 +36,15 @@
 
 
 // Converts a FILE to a BITFILE.
-BITFILE *bfile(ILHANDLE File)
+BITFILE *bfile(ILcontext* context, ILHANDLE File)
 {
 	BITFILE *ToReturn = NULL;
 
 	if (File != NULL) {
-		ToReturn = (BITFILE*)ialloc(sizeof(BITFILE));
+		ToReturn = (BITFILE*)ialloc(context, sizeof(BITFILE));
 		if (ToReturn != NULL) {
 			ToReturn->File = File;
-			ToReturn->BitPos = itell() << 3;
+			ToReturn->BitPos = context->impl->itell(context) << 3;
 			ToReturn->ByteBitOff = 8;
 			ToReturn->Buff = 0;
 		}
@@ -62,7 +62,7 @@ ILint bclose(BITFILE *BitFile)
 
 	// Removed 01-26-2008.  The file will get closed later by
 	//  the calling function.
-	//icloser(BitFile->File);
+	//context->impl->icloser(BitFile->File);
 	ifree(BitFile);
 
 	return 0;
@@ -77,7 +77,7 @@ ILint btell(BITFILE *BitFile)
 
 
 // Seeks in a BITFILE just like fseek for FILE.
-ILint bseek(BITFILE *BitFile, ILuint Offset, ILuint Mode)
+ILint bseek(ILcontext* context, BITFILE *BitFile, ILuint Offset, ILuint Mode)
 {
 	ILint KeepPos, Len;
 
@@ -87,24 +87,24 @@ ILint bseek(BITFILE *BitFile, ILuint Offset, ILuint Mode)
 	switch (Mode)
 	{
 		case IL_SEEK_SET:
-			if (!iseek(Offset >> 3, Mode)) {
+			if (!context->impl->iseek(context, Offset >> 3, Mode)) {
 				BitFile->BitPos = Offset;
 				BitFile->ByteBitOff = BitFile->BitPos % 8;
 			}
 			break;
 		case IL_SEEK_CUR:
-			if (!iseek(Offset >> 3, Mode)) {
+			if (!context->impl->iseek(context, Offset >> 3, Mode)) {
 				BitFile->BitPos += Offset;
 				BitFile->ByteBitOff = BitFile->BitPos % 8;
 			}
 			break;
 		case IL_SEEK_END:
-			KeepPos = itell();
-			iseek(0, IL_SEEK_END);
-			Len = itell();
-			iseek(0, IL_SEEK_SET);
+			KeepPos = context->impl->itell(context);
+			context->impl->iseek(context, 0, IL_SEEK_END);
+			Len = context->impl->itell(context);
+			context->impl->iseek(context, 0, IL_SEEK_SET);
 
-			if (!iseek(Offset >> 3, Mode)) {
+			if (!context->impl->iseek(context, Offset >> 3, Mode)) {
 				BitFile->BitPos = (Len << 3) + Offset;
 				BitFile->ByteBitOff = BitFile->BitPos % 8;
 			}
@@ -120,7 +120,7 @@ ILint bseek(BITFILE *BitFile, ILuint Offset, ILuint Mode)
 
 
 // hehe, "bread".  It reads data into Buffer from the BITFILE, just like fread for FILE.
-ILint bread(void *Buffer, ILuint Size, ILuint Number, BITFILE *BitFile)
+ILint bread(ILcontext* context, void *Buffer, ILuint Size, ILuint Number, BITFILE *BitFile)
 {
 	// Note that this function is somewhat useless: In binary image
 	// formats, there are some pad bits after each scanline. This
@@ -132,7 +132,7 @@ ILint bread(void *Buffer, ILuint Size, ILuint Number, BITFILE *BitFile)
 	while (BuffPos < Count) {
 		if (BitFile->ByteBitOff < 0 || BitFile->ByteBitOff > 7) {
 			BitFile->ByteBitOff = 7;
-			if (iread(&BitFile->Buff, 1, 1) != 1)  // Reached eof or error...
+			if (context->impl->iread(context, &BitFile->Buff, 1, 1) != 1)  // Reached eof or error...
 				return BuffPos;
 		}
 
@@ -147,14 +147,14 @@ ILint bread(void *Buffer, ILuint Size, ILuint Number, BITFILE *BitFile)
 
 
 // Reads bits and puts the first bit in the file as the highest in the return value.
-ILuint breadVal(ILuint NumBits, BITFILE *BitFile)
+ILuint breadVal(ILcontext* context, ILuint NumBits, BITFILE *BitFile)
 {
 	ILuint	BuffPos = 0;
 	ILuint	Buffer = 0;
 
 	// Only returning up to 32 bits at one time
 	if (NumBits > 32) {
-		ilSetError(IL_INTERNAL_ERROR);
+		ilSetError(context, IL_INTERNAL_ERROR);
 		return 0;
 	}
 
@@ -162,7 +162,7 @@ ILuint breadVal(ILuint NumBits, BITFILE *BitFile)
 		Buffer <<= 1;
 		if (BitFile->ByteBitOff < 0 || BitFile->ByteBitOff > 7) {
 			BitFile->ByteBitOff = 7;
-			if (iread(&BitFile->Buff, 1, 1) != 1)  // Reached eof or error...
+			if (context->impl->iread(context, &BitFile->Buff, 1, 1) != 1)  // Reached eof or error...
 				return BuffPos;
 		}
 

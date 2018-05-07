@@ -27,10 +27,10 @@ BITMAP* ILAPIENTRY ilutConvertToAlleg(PALETTE Pal)
 	ILimage *TempImage;
 	ILuint i = 0, j = 0;
 
-	ilutCurImage = ilGetCurImage();
+	ilutCurImage = ilGetCurImage(context);
 
 	if (ilutCurImage == NULL) {
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return NULL;
 	}
 
@@ -60,9 +60,9 @@ BITMAP* ILAPIENTRY ilutConvertToAlleg(PALETTE Pal)
 		ilCopyImageAttr(TempImage, ilutCurImage);
 		ilSetCurImage(TempImage);
 
-		if (!ilConvertPal(IL_PAL_RGB24)) {
+		if (!ilConvertPal(context, IL_PAL_RGB24)) {
 			destroy_bitmap(Bitmap);
-			ilSetError(ILUT_ILLEGAL_OPERATION);
+			ilSetError(context, ILUT_ILLEGAL_OPERATION);
 			return NULL;
 		}
 
@@ -104,14 +104,14 @@ BITMAP* ILAPIENTRY ilutAllegLoadImage(ILstring FileName)
 // Unfinished
 ILboolean ILAPIENTRY ilutAllegFromBitmap(BITMAP *Bitmap)
 {
-	ilutCurImage = ilGetCurImage();
+	ilutCurImage = ilGetCurImage(context);
 	if (ilutCurImage == NULL) {
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	if (Bitmap == NULL || Bitmap->w == 0 || Bitmap->h == 0) {
-		ilSetError(ILUT_INVALID_PARAM);
+		ilSetError(context, ILUT_INVALID_PARAM);
 		return IL_FALSE;
 	}
 

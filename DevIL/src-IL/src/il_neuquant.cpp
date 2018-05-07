@@ -396,18 +396,18 @@ void learn()
 }
 
 
-ILimage *iNeuQuant(ILimage *Image, ILuint NumCols)
+ILimage *iNeuQuant(ILcontext* context, ILimage *Image, ILuint NumCols)
 {
 	ILimage	*TempImage, *NewImage;
 	ILuint	sample, i, j;
 
 	netsizethink=NumCols;
 
-	NewImage = iCurImage;
-	iCurImage = Image;
-	TempImage = iConvertImage(iCurImage, IL_BGR, IL_UNSIGNED_BYTE);
-	iCurImage = NewImage;
-	sample = ilGetInteger(IL_NEU_QUANT_SAMPLE);
+	NewImage = context->impl->iCurImage;
+	context->impl->iCurImage = Image;
+	TempImage = iConvertImage(context, context->impl->iCurImage, IL_BGR, IL_UNSIGNED_BYTE);
+	context->impl->iCurImage = NewImage;
+	sample = ilGetInteger(context, IL_NEU_QUANT_SAMPLE);
 
 	if (TempImage == NULL)
 		return NULL;
@@ -416,18 +416,18 @@ ILimage *iNeuQuant(ILimage *Image, ILuint NumCols)
 	learn();
 	unbiasnet();
 
-	NewImage = (ILimage*)icalloc(sizeof(ILimage), 1);
+	NewImage = (ILimage*)icalloc(context, sizeof(ILimage), 1);
 	if (NewImage == NULL) {
 		ilCloseImage(TempImage);
 		return NULL;
 	}
-	NewImage->Data = (ILubyte*)ialloc(TempImage->SizeOfData / 3);
+	NewImage->Data = (ILubyte*)ialloc(context, TempImage->SizeOfData / 3);
 	if (NewImage->Data == NULL) {
 		ilCloseImage(TempImage);
 		ifree(NewImage);
 		return NULL;
 	}
-	ilCopyImageAttr(NewImage, Image);
+	ilCopyImageAttr(context, NewImage, Image);
 	NewImage->Bpp = 1;
 	NewImage->Bps = Image->Width;
 	NewImage->SizeOfPlane = NewImage->Bps * Image->Height;
@@ -437,7 +437,7 @@ ILimage *iNeuQuant(ILimage *Image, ILuint NumCols)
 
 	NewImage->Pal.PalSize = netsizethink * 3;
 	NewImage->Pal.PalType = IL_PAL_BGR24;
-	NewImage->Pal.Palette = (ILubyte*)ialloc(256*3);
+	NewImage->Pal.Palette = (ILubyte*)ialloc(context, 256*3);
 	if (NewImage->Pal.Palette == NULL) {
 		ilCloseImage(TempImage);
 		ilCloseImage(NewImage);

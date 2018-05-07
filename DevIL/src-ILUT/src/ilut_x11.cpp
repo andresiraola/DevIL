@@ -70,7 +70,7 @@ void iXGrabImage( ILimage * img )
 
 Bool iXGrabCurrentImage(void)
 {
-	ilutCurImage = ilGetCurImage();
+	ilutCurImage = ilGetCurImage(context);
 	if (!ilutCurImage) {
 		return False;
 	}
@@ -241,7 +241,7 @@ Pixmap ILAPIENTRY ilutXCreatePixmap( Display * dpy, Drawable draw )
 
 XImage * ILAPIENTRY ilutXLoadImage( Display * dpy, char * filename )
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadImage(filename)) {
 		return NULL;
 	}
@@ -252,7 +252,7 @@ XImage * ILAPIENTRY ilutXLoadImage( Display * dpy, char * filename )
 
 Pixmap ILAPIENTRY ilutXLoadPixmap( Display * dpy, Drawable draw, char * filename )
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadImage(filename)) {
 		return None;
 	}
@@ -370,7 +370,7 @@ void ILAPIENTRY ilutXShmFreePixmap( Display * dpy, Pixmap pix, XShmSegmentInfo *
 
 XImage * ILAPIENTRY ilutXShmLoadImage( Display * dpy, char* filename, XShmSegmentInfo * info )
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadImage(filename)) {
 		return NULL;
 	}
@@ -381,7 +381,7 @@ XImage * ILAPIENTRY ilutXShmLoadImage( Display * dpy, char* filename, XShmSegmen
 
 Pixmap ILAPIENTRY ilutXShmLoadPixmap( Display * dpy, Drawable draw, char* filename, XShmSegmentInfo * info )
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadImage(filename)) {
 		return None;
 	}

@@ -50,17 +50,17 @@ typedef struct iSgiHeader
 
 
 // Internal functions
-ILboolean	iIsValidSgi(void);
+ILboolean	iIsValidSgi(ILcontext* context);
 ILboolean	iCheckSgi(iSgiHeader *Header);
-ILboolean	iLoadSgiInternal(void);
-ILboolean	iSaveSgiInternal(void);
+ILboolean	iLoadSgiInternal(ILcontext* context);
+ILboolean	iSaveSgiInternal(ILcontext* context);
 void		iExpandScanLine(ILubyte *Dest, ILubyte *Src, ILuint Bpc);
-ILint		iGetScanLine(ILubyte *ScanLine, iSgiHeader *Head, ILuint Length);
+ILint		iGetScanLine(ILcontext* context, ILubyte *ScanLine, iSgiHeader *Head, ILuint Length);
 ILint		iGetScanLineFast(ILubyte *ScanLine, iSgiHeader *Head, ILuint Length, ILubyte*);
 void		sgiSwitchData(ILubyte *Data, ILuint SizeOfData);
-ILboolean	iNewSgi(iSgiHeader *Head);
-ILboolean	iReadNonRleSgi(iSgiHeader *Head);
-ILboolean	iReadRleSgi(iSgiHeader *Head);
-ILboolean iSaveRleSgi(ILubyte *Data, ILuint w, ILuint h, ILuint numChannels, ILuint bps);
+ILboolean	iNewSgi(ILcontext* context, iSgiHeader *Head);
+ILboolean	iReadNonRleSgi(ILcontext* context, iSgiHeader *Head);
+ILboolean	iReadRleSgi(ILcontext* context, iSgiHeader *Head);
+ILboolean 	iSaveRleSgi(ILcontext* context, ILubyte *Data, ILuint w, ILuint h, ILuint numChannels, ILuint bps);
 
 #endif//SGI_H

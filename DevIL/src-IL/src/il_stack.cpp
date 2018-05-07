@@ -15,127 +15,102 @@
 //	like OpenGL.
 
 #include "il_internal.h"
-#include "il_stack.h"
 
-ILuint CurName = 0;
-
-// Internal stuff
-
-// Just a guess...seems large enough
-#define I_STACK_INCREMENT 1024
-
-typedef struct iFree
-{
-	ILuint	Name;
-	void	*Next;
-} iFree;
-
-
-static ILboolean iEnlargeStack();
-
-static ILuint		StackSize = 0;
-static ILuint		LastUsed = 0;
-
-// two fixed slots - slot 0 is default (fallback) image, slot 1 is temp image
-static ILimage		**ImageStack = NULL;
-
-static iFree		*FreeNames = NULL;
-static ILboolean	OnExit = IL_FALSE;
-static ILboolean	ParentImage = IL_TRUE;
-
+static ILboolean iEnlargeStack(ILcontext* context);
 
 //! Creates Num images and puts their index in Images - similar to glGenTextures().
-void ILAPIENTRY ilGenImages(ILsizei Num, ILuint *Images)
+void ILAPIENTRY ilGenImages(ILcontext* context, ILsizei Num, ILuint *Images)
 {
 	ILsizei	Index = 0;
-	iFree	*TempFree = FreeNames;
+	iFree	*TempFree = context->impl->FreeNames;
 
 	if (Num < 1 || Images == NULL) {
-		ilSetError(IL_INVALID_VALUE);
+		ilSetError(context, IL_INVALID_VALUE);
 		return;
 	}
 
 	// No images have been generated yet, so create the image stack.
-	if (ImageStack == NULL)
-		if (!iEnlargeStack())
+	if (context->impl->ImageStack == NULL)
+		if (!iEnlargeStack(context))
 			return;
 
 	do {
-		if (FreeNames != NULL) {  // If any have been deleted, then reuse their image names.
-                        TempFree = (iFree*)FreeNames->Next;
-                        Images[Index] = FreeNames->Name;
-                        ImageStack[FreeNames->Name] = ilNewImage(1, 1, 1, 1, 1);
-                        ifree(FreeNames);
-                        FreeNames = TempFree;
-		} else {
-                        if (LastUsed >= StackSize)
-				if (!iEnlargeStack())
+		if (context->impl->FreeNames != NULL) {  // If any have been deleted, then reuse their image names.
+			TempFree = (iFree*)context->impl->FreeNames->Next;
+			Images[Index] = context->impl->FreeNames->Name;
+			context->impl->ImageStack[context->impl->FreeNames->Name] = ilNewImage(context, 1, 1, 1, 1, 1);
+			ifree(context->impl->FreeNames);
+			context->impl->FreeNames = TempFree;
+		}
+		else {
+			if (context->impl->LastUsed >= context->impl->StackSize)
+				if (!iEnlargeStack(context))
 					return;
-			Images[Index] = LastUsed;
+			Images[Index] = context->impl->LastUsed;
 			// Must be all 1's instead of 0's, because some functions would divide by 0.
-			ImageStack[LastUsed] = ilNewImage(1, 1, 1, 1, 1);
-			LastUsed++;
+			context->impl->ImageStack[context->impl->LastUsed] = ilNewImage(context, 1, 1, 1, 1, 1);
+			context->impl->LastUsed++;
 		}
 	} while (++Index < Num);
 
 	return;
 }
 
-ILuint ILAPIENTRY ilGenImage()
+ILuint ILAPIENTRY ilGenImage(ILcontext* context)
 {
     ILuint i;
-    ilGenImages(1,&i);
+    ilGenImages(context, 1,&i);
     return i;
 }
 
 //! Makes Image the current active image - similar to glBindTexture().
-void ILAPIENTRY ilBindImage(ILuint Image)
+void ILAPIENTRY ilBindImage(ILcontext* context, ILuint Image)
 {
-	if (ImageStack == NULL || StackSize == 0) {
-		if (!iEnlargeStack()) {
+	if (context->impl->ImageStack == NULL || context->impl->StackSize == 0) {
+		if (!iEnlargeStack(context)) {
 			return;
 		}
 	}
 
 	// If the user requests a high image name.
-	while (Image >= StackSize) {
-		if (!iEnlargeStack()) {
+	while (Image >= context->impl->StackSize) {
+		if (!iEnlargeStack(context)) {
 			return;
 		}
 	}
 
-	if (ImageStack[Image] == NULL) {
-		ImageStack[Image] = ilNewImage(1, 1, 1, 1, 1);
-		if (Image >= LastUsed) // >= ?
-			LastUsed = Image + 1;
+	if (context->impl->ImageStack[Image] == NULL) {
+		context->impl->ImageStack[Image] = ilNewImage(context, 1, 1, 1, 1, 1);
+		if (Image >= context->impl->LastUsed) // >= ?
+			context->impl->LastUsed = Image + 1;
 	}
 
-	iCurImage = ImageStack[Image];
-	CurName = Image;
+	context->impl->iCurImage = context->impl->ImageStack[Image];
+	context->impl->CurName = Image;
 
-	ParentImage = IL_TRUE;
+	context->impl->ParentImage = IL_TRUE;
 
 	return;
 }
 
 
 //! Deletes Num images from the image stack - similar to glDeleteTextures().
-void ILAPIENTRY ilDeleteImages(ILsizei Num, const ILuint *Images)
+void ILAPIENTRY ilDeleteImages(ILcontext* context, ILsizei Num, const ILuint *Images)
 {
-	iFree	*Temp = FreeNames;
+	iFree	*Temp = context->impl->FreeNames;
 	ILuint	Index = 0;
 
 	if (Num < 1) {
-		//ilSetError(IL_INVALID_VALUE);
+		//ilSetError(context, IL_INVALID_VALUE);
 		return;
 	}
-	if (StackSize == 0)
+	if (context->impl->StackSize == 0)
 		return;
 
 	do {
-		if (Images[Index] > 0 && Images[Index] < LastUsed) {  // <= ?
-			/*if (FreeNames != NULL) {  // Terribly inefficient
-				Temp = FreeNames;
+		if (Images[Index] > 0 && Images[Index] < context->impl->LastUsed) {  // <= ?
+			/*if (context->impl->FreeNames != NULL) {  // Terribly inefficient
+				Temp = context->impl->FreeNames;
 				do {
 					if (Temp->Name == Images[Index]) {
 						continue;  // Sufficient?
@@ -144,47 +119,47 @@ void ILAPIENTRY ilDeleteImages(ILsizei Num, const ILuint *Images)
 			}*/
 
 			// Already has been deleted or was never used.
-			if (ImageStack[Images[Index]] == NULL)
+			if (context->impl->ImageStack[Images[Index]] == NULL)
 				continue;
 
 			// Find out if current image - if so, set to default image zero.
-			if (Images[Index] == CurName || Images[Index] == 0) {
-				iCurImage = ImageStack[0];
-				CurName = 0;
+			if (Images[Index] == context->impl->CurName || Images[Index] == 0) {
+				context->impl->iCurImage = context->impl->ImageStack[0];
+				context->impl->CurName = 0;
 			}
 			
 			// Should *NOT* be NULL here!
-			ilCloseImage(ImageStack[Images[Index]]);
-			ImageStack[Images[Index]] = NULL;
+			ilCloseImage(context->impl->ImageStack[Images[Index]]);
+			context->impl->ImageStack[Images[Index]] = NULL;
 
 			// Add to head of list - works for empty and non-empty lists
-			Temp = (iFree*)ialloc(sizeof(iFree));
+			Temp = (iFree*)ialloc(context, sizeof(iFree));
 			if (!Temp) {
 				return;
 			}
 			Temp->Name = Images[Index];
-			Temp->Next = FreeNames;
-			FreeNames = Temp;
+			Temp->Next = context->impl->FreeNames;
+			context->impl->FreeNames = Temp;
 		}
 		/*else {  // Shouldn't set an error...just continue onward.
-			ilSetError(IL_ILLEGAL_OPERATION);
+			ilSetError(context, IL_ILLEGAL_OPERATION);
 		}*/
 	} while (++Index < (ILuint)Num);
 }
 
 
-void ILAPIENTRY ilDeleteImage(const ILuint Num) {
-    ilDeleteImages(1,&Num);
+void ILAPIENTRY ilDeleteImage(ILcontext* context, const ILuint Num) {
+    ilDeleteImages(context, 1,&Num);
 }
 
 //! Checks if Image is a valid ilGenImages-generated image (like glIsTexture()).
-ILboolean ILAPIENTRY ilIsImage(ILuint Image)
+ILboolean ILAPIENTRY ilIsImage(ILcontext* context, ILuint Image)
 {
-	//iFree *Temp = FreeNames;
+	//iFree *Temp = context->impl->FreeNames;
 
-	if (ImageStack == NULL)
+	if (context->impl->ImageStack == NULL)
 		return IL_FALSE;
-	if (Image >= LastUsed || Image == 0)
+	if (Image >= context->impl->LastUsed || Image == 0)
 		return IL_FALSE;
 
 	/*do {
@@ -192,7 +167,7 @@ ILboolean ILAPIENTRY ilIsImage(ILuint Image)
 			return IL_FALSE;
 	} while ((Temp = Temp->Next));*/
 
-	if (ImageStack[Image] == NULL)  // Easier check.
+	if (context->impl->ImageStack[Image] == NULL)  // Easier check.
 		return IL_FALSE;
 
 	return IL_TRUE;
@@ -293,20 +268,20 @@ ILAPI void ILAPIENTRY ilClosePal(ILpal *Palette)
 }
 
 
-ILimage *iGetBaseImage()
+ILimage *iGetBaseImage(ILcontext* context)
 {
-	return ImageStack[ilGetCurName()];
+	return context->impl->ImageStack[ilGetCurName(context)];
 }
 
 
 //! Sets the current mipmap level
-ILboolean ILAPIENTRY ilActiveMipmap(ILuint Number)
+ILboolean ILAPIENTRY ilActiveMipmap(ILcontext* context, ILuint Number)
 {
 	ILuint Current;
     ILimage *iTempImage;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -314,37 +289,37 @@ ILboolean ILAPIENTRY ilActiveMipmap(ILuint Number)
 		return IL_TRUE;
 	}
 
-    iTempImage = iCurImage;
-	iCurImage = iCurImage->Mipmaps;
-	if (iCurImage == NULL) {
-		iCurImage = iTempImage;
-		ilSetError(IL_ILLEGAL_OPERATION);
+    iTempImage = context->impl->iCurImage;
+	context->impl->iCurImage = context->impl->iCurImage->Mipmaps;
+	if (context->impl->iCurImage == NULL) {
+		context->impl->iCurImage = iTempImage;
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	for (Current = 1; Current < Number; Current++) {
-		iCurImage = iCurImage->Mipmaps;
-		if (iCurImage == NULL) {
-			ilSetError(IL_ILLEGAL_OPERATION);
-			iCurImage = iTempImage;
+		context->impl->iCurImage = context->impl->iCurImage->Mipmaps;
+		if (context->impl->iCurImage == NULL) {
+			ilSetError(context, IL_ILLEGAL_OPERATION);
+			context->impl->iCurImage = iTempImage;
 			return IL_FALSE;
 		}
 	}
 
-	ParentImage = IL_FALSE;
+	context->impl->ParentImage = IL_FALSE;
 
 	return IL_TRUE;
 }
 
 
 //! Used for setting the current image if it is an animation.
-ILboolean ILAPIENTRY ilActiveImage(ILuint Number)
+ILboolean ILAPIENTRY ilActiveImage(ILcontext* context, ILuint Number)
 {
 	ILuint Current;
     ILimage *iTempImage;
     
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -352,38 +327,38 @@ ILboolean ILAPIENTRY ilActiveImage(ILuint Number)
 		return IL_TRUE;
 	}
 
-    iTempImage = iCurImage;
-	iCurImage = iCurImage->Next;
-	if (iCurImage == NULL) {
-		iCurImage = iTempImage;
-		ilSetError(IL_ILLEGAL_OPERATION);
+    iTempImage = context->impl->iCurImage;
+	context->impl->iCurImage = context->impl->iCurImage->Next;
+	if (context->impl->iCurImage == NULL) {
+		context->impl->iCurImage = iTempImage;
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	Number--;  // Skip 0 (parent image)
 	for (Current = 0; Current < Number; Current++) {
-		iCurImage = iCurImage->Next;
-		if (iCurImage == NULL) {
-			ilSetError(IL_ILLEGAL_OPERATION);
-			iCurImage = iTempImage;
+		context->impl->iCurImage = context->impl->iCurImage->Next;
+		if (context->impl->iCurImage == NULL) {
+			ilSetError(context, IL_ILLEGAL_OPERATION);
+			context->impl->iCurImage = iTempImage;
 			return IL_FALSE;
 		}
 	}
 
-	ParentImage = IL_FALSE;
+	context->impl->ParentImage = IL_FALSE;
 
 	return IL_TRUE;
 }
 
 
 //! Used for setting the current face if it is a cubemap.
-ILboolean ILAPIENTRY ilActiveFace(ILuint Number)
+ILboolean ILAPIENTRY ilActiveFace(ILcontext* context, ILuint Number)
 {
 	ILuint Current;
     ILimage *iTempImage;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -391,25 +366,25 @@ ILboolean ILAPIENTRY ilActiveFace(ILuint Number)
 		return IL_TRUE;
 	}
 
-    iTempImage = iCurImage;
-	iCurImage = iCurImage->Faces;
-	if (iCurImage == NULL) {
-		iCurImage = iTempImage;
-		ilSetError(IL_ILLEGAL_OPERATION);
+    iTempImage = context->impl->iCurImage;
+	context->impl->iCurImage = context->impl->iCurImage->Faces;
+	if (context->impl->iCurImage == NULL) {
+		context->impl->iCurImage = iTempImage;
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	//Number--;  // Skip 0 (parent image)
 	for (Current = 1; Current < Number; Current++) {
-		iCurImage = iCurImage->Faces;
-		if (iCurImage == NULL) {
-			ilSetError(IL_ILLEGAL_OPERATION);
-			iCurImage = iTempImage;
+		context->impl->iCurImage = context->impl->iCurImage->Faces;
+		if (context->impl->iCurImage == NULL) {
+			ilSetError(context, IL_ILLEGAL_OPERATION);
+			context->impl->iCurImage = iTempImage;
 			return IL_FALSE;
 		}
 	}
 
-	ParentImage = IL_FALSE;
+	context->impl->ParentImage = IL_FALSE;
 
 	return IL_TRUE;
 }
@@ -417,13 +392,13 @@ ILboolean ILAPIENTRY ilActiveFace(ILuint Number)
 
 
 //! Used for setting the current layer if layers exist.
-ILboolean ILAPIENTRY ilActiveLayer(ILuint Number)
+ILboolean ILAPIENTRY ilActiveLayer(ILcontext* context, ILuint Number)
 {
 	ILuint Current;
     ILimage *iTempImage;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
@@ -431,37 +406,37 @@ ILboolean ILAPIENTRY ilActiveLayer(ILuint Number)
 		return IL_TRUE;
 	}
 
-    iTempImage = iCurImage;
-	iCurImage = iCurImage->Layers;
-	if (iCurImage == NULL) {
-		iCurImage = iTempImage;
-		ilSetError(IL_ILLEGAL_OPERATION);
+    iTempImage = context->impl->iCurImage;
+	context->impl->iCurImage = context->impl->iCurImage->Layers;
+	if (context->impl->iCurImage == NULL) {
+		context->impl->iCurImage = iTempImage;
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	//Number--;  // Skip 0 (parent image)
 	for (Current = 1; Current < Number; Current++) {
-		iCurImage = iCurImage->Layers;
-		if (iCurImage == NULL) {
-			ilSetError(IL_ILLEGAL_OPERATION);
-			iCurImage = iTempImage;
+		context->impl->iCurImage = context->impl->iCurImage->Layers;
+		if (context->impl->iCurImage == NULL) {
+			ilSetError(context, IL_ILLEGAL_OPERATION);
+			context->impl->iCurImage = iTempImage;
 			return IL_FALSE;
 		}
 	}
 
-	ParentImage = IL_FALSE;
+	context->impl->ParentImage = IL_FALSE;
 
 	return IL_TRUE;
 }
 
 
-ILuint ILAPIENTRY ilCreateSubImage(ILenum Type, ILuint Num)
+ILuint ILAPIENTRY ilCreateSubImage(ILcontext* context, ILenum Type, ILuint Num)
 {
 	ILimage	*SubImage;
 	ILuint	Count ;  // Create one before we go in the loop.
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return 0;
 	}
 	if (Num == 0)  {
@@ -471,28 +446,28 @@ ILuint ILAPIENTRY ilCreateSubImage(ILenum Type, ILuint Num)
 	switch (Type)
 	{
 		case IL_SUB_NEXT:
-			if (iCurImage->Next)
-				ilCloseImage(iCurImage->Next);
-			iCurImage->Next = ilNewImage(1, 1, 1, 1, 1);
-			SubImage = iCurImage->Next;
+			if (context->impl->iCurImage->Next)
+				ilCloseImage(context->impl->iCurImage->Next);
+			context->impl->iCurImage->Next = ilNewImage(context, 1, 1, 1, 1, 1);
+			SubImage = context->impl->iCurImage->Next;
 			break;
 
 		case IL_SUB_MIPMAP:
-			if (iCurImage->Mipmaps)
-				ilCloseImage(iCurImage->Mipmaps);
-			iCurImage->Mipmaps = ilNewImage(1, 1, 1, 1, 1);
-			SubImage = iCurImage->Mipmaps;
+			if (context->impl->iCurImage->Mipmaps)
+				ilCloseImage(context->impl->iCurImage->Mipmaps);
+			context->impl->iCurImage->Mipmaps = ilNewImage(context, 1, 1, 1, 1, 1);
+			SubImage = context->impl->iCurImage->Mipmaps;
 			break;
 
 		case IL_SUB_LAYER:
-			if (iCurImage->Layers)
-				ilCloseImage(iCurImage->Layers);
-			iCurImage->Layers = ilNewImage(1, 1, 1, 1, 1);
-			SubImage = iCurImage->Layers;
+			if (context->impl->iCurImage->Layers)
+				ilCloseImage(context->impl->iCurImage->Layers);
+			context->impl->iCurImage->Layers = ilNewImage(context, 1, 1, 1, 1, 1);
+			SubImage = context->impl->iCurImage->Layers;
 			break;
 
 		default:
-			ilSetError(IL_INVALID_ENUM);
+			ilSetError(context, IL_INVALID_ENUM);
 			return IL_FALSE;
 	}
 
@@ -501,7 +476,7 @@ ILuint ILAPIENTRY ilCreateSubImage(ILenum Type, ILuint Num)
 	}
 
 	for (Count = 1; Count < Num; Count++) {
-		SubImage->Next = ilNewImage(1, 1, 1, 1, 1);
+		SubImage->Next = ilNewImage(context, 1, 1, 1, 1, 1);
 		SubImage = SubImage->Next;
 		if (SubImage == NULL)
 			return Count;
@@ -512,47 +487,47 @@ ILuint ILAPIENTRY ilCreateSubImage(ILenum Type, ILuint Num)
 
 
 // Returns the current index.
-ILAPI ILuint ILAPIENTRY ilGetCurName()
+ILAPI ILuint ILAPIENTRY ilGetCurName(ILcontext* context)
 {
-	if (iCurImage == NULL || ImageStack == NULL || StackSize == 0)
+	if (context->impl->iCurImage == NULL || context->impl->ImageStack == NULL || context->impl->StackSize == 0)
 		return 0;
-	return CurName;
+	return context->impl->CurName;
 }
 
 
 // Returns the current image.
-ILAPI ILimage* ILAPIENTRY ilGetCurImage()
+ILAPI ILimage* ILAPIENTRY ilGetCurImage(ILcontext* context)
 {
-	return iCurImage;
+	return context->impl->iCurImage;
 }
 
 
 // To be only used when the original image is going to be set back almost immediately.
-ILAPI void ILAPIENTRY ilSetCurImage(ILimage *Image)
+ILAPI void ILAPIENTRY ilSetCurImage(ILcontext* context, ILimage *Image)
 {
-	iCurImage = Image;
+	context->impl->iCurImage = Image;
 	return;
 }
 
 
 // Completely replaces the current image and the version in the image stack.
-ILAPI void ILAPIENTRY ilReplaceCurImage(ILimage *Image)
+ILAPI void ILAPIENTRY ilReplaceCurImage(ILcontext* context, ILimage *Image)
 {
-	if (iCurImage) {
-		ilActiveImage(0);
-		ilCloseImage(iCurImage);
+	if (context->impl->iCurImage) {
+		ilActiveImage(context, 0);
+		ilCloseImage(context->impl->iCurImage);
 	}
-	ImageStack[ilGetCurName()] = Image;
-	iCurImage = Image;
-	ParentImage = IL_TRUE;
+	context->impl->ImageStack[ilGetCurName(context)] = Image;
+	context->impl->iCurImage = Image;
+	context->impl->ParentImage = IL_TRUE;
 	return;
 }
 
 
 // Like realloc but sets new memory to 0.
-void* ILAPIENTRY ilRecalloc(void *Ptr, ILuint OldSize, ILuint NewSize)
+void* ILAPIENTRY ilRecalloc(ILcontext* context, void *Ptr, ILuint OldSize, ILuint NewSize)
 {
-	void *Temp = ialloc(NewSize);
+	void *Temp = ialloc(context, NewSize);
 	ILuint CopySize = (OldSize < NewSize) ? OldSize : NewSize;
 
 	if (Temp != NULL) {
@@ -574,33 +549,30 @@ void* ILAPIENTRY ilRecalloc(void *Ptr, ILuint OldSize, ILuint NewSize)
 // To keep Visual Studio happy with its unhappiness with ILAPIENTRY for atexit
 void ilShutDownInternal()
 {
-	ilShutDown();
+	//ilShutDown(context);
 }
 
 // Internal function to enlarge the image stack by I_STACK_INCREMENT members.
-ILboolean iEnlargeStack()
+ILboolean iEnlargeStack(ILcontext* context)
 {
 	// 02-05-2001:  Moved from ilGenImages().
 	// Puts the cleanup function on the exit handler once.
-	if (!OnExit) {
+	if (!context->impl->OnExit) {
 		#ifdef _MEM_DEBUG
 			AddToAtexit();  // So iFreeMem doesn't get called after unfreed information.
 		#endif//_MEM_DEBUG
 #if (!defined(_WIN32_WCE)) && (!defined(IL_STATIC_LIB))
 			atexit(ilShutDownInternal);
 #endif
-		OnExit = IL_TRUE;
+		context->impl->OnExit = IL_TRUE;
 	}
 
-	if (!(ImageStack = (ILimage**)ilRecalloc(ImageStack, StackSize * sizeof(ILimage*), (StackSize + I_STACK_INCREMENT) * sizeof(ILimage*)))) {
+	if (!(context->impl->ImageStack = (ILimage**)ilRecalloc(context, context->impl->ImageStack, context->impl->StackSize * sizeof(ILimage*), (context->impl->StackSize + I_STACK_INCREMENT) * sizeof(ILimage*)))) {
 		return IL_FALSE;
 	}
-	StackSize += I_STACK_INCREMENT;
+	context->impl->StackSize += I_STACK_INCREMENT;
 	return IL_TRUE;
 }
-
-
-static ILboolean IsInit = IL_FALSE;
 
 // To keep Visual Studio happy with its unhappiness with ILAPIENTRY for atexit
 void ilRemoveRegisteredInternal()
@@ -609,100 +581,90 @@ void ilRemoveRegisteredInternal()
 }
 
 // ONLY call at startup.
-void ILAPIENTRY ilInit()
+ILcontext* ILAPIENTRY ilInit()
 {
-	// if it is already initialized skip initialization
-	if (IsInit == IL_TRUE ) 
-		return;
+	ILcontext* context = new ILcontext();
 	
 	//ilSetMemory(NULL, NULL);  Now useless 3/4/2006 (due to modification in il_alloc.c)
-	ilSetError(IL_NO_ERROR);
-	ilDefaultStates();  // Set states to their defaults.
+	ilSetError(context, IL_NO_ERROR);
+	ilDefaultStates(context);  // Set states to their defaults.
 	// Sets default file-reading callbacks.
-	ilResetRead();
-	ilResetWrite();
+	ilResetRead(context);
+	ilResetWrite(context);
 #if (!defined(_WIN32_WCE)) && (!defined(IL_STATIC_LIB))
 	atexit(ilRemoveRegisteredInternal);
 #endif
 	//_WIN32_WCE
 	//ilShutDown();
-	iSetImage0();  // Beware!  Clears all existing textures!
-	iBindImageTemp();  // Go ahead and create the temporary image.
-	IsInit = IL_TRUE;
-	return;
+	iSetImage0(context);  // Beware!  Clears all existing textures!
+	iBindImageTemp(context);  // Go ahead and create the temporary image.
+	
+	return context;
 }
 
 
 // Frees any extra memory in the stack.
 //	- Called on exit
-void ILAPIENTRY ilShutDown()
+void ILAPIENTRY ilShutDown(ILcontext* context)
 {
 	// if it is not initialized do not shutdown
-	iFree* TempFree = (iFree*)FreeNames;
+	iFree* TempFree = (iFree*)context->impl->FreeNames;
 	ILuint i;
 	
-	if (!IsInit)
-		return;
-
-	if (!IsInit) {  // Prevent from being called when not initialized.
-		ilSetError(IL_ILLEGAL_OPERATION);
-		return;
-	}
-
 	while (TempFree != NULL) {
-		FreeNames = (iFree*)TempFree->Next;
+		context->impl->FreeNames = (iFree*)TempFree->Next;
 		ifree(TempFree);
-		TempFree = FreeNames;
+		TempFree = context->impl->FreeNames;
 	}
 
-	//for (i = 0; i < LastUsed; i++) {
-	for (i = 0; i < StackSize; i++) {
-		if (ImageStack[i] != NULL)
-			ilCloseImage(ImageStack[i]);
+	//for (i = 0; i < context->impl->LastUsed; i++) {
+	for (i = 0; i < context->impl->StackSize; i++) {
+		if (context->impl->ImageStack[i] != NULL)
+			ilCloseImage(context->impl->ImageStack[i]);
 	}
 
-	if (ImageStack)
-		ifree(ImageStack);
-	ImageStack = NULL;
-	LastUsed = 0;
-	StackSize = 0;
-	IsInit = IL_FALSE;
+	if (context->impl->ImageStack)
+		ifree(context->impl->ImageStack);
+	context->impl->ImageStack = NULL;
+	context->impl->LastUsed = 0;
+	context->impl->StackSize = 0;
+
 	return;
 }
 
 
 // Initializes the image stack's first entry (default image) -- ONLY CALL ONCE!
-void iSetImage0()
+void iSetImage0(ILcontext* context)
 {
-	if (ImageStack == NULL)
-		if (!iEnlargeStack())
+	if (context->impl->ImageStack == NULL)
+		if (!iEnlargeStack(context))
 			return;
 
-	LastUsed = 1;
-	CurName = 0;
-	ParentImage = IL_TRUE;
-	if (!ImageStack[0])
-		ImageStack[0] = ilNewImage(1, 1, 1, 1, 1);
-	iCurImage = ImageStack[0];
-	ilDefaultImage();
+	context->impl->LastUsed = 1;
+	context->impl->CurName = 0;
+	context->impl->ParentImage = IL_TRUE;
+	if (!context->impl->ImageStack[0])
+		context->impl->ImageStack[0] = ilNewImage(context, 1, 1, 1, 1, 1);
+	context->impl->iCurImage = context->impl->ImageStack[0];
+	ilDefaultImage(context);
 
 	return;
 }
 
 
-ILAPI void ILAPIENTRY iBindImageTemp()
+ILAPI void ILAPIENTRY iBindImageTemp(ILcontext* context)
 {
-	if (ImageStack == NULL || StackSize <= 1)
-		if (!iEnlargeStack())
+	if (context->impl->ImageStack == NULL || context->impl->StackSize <= 1)
+		if (!iEnlargeStack(context))
 			return;
 
-	if (LastUsed < 2)
-		LastUsed = 2;
-	CurName = 1;
-	ParentImage = IL_TRUE;
-	if (!ImageStack[1])
-		ImageStack[1] = ilNewImage(1, 1, 1, 1, 1);
-	iCurImage = ImageStack[1];
+	if (context->impl->LastUsed < 2)
+		context->impl->LastUsed = 2;
+	context->impl->CurName = 1;
+	context->impl->ParentImage = IL_TRUE;
+	if (!context->impl->ImageStack[1])
+		context->impl->ImageStack[1] = ilNewImage(context, 1, 1, 1, 1, 1);
+	context->impl->iCurImage = context->impl->ImageStack[1];
 
 	return;
 }

@@ -63,7 +63,7 @@ ILvoid CheckFormatsDX8(IDirect3DDevice8 *Device)
 #ifndef _WIN32_WCE
 ILboolean ILAPIENTRY ilutD3D8TexFromFile(IDirect3DDevice8 *Device, char *FileName, IDirect3DTexture8 **Texture)
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadImage(FileName))
 		return IL_FALSE;
 
@@ -77,7 +77,7 @@ ILboolean ILAPIENTRY ilutD3D8TexFromFile(IDirect3DDevice8 *Device, char *FileNam
 #ifndef _WIN32_WCE
 ILboolean ILAPIENTRY ilutD3D8VolTexFromFile(IDirect3DDevice8 *Device, char *FileName, IDirect3DVolumeTexture8 **Texture)
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadImage(FileName))
 		return IL_FALSE;
 
@@ -90,7 +90,7 @@ ILboolean ILAPIENTRY ilutD3D8VolTexFromFile(IDirect3DDevice8 *Device, char *File
 
 ILboolean ILAPIENTRY ilutD3D8TexFromFileInMemory(IDirect3DDevice8 *Device, ILvoid *Lump, ILuint Size, IDirect3DTexture8 **Texture)
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadL(IL_TYPE_UNKNOWN, Lump, Size))
 		return IL_FALSE;
 
@@ -102,7 +102,7 @@ ILboolean ILAPIENTRY ilutD3D8TexFromFileInMemory(IDirect3DDevice8 *Device, ILvoi
 
 ILboolean ILAPIENTRY ilutD3D8VolTexFromFileInMemory(IDirect3DDevice8 *Device, ILvoid *Lump, ILuint Size, IDirect3DVolumeTexture8 **Texture)
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadL(IL_TYPE_UNKNOWN, Lump, Size))
 		return IL_FALSE;
 
@@ -117,7 +117,7 @@ ILboolean ILAPIENTRY ilutD3D8TexFromResource(IDirect3DDevice8 *Device, HMODULE S
 	HRSRC	Resource;
 	ILubyte	*Data;
 
-	iBindImageTemp();
+	iBindImageTemp(context);
 
 	Resource = (HRSRC)LoadResource(SrcModule, FindResource(SrcModule, SrcResource, RT_BITMAP));
 	Data = (ILubyte*)LockResource(Resource);
@@ -135,7 +135,7 @@ ILboolean ILAPIENTRY ilutD3D8VolTexFromResource(IDirect3DDevice8 *Device, HMODUL
 	HRSRC	Resource;
 	ILubyte	*Data;
 
-	iBindImageTemp();
+	iBindImageTemp(context);
 
 	Resource = (HRSRC)LoadResource(SrcModule, FindResource(SrcModule, SrcResource, RT_BITMAP));
 	Data = (ILubyte*)LockResource(Resource);
@@ -150,7 +150,7 @@ ILboolean ILAPIENTRY ilutD3D8VolTexFromResource(IDirect3DDevice8 *Device, HMODUL
 
 ILboolean ILAPIENTRY ilutD3D8TexFromFileHandle(IDirect3DDevice8 *Device, ILHANDLE File, IDirect3DTexture8 **Texture)
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadF(IL_TYPE_UNKNOWN, File))
 		return IL_FALSE;
 
@@ -162,7 +162,7 @@ ILboolean ILAPIENTRY ilutD3D8TexFromFileHandle(IDirect3DDevice8 *Device, ILHANDL
 
 ILboolean ILAPIENTRY ilutD3D8VolTexFromFileHandle(IDirect3DDevice8 *Device, ILHANDLE File, IDirect3DVolumeTexture8 **Texture)
 {
-	iBindImageTemp();
+	iBindImageTemp(context);
 	if (!ilLoadF(IL_TYPE_UNKNOWN, File))
 		return IL_FALSE;
 
@@ -198,9 +198,9 @@ IDirect3DTexture8* ILAPIENTRY ilutD3D8Texture(IDirect3DDevice8 *Device)
 	ILuint	Size;
 	ILubyte	*Buffer;
 
-	Image = ilutCurImage = ilGetCurImage();
+	Image = ilutCurImage = ilGetCurImage(context);
 	if (ilutCurImage == NULL) {
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return NULL;
 	}
 
@@ -224,12 +224,12 @@ IDirect3DTexture8* ILAPIENTRY ilutD3D8Texture(IDirect3DDevice8 *Device)
 		if (ilutGetBoolean(ILUT_D3D_GEN_DXTC)) {
 			DXTCFormat = ilutGetInteger(ILUT_DXTC_FORMAT);
 
-			Size = ilGetDXTCData(NULL, 0, DXTCFormat);
+			Size = ilGetDXTCData(context, NULL, 0, DXTCFormat);
 			if (Size != 0) {
-				Buffer = (ILubyte*)ialloc(Size);
+				Buffer = (ILubyte*)ialloc(context, Size);
 				if (Buffer == NULL)
 					return NULL;
-				Size = ilGetDXTCData(Buffer, Size, DXTCFormat);
+				Size = ilGetDXTCData(context, Buffer, Size, DXTCFormat);
 				if (Size == 0) {
 					ifree(Buffer);
 					return NULL;
@@ -289,9 +289,9 @@ IDirect3DVolumeTexture8* ILAPIENTRY ilutD3D8VolumeTexture(IDirect3DDevice8 *Devi
 	D3DFORMAT		Format;
 	ILimage			*Image;
 
-	ilutCurImage = ilGetCurImage();
+	ilutCurImage = ilGetCurImage(context);
 	if (ilutCurImage == NULL) {
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return NULL;
 	}
 
@@ -348,7 +348,7 @@ ILimage *MakeD3D8Compliant(IDirect3DDevice8 *Device, D3DFORMAT *DestFormat)
 	if (ilNextPower2(ilutCurImage->Width) != ilutCurImage->Width ||
 		ilNextPower2(ilutCurImage->Height) != ilutCurImage->Height ||
 		ilNextPower2(ilutCurImage->Depth) != ilutCurImage->Depth) {
-			Scaled = iluScale_(Converted, ilNextPower2(ilutCurImage->Width),
+			Scaled = iluScale_(context, Converted, ilNextPower2(ilutCurImage->Width),
 						ilNextPower2(ilutCurImage->Height), ilNextPower2(ilutCurImage->Depth));
 			if (Converted != ilutCurImage) {
 				ilCloseImage(Converted);
@@ -363,7 +363,7 @@ ILimage *MakeD3D8Compliant(IDirect3DDevice8 *Device, D3DFORMAT *DestFormat)
 }
 
 
-ILboolean iD3D8CreateMipmaps(IDirect3DTexture8 *Texture, ILimage *Image)
+ILboolean iD3D8CreateMipmaps(ILcontext* context, IDirect3DTexture8 *Texture, ILimage *Image)
 {
 	D3DLOCKED_RECT	Rect;
 	D3DSURFACE_DESC	Desc;
@@ -374,8 +374,8 @@ ILboolean iD3D8CreateMipmaps(IDirect3DTexture8 *Texture, ILimage *Image)
 	Width = Image->Width;
 	Height = Image->Height;
 
-	CurImage = ilGetCurImage();
-	MipImage = ilCopyImage_(CurImage);
+	CurImage = ilGetCurImage(context);
+	MipImage = ilCopyImage_(contextm CurImage);
 	ilSetCurImage(MipImage);
 	if (!iluBuildMipmaps()) {
 		ilCloseImage(MipImage);
@@ -454,20 +454,20 @@ ILAPI ILboolean ILAPIENTRY ilutD3D8LoadSurface(IDirect3DDevice8 *Device, IDirect
 
 	hr = IDirect3DDevice8_CreateImageSurface(Device, d3dsd.Width, d3dsd.Height, d3dsd.Format, &SurfaceCopy);
 	if (FAILED(hr)) {
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	hr = IDirect3DDevice8_CopyRects(Device, Surface, NULL, 0, SurfaceCopy, NULL);
 	if (FAILED(hr)) {
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
 	hr = IDirect3DSurface8_LockRect(SurfaceCopy, &d3dLR, NULL, D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_NOSYSLOCK | D3DLOCK_READONLY);
 	if (FAILED(hr)) {
 		IDirect3DSurface8_Release(SurfaceCopy);
-		ilSetError(ILUT_ILLEGAL_OPERATION);
+		ilSetError(context, ILUT_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 

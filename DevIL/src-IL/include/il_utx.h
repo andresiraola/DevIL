@@ -95,6 +95,6 @@ public:
 #define UTX_P8		0x00
 #define UTX_DXT1	0x03
 
-ILboolean iLoadUtxInternal(void);
+ILboolean iLoadUtxInternal(ILcontext* context);
 
 #endif//UTX_H

@@ -26,71 +26,71 @@
 	#endif
 #endif
 
-ILboolean iIsValidJp2(void);
+ILboolean iIsValidJp2(ILcontext* context);
 
 ILboolean JasperInit = IL_FALSE;
 
 
 //! Checks if the file specified in FileName is a valid .jp2 file.
-ILboolean ilIsValidJp2(ILconst_string FileName)
+ILboolean ilIsValidJp2(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	Jp2File;
 	ILboolean	bJp2 = IL_FALSE;
 
 	if (!iCheckExtension(FileName, IL_TEXT("jp2")) && !iCheckExtension(FileName, IL_TEXT("jpx")) &&
 		!iCheckExtension(FileName, IL_TEXT("j2k")) && !iCheckExtension(FileName, IL_TEXT("j2c"))) {
-		ilSetError(IL_INVALID_EXTENSION);
+		ilSetError(context, IL_INVALID_EXTENSION);
 		return bJp2;
 	}
 
-	Jp2File = iopenr(FileName);
+	Jp2File = context->impl->iopenr(FileName);
 	if (Jp2File == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bJp2;
 	}
 
-	bJp2 = ilIsValidJp2F(Jp2File);
-	icloser(Jp2File);
+	bJp2 = ilIsValidJp2F(context, Jp2File);
+	context->impl->icloser(Jp2File);
 
 	return bJp2;
 }
 
 
 //! Checks if the ILHANDLE contains a valid .jp2 file at the current position.
-ILboolean ilIsValidJp2F(ILHANDLE File)
+ILboolean ilIsValidJp2F(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iIsValidJp2();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iIsValidJp2(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Checks if Lump is a valid .jp2 lump.
-ILboolean ilIsValidJp2L(const void *Lump, ILuint Size)
+ILboolean ilIsValidJp2L(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iIsValidJp2();
+	iSetInputLump(context, Lump, Size);
+	return iIsValidJp2(context);
 }
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidJp2(void)
+ILboolean iIsValidJp2(ILcontext* context)
 {
 	ILubyte Signature[4];
 
-	iseek(4, IL_SEEK_CUR);  // Skip the 4 bytes that tell the size of the signature box.
-	if (iread(Signature, 1, 4) != 4) {
-		iseek(-4, IL_SEEK_CUR);
+	context->impl->iseek(context, 4, IL_SEEK_CUR);  // Skip the 4 bytes that tell the size of the signature box.
+	if (context->impl->iread(context, Signature, 1, 4) != 4) {
+		context->impl->iseek(context, -4, IL_SEEK_CUR);
 		return IL_FALSE;  // File read error
 	}
 
-	iseek(-8, IL_SEEK_CUR);  // Restore to previous state
+	context->impl->iseek(context, -8, IL_SEEK_CUR);  // Restore to previous state
 
 	// Signature is 'jP\040\040' by the specs (or 0x6A502020).
 	//  http://www.jpeg.org/public/fcd15444-6.pdf
@@ -103,74 +103,74 @@ ILboolean iIsValidJp2(void)
 
 
 //! Reads a Jpeg2000 file.
-ILboolean ilLoadJp2(ILconst_string FileName)
+ILboolean ilLoadJp2(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	Jp2File;
 	ILboolean	bRet;
 
-	Jp2File = iopenr(FileName);
+	Jp2File = context->impl->iopenr(FileName);
 	if (Jp2File == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	bRet = ilLoadJp2F(Jp2File);
-	icloser(Jp2File);
+	bRet = ilLoadJp2F(context, Jp2File);
+	context->impl->icloser(Jp2File);
 
 	return bRet;
 }
 
 
 //! Reads an already-opened Jpeg2000 file.
-ILboolean ilLoadJp2F(ILHANDLE File)
+ILboolean ilLoadJp2F(ILcontext* context, ILHANDLE File)
 {
 	ILuint			FirstPos;
 	ILboolean		bRet;
 	jas_stream_t	*Stream;
 
-	iSetInputFile(File);
-	FirstPos = itell();
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
 
 	if (!JasperInit) {
 		if (jas_init()) {
-			ilSetError(IL_LIB_JP2_ERROR);
+			ilSetError(context, IL_LIB_JP2_ERROR);
 			return IL_FALSE;
 		}
 		JasperInit = IL_TRUE;
 	}
-	Stream = iJp2ReadStream();
+	Stream = iJp2ReadStream(context);
 	if (!Stream)
 	{
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	bRet = iLoadJp2Internal(Stream, NULL);
+	bRet = iLoadJp2Internal(context, Stream, NULL);
 	// Close the input stream.
 	jas_stream_close(Stream);
 
-	iseek(FirstPos, IL_SEEK_SET);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a Jpeg2000 stream.
-ILboolean ilLoadJp2L(const void *Lump, ILuint Size)
+ILboolean ilLoadJp2L(ILcontext* context, const void *Lump, ILuint Size)
 {
-	return ilLoadJp2LInternal(Lump, Size, NULL);
+	return ilLoadJp2LInternal(context, Lump, Size, NULL);
 }
 
 
 //! This is separated so that it can be called for other file types, such as .icns.
-ILboolean ilLoadJp2LInternal(const void *Lump, ILuint Size, ILimage *Image)
+ILboolean ilLoadJp2LInternal(ILcontext* context, const void *Lump, ILuint Size, ILimage *Image)
 {
 	ILboolean		bRet;
 	jas_stream_t	*Stream;
 
 	if (!JasperInit) {
 		if (jas_init()) {
-			ilSetError(IL_LIB_JP2_ERROR);
+			ilSetError(context, IL_LIB_JP2_ERROR);
 			return IL_FALSE;
 		}
 		JasperInit = IL_TRUE;
@@ -178,11 +178,11 @@ ILboolean ilLoadJp2LInternal(const void *Lump, ILuint Size, ILimage *Image)
 	Stream = jas_stream_memopen((char*)Lump, Size);
 	if (!Stream)
 	{
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	bRet = iLoadJp2Internal(Stream, Image);
+	bRet = iLoadJp2Internal(context, Stream, Image);
 	// Close the input stream.
 	jas_stream_close(Stream);
 
@@ -191,7 +191,7 @@ ILboolean ilLoadJp2LInternal(const void *Lump, ILuint Size, ILimage *Image)
 
 
 // Internal function used to load the Jpeg2000 stream.
-ILboolean iLoadJp2Internal(jas_stream_t	*Stream, ILimage *Image)
+ILboolean iLoadJp2Internal(ILcontext* context, jas_stream_t	*Stream, ILimage *Image)
 {
 	jas_image_t		*Jp2Image = NULL;
 	jas_matrix_t	*origdata;
@@ -202,7 +202,7 @@ ILboolean iLoadJp2Internal(jas_stream_t	*Stream, ILimage *Image)
 	Jp2Image = jas_image_decode(Stream, -1, 0);
 	if (!Jp2Image)
 	{
-		ilSetError(IL_ILLEGAL_FILE_VALUE);
+		ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 		jas_stream_close(Stream);
 		return IL_FALSE;
 	}
@@ -210,17 +210,17 @@ ILboolean iLoadJp2Internal(jas_stream_t	*Stream, ILimage *Image)
 	// JasPer likes to buffer a lot, so it may try buffering past the end
 	//  of the file.  iread naturally sets IL_FILE_READ_ERROR if it tries
 	//  reading past the end of the file, but this actually is not an error.
-	Error = ilGetError();
+	Error = ilGetError(context);
 	// Put the error back if it is not IL_FILE_READ_ERROR.
 	if (Error != IL_FILE_READ_ERROR)
-		ilSetError(Error);
+		ilSetError(context, Error);
 
 
 	// We're not supporting anything other than 8 bits/component yet.
 	if (jas_image_cmptprec(Jp2Image, 0) != 8)
 	{
 		jas_image_destroy(Jp2Image);
-		ilSetError(IL_ILLEGAL_FILE_VALUE);
+		ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 		return IL_FALSE;
 	}
 
@@ -229,53 +229,53 @@ ILboolean iLoadJp2Internal(jas_stream_t	*Stream, ILimage *Image)
 		//@TODO: Can we do alpha data?  jas_image_cmpttype always returns 0 for this case.
 		case 1:  // Assuming this is luminance data.
 			if (Image == NULL) {
-				ilTexImage(jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL);
-				TempImage = iCurImage;
+				ilTexImage(context, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL);
+				TempImage = context->impl->iCurImage;
 			}
 			else {
 				ifree(Image->Data);  // @TODO: Not really the most efficient way to do this...
-				ilInitImage(Image, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL);
+				ilInitImage(context, Image, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 1, IL_LUMINANCE, IL_UNSIGNED_BYTE, NULL);
 				TempImage = Image;
 			}
 			break;
 
 		case 2:  // Assuming this is luminance-alpha data.
 			if (Image == NULL) {
-				ilTexImage(jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 2, IL_LUMINANCE_ALPHA, IL_UNSIGNED_BYTE, NULL);
-				TempImage = iCurImage;
+				ilTexImage(context, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 2, IL_LUMINANCE_ALPHA, IL_UNSIGNED_BYTE, NULL);
+				TempImage = context->impl->iCurImage;
 			}
 			else {
 				ifree(Image->Data);  // @TODO: Not really the most efficient way to do this...
-				ilInitImage(Image, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 2, IL_LUMINANCE_ALPHA, IL_UNSIGNED_BYTE, NULL);
+				ilInitImage(context, Image, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 2, IL_LUMINANCE_ALPHA, IL_UNSIGNED_BYTE, NULL);
 				TempImage = Image;
 			}
 			break;
 
 		case 3:
 			if (Image == NULL) {
-				ilTexImage(jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL);
-				TempImage = iCurImage;
+				ilTexImage(context, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL);
+				TempImage = context->impl->iCurImage;
 			}
 			else {
 				ifree(Image->Data);  // @TODO: Not really the most efficient way to do this...
-				ilInitImage(Image, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL);
+				ilInitImage(context, Image, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 3, IL_RGB, IL_UNSIGNED_BYTE, NULL);
 				TempImage = Image;
 			}
 			break;
 		case 4:
 			if (Image == NULL) {
-				ilTexImage(jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
-				TempImage = iCurImage;
+				ilTexImage(context, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
+				TempImage = context->impl->iCurImage;
 			}
 			else {
 				ifree(Image->Data);  // @TODO: Not really the most efficient way to do this...
-				ilInitImage(Image, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
+				ilInitImage(context, Image, jas_image_width(Jp2Image), jas_image_height(Jp2Image), 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL);
 				TempImage = Image;
 			}
 			break;
 		default:
 			jas_image_destroy(Jp2Image);
-			ilSetError(IL_ILLEGAL_FILE_VALUE);
+			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
 			return IL_FALSE;
 	}
 	TempImage->Origin = IL_ORIGIN_UPPER_LEFT;
@@ -287,7 +287,7 @@ ILboolean iLoadJp2Internal(jas_stream_t	*Stream, ILimage *Image)
 		origdata = jas_matrix_create(TempImage->Height, TempImage->Width);
 		if (!origdata)
 		{
-			ilSetError(IL_LIB_JP2_ERROR);
+			ilSetError(context, IL_LIB_JP2_ERROR);
 			return IL_FALSE;  // @TODO: Error
 		}
 		// Have to convert data into an intermediate matrix format.
@@ -309,36 +309,36 @@ ILboolean iLoadJp2Internal(jas_stream_t	*Stream, ILimage *Image)
 
 	jas_image_destroy(Jp2Image);
 
-	return ilFixImage();
+	return ilFixImage(context);
 }
 
 
 
 static int iJp2_file_read(jas_stream_obj_t *obj, char *buf, int cnt)
 {
-	obj;
-	return iread(buf, 1, cnt);
+	ILcontext* context = (ILcontext*)obj;
+	return context->impl->iread(context, buf, 1, cnt);
 }
 
 static int iJp2_file_write(jas_stream_obj_t *obj, char *buf, int cnt)
 {
-	obj;
-	return iwrite(buf, 1, cnt);
+	ILcontext* context = (ILcontext*)obj;
+	return context->impl->iwrite(context, buf, 1, cnt);
 }
 
 static long iJp2_file_seek(jas_stream_obj_t *obj, long offset, int origin)
 {
-	obj;
+	ILcontext* context = (ILcontext*)obj;
 
 	// We could just pass origin to iseek, but this is probably more portable.
 	switch (origin)
 	{
 		case SEEK_SET:
-			return iseek(offset, IL_SEEK_SET);
+			return context->impl->iseek(context, offset, IL_SEEK_SET);
 		case SEEK_CUR:
-			return iseek(offset, IL_SEEK_CUR);
+			return context->impl->iseek(context, offset, IL_SEEK_CUR);
 		case SEEK_END:
-			return iseek(offset, IL_SEEK_END);
+			return context->impl->iseek(context, offset, IL_SEEK_END);
 	}
 	return 0;  // Failed
 }
@@ -363,10 +363,9 @@ static void jas_stream_initbuf(jas_stream_t *stream, int bufmode );
 
 // Modified version of jas_stream_fopen and jas_stream_memopen from jas_stream.c of JasPer
 //  so that we can use our own file routines.
-jas_stream_t *iJp2ReadStream()
+jas_stream_t *iJp2ReadStream(ILcontext* context)
 {
 	jas_stream_t *stream;
-	jas_stream_memobj_t *obj;
 
 	if (!(stream = jas_stream_create())) {
 		return 0;
@@ -381,17 +380,7 @@ jas_stream_t *iJp2ReadStream()
 
 	/* Select the operations for a memory stream. */
 	stream->ops_ = &jas_stream_devilops;
-
-	/* Allocate memory for the underlying memory stream object. */
-	if (!(obj = (jas_stream_memobj_t*)jas_malloc(sizeof(jas_stream_memobj_t)))) {
-		jas_stream_destroy(stream);
-		return 0;
-	}
-	stream->obj_ = (void *) obj;
-
-	/* Initialize a few important members of the memory stream object. */
-	obj->myalloc_ = 0;
-	obj->buf_ = 0;
+	stream->obj_ = (void *) context;
 
 	// Shouldn't need any of this.
 
@@ -499,10 +488,9 @@ static void jas_stream_destroy(jas_stream_t *stream)
 
 
 
-jas_stream_t *iJp2WriteStream()
+jas_stream_t *iJp2WriteStream(ILcontext* context)
 {
 	jas_stream_t *stream;
-	jas_stream_memobj_t *obj;
 
 	if (!(stream = jas_stream_create())) {
 		return 0;
@@ -517,17 +505,7 @@ jas_stream_t *iJp2WriteStream()
 
 	/* Select the operations for a memory stream. */
 	stream->ops_ = &jas_stream_devilops;
-
-	/* Allocate memory for the underlying memory stream object. */
-	if (!(obj = (jas_stream_memobj_t*)jas_malloc(sizeof(jas_stream_memobj_t)))) {
-		jas_stream_destroy(stream);
-		return 0;
-	}
-	stream->obj_ = (void *) obj;
-
-	/* Initialize a few important members of the memory stream object. */
-	obj->myalloc_ = 0;
-	obj->buf_ = 0;
+	stream->obj_ = (void *) context;
 	
 	return stream;
 }
@@ -535,26 +513,26 @@ jas_stream_t *iJp2WriteStream()
 
 
 //! Writes a Jp2 file
-ILboolean ilSaveJp2(const ILstring FileName)
+ILboolean ilSaveJp2(ILcontext* context, const ILstring FileName)
 {
 	ILHANDLE	Jp2File;
 	ILuint		Jp2Size;
 
-	if (ilGetBoolean(IL_FILE_MODE) == IL_FALSE) {
+	if (ilGetBoolean(context, IL_FILE_MODE) == IL_FALSE) {
 		if (iFileExists(FileName)) {
-			ilSetError(IL_FILE_ALREADY_EXISTS);
+			ilSetError(context, IL_FILE_ALREADY_EXISTS);
 			return IL_FALSE;
 		}
 	}
 
-	Jp2File = iopenw(FileName);
+	Jp2File = context->impl->iopenw(FileName);
 	if (Jp2File == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return IL_FALSE;
 	}
 
-	Jp2Size = ilSaveJp2F(Jp2File);
-	iclosew(Jp2File);
+	Jp2Size = ilSaveJp2F(context, Jp2File);
+	context->impl->iclosew(Jp2File);
 
 	if (Jp2Size == 0)
 		return IL_FALSE;
@@ -563,26 +541,26 @@ ILboolean ilSaveJp2(const ILstring FileName)
 
 
 //! Writes a Jp2 to an already-opened file
-ILuint ilSaveJp2F(ILHANDLE File)
+ILuint ilSaveJp2F(ILcontext* context, ILHANDLE File)
 {
 	ILuint Pos;
-	iSetOutputFile(File);
-	Pos = itellw();
-	if (iSaveJp2Internal() == IL_FALSE)
+	iSetOutputFile(context, File);
+	Pos = context->impl->itellw(context);
+	if (iSaveJp2Internal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
 //! Writes a Jp2 to a memory "lump"
-ILuint ilSaveJp2L(void *Lump, ILuint Size)
+ILuint ilSaveJp2L(ILcontext* context, void *Lump, ILuint Size)
 {
 	ILuint Pos;
-	iSetOutputLump(Lump, Size);
-	Pos = itellw();
-	if (iSaveJp2Internal() == IL_FALSE)
+	iSetOutputLump(context, Lump, Size);
+	Pos = context->impl->itellw(context);
+	if (iSaveJp2Internal(context) == IL_FALSE)
 		return 0;  // Error occurred
-	return itellw() - Pos;  // Return the number of bytes written.
+	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
 
@@ -657,28 +635,28 @@ done:
 //  http://openscenegraph.sourcearchive.com/documentation/2.2.0/ReaderWriterJP2_8cpp-source.html
 
 //@TODO: Do we need to worry about images with depths > 1?
-ILboolean iSaveJp2Internal()
+ILboolean iSaveJp2Internal(ILcontext* context)
 {
 	jas_image_t *Jp2Image;
 	jas_image_cmptparm_t cmptparm[4];
 	jas_stream_t *Mem, *Stream;
 	ILuint	NumChans, i;
 	ILenum	NewFormat, NewType = IL_UNSIGNED_BYTE;
-	ILimage	*TempImage = iCurImage;
+	ILimage	*TempImage = context->impl->iCurImage;
 
 	if (!JasperInit) {
 		if (jas_init()) {
-			ilSetError(IL_LIB_JP2_ERROR);
+			ilSetError(context, IL_LIB_JP2_ERROR);
 			return IL_FALSE;
 		}
 		JasperInit = IL_TRUE;
 	}
 
-	if (iCurImage->Type != IL_UNSIGNED_BYTE) {  //@TODO: Support greater than 1 bpc.
+	if (context->impl->iCurImage->Type != IL_UNSIGNED_BYTE) {  //@TODO: Support greater than 1 bpc.
 		NewType = IL_UNSIGNED_BYTE;
 	}
 	//@TODO: Do luminance/luminance-alpha/alpha separately.
-	switch (iCurImage->Format)
+	switch (context->impl->iCurImage->Format)
 	{
 		case IL_LUMINANCE:
 			NewFormat = IL_LUMINANCE;
@@ -706,20 +684,20 @@ ILboolean iSaveJp2Internal()
 			break;
 	}
 
-	if (NewType != iCurImage->Type || NewFormat != iCurImage->Format) {
-		TempImage = iConvertImage(iCurImage, NewFormat, NewType);
+	if (NewType != context->impl->iCurImage->Type || NewFormat != context->impl->iCurImage->Format) {
+		TempImage = iConvertImage(context, context->impl->iCurImage, NewFormat, NewType);
 		if (TempImage == NULL)
 			return IL_FALSE;
 	}
 
 	// The origin is always in the lower left corner.  Flip the buffer if it is not.
 	if (TempImage->Origin == IL_ORIGIN_UPPER_LEFT)
-		iFlipBuffer(TempImage->Data, TempImage->Depth, TempImage->Bps, TempImage->Height);
+		iFlipBuffer(context, TempImage->Data, TempImage->Depth, TempImage->Bps, TempImage->Height);
 
 	// Have to tell JasPer about each channel.  In our case, they all have the same information.
 	for (i = 0; i < NumChans; i++) {
-		cmptparm[i].width = iCurImage->Width;
-		cmptparm[i].height = iCurImage->Height;
+		cmptparm[i].width = context->impl->iCurImage->Width;
+		cmptparm[i].height = context->impl->iCurImage->Height;
 		cmptparm[i].hstep = 1;
 		cmptparm[i].vstep = 1;
 		cmptparm[i].tlx = 0;
@@ -732,7 +710,7 @@ ILboolean iSaveJp2Internal()
 	//  This is done in the following switch statement.
 	Jp2Image = jas_image_create(NumChans, cmptparm, JAS_CLRSPC_UNKNOWN);
 	if (Jp2Image == NULL) {
-		ilSetError(IL_LIB_JP2_ERROR);
+		ilSetError(context, IL_LIB_JP2_ERROR);
 		return IL_FALSE;
 	}
 
@@ -768,14 +746,14 @@ ILboolean iSaveJp2Internal()
 	Mem = jas_stream_memopen((char*)TempImage->Data, TempImage->SizeOfData);
 	if (Mem == NULL) {
 		jas_image_destroy(Jp2Image);
-		ilSetError(IL_LIB_JP2_ERROR);
+		ilSetError(context, IL_LIB_JP2_ERROR);
 		return IL_FALSE;
 	}
-	Stream = iJp2WriteStream();
+	Stream = iJp2WriteStream(context);
 	if (Stream == NULL) {
 		jas_stream_close(Mem);
 		jas_image_destroy(Jp2Image);
-		ilSetError(IL_LIB_JP2_ERROR);
+		ilSetError(context, IL_LIB_JP2_ERROR);
 		return IL_FALSE;
 	}
 
@@ -787,7 +765,7 @@ ILboolean iSaveJp2Internal()
 		jas_stream_close(Mem);
 		jas_stream_close(Stream);
 		jas_image_destroy(Jp2Image);
-		ilSetError(IL_LIB_JP2_ERROR);
+		ilSetError(context, IL_LIB_JP2_ERROR);
 		return IL_FALSE;
 	}
 	jas_stream_flush(Stream);  // Do any final writing.
@@ -799,7 +777,7 @@ ILboolean iSaveJp2Internal()
 	jas_image_destroy(Jp2Image);
 
 	// Destroy our temporary image if we used one.
-	if (TempImage != iCurImage)
+	if (TempImage != context->impl->iCurImage)
 		ilCloseImage(TempImage);
 
 	return IL_TRUE;

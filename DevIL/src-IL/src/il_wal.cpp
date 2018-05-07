@@ -28,85 +28,85 @@ typedef struct WALHEAD
 	ILuint	Value;			// ??
 } WALHEAD;
 
-ILboolean iLoadWalInternal(void);
+ILboolean iLoadWalInternal(ILcontext* context);
 
 
 //! Reads a .wal file
-ILboolean ilLoadWal(ILconst_string FileName)
+ILboolean ilLoadWal(ILcontext* context, ILconst_string FileName)
 {
 	ILHANDLE	WalFile;
 	ILboolean	bWal = IL_FALSE;
 
-	WalFile = iopenr(FileName);
+	WalFile = context->impl->iopenr(FileName);
 	if (WalFile == NULL) {
-		ilSetError(IL_COULD_NOT_OPEN_FILE);
+		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bWal;
 	}
 
-	bWal = ilLoadWalF(WalFile);
-	icloser(WalFile);
+	bWal = ilLoadWalF(context, WalFile);
+	context->impl->icloser(WalFile);
 
 	return bWal;
 }
 
 
 //! Reads an already-opened .wal file
-ILboolean ilLoadWalF(ILHANDLE File)
+ILboolean ilLoadWalF(ILcontext* context, ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
-	iSetInputFile(File);
-	FirstPos = itell();
-	bRet = iLoadWalInternal();
-	iseek(FirstPos, IL_SEEK_SET);
+	iSetInputFile(context, File);
+	FirstPos = context->impl->itell(context);
+	bRet = iLoadWalInternal(context);
+	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
 
 //! Reads from a memory "lump" that contains a .wal file
-ILboolean ilLoadWalL(const void *Lump, ILuint Size)
+ILboolean ilLoadWalL(ILcontext* context, const void *Lump, ILuint Size)
 {
-	iSetInputLump(Lump, Size);
-	return iLoadWalInternal();
+	iSetInputLump(context, Lump, Size);
+	return iLoadWalInternal(context);
 }
 
 
-ILboolean iLoadWalInternal()
+ILboolean iLoadWalInternal(ILcontext* context)
 {
 	WALHEAD	Header;
 	ILimage	*Mipmaps[3], *CurImage;
 	ILuint	i, NewW, NewH;
 
-	if (iCurImage == NULL) {
-		ilSetError(IL_ILLEGAL_OPERATION);
+	if (context->impl->iCurImage == NULL) {
+		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
-	CurImage = iCurImage;
+	CurImage = context->impl->iCurImage;
 
 
 	// Read header
-	iread(&Header.FileName, 1, 32);
-	Header.Width = GetLittleUInt();
-	Header.Height = GetLittleUInt();
+	context->impl->iread(context, &Header.FileName, 1, 32);
+	Header.Width = GetLittleUInt(context);
+	Header.Height = GetLittleUInt(context);
 
 	for (i = 0; i < 4; i++)
-		Header.Offsets[i] = GetLittleUInt();
+		Header.Offsets[i] = GetLittleUInt(context);
 
-	iread(Header.AnimName, 1, 32);
-	Header.Flags = GetLittleUInt();
-	Header.Contents = GetLittleUInt();
-	Header.Value = GetLittleUInt();
+	context->impl->iread(context, Header.AnimName, 1, 32);
+	Header.Flags = GetLittleUInt(context);
+	Header.Contents = GetLittleUInt(context);
+	Header.Value = GetLittleUInt(context);
 
-	if (!ilTexImage(Header.Width, Header.Height, 1, 1, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE, NULL))
+	if (!ilTexImage(context, Header.Width, Header.Height, 1, 1, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE, NULL))
 		return IL_FALSE;
 
 	for (i = 0; i < 3; i++) {
-		Mipmaps[i] = (ILimage*)icalloc(sizeof(ILimage), 1);
+		Mipmaps[i] = (ILimage*)icalloc(context, sizeof(ILimage), 1);
 		if (Mipmaps[i] == NULL)
 			goto cleanup_error;
-		Mipmaps[i]->Pal.Palette = (ILubyte*)ialloc(768);
+		Mipmaps[i]->Pal.Palette = (ILubyte*)ialloc(context, 768);
 		if (Mipmaps[i]->Pal.Palette == NULL)
 			goto cleanup_error;
 		memcpy(Mipmaps[i]->Pal.Palette, ilDefaultQ2Pal, 768);
@@ -118,44 +118,44 @@ ILboolean iLoadWalInternal()
 	for (i = 0; i < 3; i++) {
 		NewW /= 2;
 		NewH /= 2;
-		iCurImage = Mipmaps[i];
-		if (!ilTexImage(NewW, NewH, 1, 1, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE, NULL))
+		context->impl->iCurImage = Mipmaps[i];
+		if (!ilTexImage(context, NewW, NewH, 1, 1, IL_COLOUR_INDEX, IL_UNSIGNED_BYTE, NULL))
 			goto cleanup_error;
 		// Don't set until now so ilTexImage won't get rid of the palette.
 		Mipmaps[i]->Pal.PalSize = 768;
 		Mipmaps[i]->Origin = IL_ORIGIN_UPPER_LEFT;
 	}
 
-	iCurImage = CurImage;
-	ilCloseImage(iCurImage->Mipmaps);
-	iCurImage->Mipmaps = Mipmaps[0];
+	context->impl->iCurImage = CurImage;
+	ilCloseImage(context->impl->iCurImage->Mipmaps);
+	context->impl->iCurImage->Mipmaps = Mipmaps[0];
 	Mipmaps[0]->Mipmaps = Mipmaps[1];
 	Mipmaps[1]->Mipmaps = Mipmaps[2];
 
-	iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
+	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
-	if (iCurImage->Pal.Palette && iCurImage->Pal.PalSize && iCurImage->Pal.PalType != IL_PAL_NONE)
-		ifree(iCurImage->Pal.Palette);
-	iCurImage->Pal.Palette = (ILubyte*)ialloc(768);
-	if (iCurImage->Pal.Palette == NULL)
+	if (context->impl->iCurImage->Pal.Palette && context->impl->iCurImage->Pal.PalSize && context->impl->iCurImage->Pal.PalType != IL_PAL_NONE)
+		ifree(context->impl->iCurImage->Pal.Palette);
+	context->impl->iCurImage->Pal.Palette = (ILubyte*)ialloc(context, 768);
+	if (context->impl->iCurImage->Pal.Palette == NULL)
 		goto cleanup_error;
 
-	iCurImage->Pal.PalSize = 768;
-	iCurImage->Pal.PalType = IL_PAL_RGB24;
-	memcpy(iCurImage->Pal.Palette, ilDefaultQ2Pal, 768);
+	context->impl->iCurImage->Pal.PalSize = 768;
+	context->impl->iCurImage->Pal.PalType = IL_PAL_RGB24;
+	memcpy(context->impl->iCurImage->Pal.Palette, ilDefaultQ2Pal, 768);
 
-	iseek(Header.Offsets[0], IL_SEEK_SET);
-	if (iread(iCurImage->Data, Header.Width * Header.Height, 1) != 1)
+	context->impl->iseek(context, Header.Offsets[0], IL_SEEK_SET);
+	if (context->impl->iread(context, context->impl->iCurImage->Data, Header.Width * Header.Height, 1) != 1)
 		goto cleanup_error;
 
 	for (i = 0; i < 3; i++) {
-		iseek(Header.Offsets[i+1], IL_SEEK_SET);
-		if (iread(Mipmaps[i]->Data, Mipmaps[i]->Width * Mipmaps[i]->Height, 1) != 1)
+		context->impl->iseek(context, Header.Offsets[i+1], IL_SEEK_SET);
+		if (context->impl->iread(context, Mipmaps[i]->Data, Mipmaps[i]->Width * Mipmaps[i]->Height, 1) != 1)
 			goto cleanup_error;
 	}
 
 	// Fixes all images, even mipmaps.
-	return ilFixImage();
+	return ilFixImage(context);
 
 cleanup_error:
 	for (i = 0; i < 3; i++) {

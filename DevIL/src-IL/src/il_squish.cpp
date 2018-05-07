@@ -41,13 +41,13 @@ ILAPI ILubyte* ILAPIENTRY ilSquishCompressDXT(ILubyte *Data, ILuint Width, ILuin
 	ILubyte	*DxtcData;
 
 	if (Data == NULL) {  // We cannot operate on a null pointer.
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return NULL;
 	}
 
 	// The nVidia Texture Tools library does not support volume textures yet.
 	if (Depth != 1) {
-		ilSetError(IL_INVALID_PARAM);
+		ilSetError(context, IL_INVALID_PARAM);
 		return NULL;
 	}
 
@@ -64,12 +64,12 @@ ILAPI ILubyte* ILAPIENTRY ilSquishCompressDXT(ILubyte *Data, ILuint Width, ILuin
 			Flags = squish::kDxt5;
 			break;
 		default:  // Does not support DXT2 or DXT4.
-			ilSetError(IL_INVALID_PARAM);
+			ilSetError(context, IL_INVALID_PARAM);
 			break;
 	}
 
 	Size = squish::GetStorageRequirements(Width, Height, Flags);
-	DxtcData = (ILubyte*)ialloc(Size);
+	DxtcData = (ILubyte*)ialloc(context, Size);
 	if (DxtcData == NULL)
 		return NULL;
 

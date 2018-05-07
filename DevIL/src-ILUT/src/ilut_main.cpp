@@ -55,13 +55,13 @@ static void GccMain()
 #endif
 
 
-void ILAPIENTRY ilutInit()
+void ILAPIENTRY ilutInit(ILcontext* context)
 {
 	ilutDefaultStates();  // Set states to their defaults
 	// Can cause crashes if DevIL is not initialized yet
 
 #ifdef ILUT_USE_OPENGL
-	ilutGLInit();  // default renderer is OpenGL
+	ilutGLInit(context);  // default renderer is OpenGL
 #endif
 
 #ifdef ILUT_USE_DIRECTX8

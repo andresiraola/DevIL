@@ -17,12 +17,10 @@
 #include "il_internal.h"
 
 
-ILboolean ilAble(ILenum Mode, ILboolean Flag);
+ILboolean ilAble(ILcontext* context, ILenum Mode, ILboolean Flag);
 
 
 #define IL_ATTRIB_STACK_MAX 32
-
-ILuint ilCurrentPos = 0;  // Which position on the stack
 
 //
 // Various states
@@ -103,9 +101,6 @@ typedef struct IL_STATES
 
 } IL_STATES;
 
-IL_STATES ilStates[IL_ATTRIB_STACK_MAX];
-
-
 typedef struct IL_HINTS
 {
 	// Memory vs. Speed trade-off
@@ -114,9 +109,6 @@ typedef struct IL_HINTS
 	ILenum		CompressHint;
 
 } IL_HINTS;
-
-IL_HINTS ilHints;
-
 
 #ifndef IL_NO_BLP
 	#define IL_BLP_EXT "blp "
