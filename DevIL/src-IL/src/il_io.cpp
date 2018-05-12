@@ -13,12 +13,17 @@
 #include "il_internal.h"
 #include "il_register.h"
 #include "il_pal.h"
-#include "il_png.h"
-#include "il_jpeg.h"
+
+#include "il_bmp.h"
+#include "il_dds.h"
+#include "il_gif.h"
 #include "il_hdr.h"
-#include "il_tiff.h"
-#include "il_targa.h"
+#include "il_jpeg.h"
+#include "il_png.h"
 #include "il_psd.h"
+#include "il_raw.h"
+#include "il_targa.h"
+#include "il_tiff.h"
 
 #include <string.h>
 
@@ -214,8 +219,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 	#endif
 
 	#ifndef IL_NO_DDS
-	if (ilIsValidDdsF(context, File))
-		return IL_DDS;
+	{
+		DdsHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_DDS;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_PNG
@@ -230,8 +241,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 	#endif
 
 	#ifndef IL_NO_BMP
-	if (ilIsValidBmpF(context, File))
-		return IL_BMP;
+	{
+		BmpHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_BMP;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_BLP
@@ -245,8 +262,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 	#endif
 
 	#ifndef IL_NO_GIF
-	if (ilIsValidGifF(context, File))
-		return IL_GIF;
+	{
+		GifHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_GIF;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_HDR
@@ -406,8 +429,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 	#endif
 
 	#ifndef IL_NO_DDS
-	if (ilIsValidDdsL(context, Lump, Size))
-		return IL_DDS;
+	{
+		DdsHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_DDS;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_PNG
@@ -422,8 +451,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 	#endif
 
 	#ifndef IL_NO_BMP
-	if (ilIsValidBmpL(context, Lump, Size))
-		return IL_BMP;
+	{
+		BmpHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_BMP;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_BLP
@@ -437,8 +472,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 	#endif
 
 	#ifndef IL_NO_GIF
-	if (ilIsValidGifL(context, Lump, Size))
-		return IL_GIF;
+	{
+		GifHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_GIF;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_HDR
@@ -610,7 +651,11 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-			return ilIsValidDds(context, FileName);
+		{
+			DdsHandler handler(context);
+
+			return handler.isValid(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_PNG
@@ -624,7 +669,11 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			return ilIsValidBmp(context, FileName);
+		{
+			BmpHandler handler(context);
+
+			return handler.isValid(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_BLP
@@ -644,7 +693,11 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 		#ifndef IL_NO_GIF
 		case IL_GIF:
-			return ilIsValidGif(context, FileName);
+		{
+			GifHandler handler(context);
+
+			return handler.isValid(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_HDR
@@ -799,7 +852,11 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-			return ilIsValidDdsF(context, File);
+		{
+			DdsHandler handler(context);
+
+			return handler.isValidF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_PNG
@@ -818,7 +875,11 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			return ilIsValidBmpF(context, File);
+		{
+			BmpHandler handler(context);
+
+			return handler.isValidF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_DICOM
@@ -833,7 +894,11 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_GIF
 		case IL_GIF:
-			return ilIsValidGifF(context, File);
+		{
+			GifHandler handler(context);
+
+			return handler.isValidF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_HDR
@@ -988,7 +1053,11 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-			return ilIsValidDdsL(context, Lump, Size);
+		{
+			DdsHandler handler(context);
+
+			return handler.isValidL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_PNG
@@ -1002,7 +1071,11 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			return ilIsValidBmpL(context, Lump, Size);
+		{
+			BmpHandler handler(context);
+
+			return handler.isValidL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_BLP
@@ -1022,7 +1095,11 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 		#ifndef IL_NO_GIF
 		case IL_GIF:
-			return ilIsValidGifL(context, Lump, Size);
+		{
+			GifHandler handler(context);
+
+			return handler.isValidL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_HDR
@@ -1202,8 +1279,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-			bRet = ilLoadDds(context, FileName);
-			break;
+		{
+			DdsHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_PNG
@@ -1224,8 +1305,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			bRet = ilLoadBmp(context, FileName);
-			break;
+		{
+			BmpHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_DPX
@@ -1236,8 +1321,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_GIF
 		case IL_GIF:
-			bRet = ilLoadGif(context, FileName);
-			break;
+		{
+			GifHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_HDR
@@ -1403,8 +1492,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_RAW
 		case IL_RAW:
-			bRet = ilLoadRaw(context, FileName);
-			break;
+		{
+			RawHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_ROT
@@ -1543,7 +1636,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-			return ilLoadDdsF(context, File);
+		{
+			DdsHandler handler(context);
+
+			return handler.loadF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_PNG
@@ -1562,7 +1659,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			return ilLoadBmpF(context, File);
+		{
+			BmpHandler handler(context);
+
+			return handler.loadF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_CUT
@@ -1604,7 +1705,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_GIF
 		case IL_GIF:
-			return ilLoadGifF(context, File);
+		{
+			GifHandler handler(context);
+
+			return handler.loadF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_HDR
@@ -1712,7 +1817,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_RAW
 		case IL_RAW:
-			return ilLoadRawF(context, File);
+		{
+			RawHandler handler(context);
+
+			return handler.loadF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_ROT
@@ -1830,7 +1939,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-			return ilLoadDdsL(context, Lump, Size);
+		{
+			DdsHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_PNG
@@ -1849,7 +1962,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			return ilLoadBmpL(context, Lump, Size);
+		{
+			BmpHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_CUT
@@ -1891,7 +2008,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 		#ifndef IL_NO_GIF
 		case IL_GIF:
-			return ilLoadGifL(context, Lump, Size);
+		{
+			GifHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_HDR
@@ -1999,7 +2120,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 		#ifndef IL_NO_RAW
 		case IL_RAW:
-			return ilLoadRawL(context, Lump, Size);
+		{
+			RawHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_ROT
@@ -2134,8 +2259,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 		#endif
 
 		#ifndef IL_NO_DDS
-		if (!iStrCmp(Ext, IL_TEXT("dds"))) {
-			bRet = ilLoadDds(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("dds")))
+		{
+			DdsHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 		#endif
@@ -2152,8 +2281,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 		#endif
 
 		#ifndef IL_NO_BMP
-		if (!iStrCmp(Ext, IL_TEXT("bmp")) || !iStrCmp(Ext, IL_TEXT("dib"))) {
-			bRet = ilLoadBmp(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("bmp")) || !iStrCmp(Ext, IL_TEXT("dib")))
+		{
+			BmpHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 		#endif
@@ -2187,8 +2320,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 		#endif
 
 		#ifndef IL_NO_GIF
-		if (!iStrCmp(Ext, IL_TEXT("gif"))) {
-			bRet = ilLoadGif(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("gif")))
+		{
+			GifHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 		#endif
@@ -2508,7 +2645,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			return ilSaveBmp(context, FileName);
+		{
+			BmpHandler handler(context);
+
+			return handler.save(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_CHEAD
@@ -2518,7 +2659,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-    		return ilSaveDds(context, FileName);
+		{
+			DdsHandler handler(context);
+
+			return handler.save(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_EXR
@@ -2584,7 +2729,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_RAW
 		case IL_RAW:
-			return ilSaveRaw(context, FileName);
+		{
+			RawHandler handler(context);
+
+			return handler.save(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_SGI
@@ -2648,14 +2797,22 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 	{
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			Ret = ilSaveBmpF(context, File);
-			break;
+		{
+			BmpHandler handler(context);
+
+			Ret = handler.saveF(File);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-			Ret = ilSaveDdsF(context, File);
-			break;
+		{
+			DdsHandler handler(context);
+
+			Ret = handler.saveF(File);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_EXR
@@ -2720,8 +2877,12 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_RAW
 		case IL_RAW:
-			Ret = ilSaveRawF(context, File);
-			break;
+		{
+			RawHandler handler(context);
+
+			Ret = handler.saveF(File);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_SGI
@@ -2798,7 +2959,11 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 	{
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			return ilSaveBmpL(context, Lump, Size);
+		{
+			BmpHandler handler(context);
+
+			return handler.saveL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_EXR
@@ -2854,7 +3019,11 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 		#ifndef IL_NO_RAW
 		case IL_RAW:
-			return ilSaveRawL(context, Lump, Size);
+		{
+			RawHandler handler(context);
+
+			return handler.saveL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_SGI
@@ -2873,7 +3042,11 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-			return ilSaveDdsL(context, Lump, Size);
+		{
+			DdsHandler handler(context);
+
+			return handler.saveL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_VTF
@@ -2927,8 +3100,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 	}
 
 	#ifndef IL_NO_BMP
-	if (!iStrCmp(Ext, IL_TEXT("bmp"))) {
-		bRet = ilSaveBmp(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("bmp")))
+	{
+		BmpHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 	#endif
@@ -2941,8 +3118,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 	#endif
 
 	#ifndef IL_NO_DDS
-	if (!iStrCmp(Ext, IL_TEXT("dds"))) {
-		bRet = ilSaveDds(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("dds")))
+	{
+		DdsHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 	#endif
@@ -3028,8 +3209,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 	#endif
 
 	#ifndef IL_NO_RAW
-	if (!iStrCmp(Ext, IL_TEXT("raw"))) {
-		bRet = ilSaveRaw(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("raw")))
+	{
+		RawHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 	#endif

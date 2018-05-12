@@ -10,16 +10,28 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
 #include "il_dds.h"
 #include <limits.h>
 
-
 #ifndef IL_NO_DDS
 
+#include "il_dds.h"
+
+void		ChooseAlphaEndpoints(ILubyte *Block, ILubyte *a0, ILubyte *a1);
+void		ChooseEndpoints(ILushort *Block, ILushort *ex0, ILushort *ex1);
+ILuint		Compress(ILcontext* context, ILimage *Image, ILenum DXTCFormat);
+void		CorrectEndDXT1(ILushort *ex0, ILushort *ex1, ILboolean HasAlpha);
+ILuint		Distance(Color888 *c1, Color888 *c2);
+void		GenAlphaBitMask(ILubyte a0, ILubyte a1, ILubyte *In, ILubyte *Mask, ILubyte *Out);
+ILboolean	GetAlphaBlock(ILubyte *Block, ILubyte *Data, ILimage *Image, ILuint XPos, ILuint YPos);
+ILuint		GenBitMask(ILushort ex0, ILushort ex1, ILuint NumCols, ILushort *In, ILubyte *Alpha, Color888 *OutCol);
+ILboolean	GetBlock(ILushort *Block, ILushort *Data, ILimage *Image, ILuint XPos, ILuint YPos);
+ILboolean	Get3DcBlock(ILubyte *Block, ILubyte *Data, ILimage *Image, ILuint XPos, ILuint YPos, int channel);
+ILboolean	WriteHeader(ILcontext* context, ILimage *Image, ILenum DXTCFormat, ILuint CubeFlags);
+
 //! Writes a Dds file
-ILboolean ilSaveDds(ILcontext* context, const ILstring FileName)
+ILboolean DdsHandler::save(const ILstring FileName)
 {
 	ILHANDLE	DdsFile;
 	ILuint		DdsSize;
@@ -37,7 +49,7 @@ ILboolean ilSaveDds(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	DdsSize = ilSaveDdsF(context, DdsFile);
+	DdsSize = saveF(DdsFile);
 	context->impl->iclosew(DdsFile);
 
 	if (DdsSize == 0)
@@ -45,30 +57,27 @@ ILboolean ilSaveDds(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Dds to an already-opened file
-ILuint ilSaveDdsF(ILcontext* context, ILHANDLE File)
+ILuint DdsHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveDdsInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Dds to a memory "lump"
-ILuint ilSaveDdsL(ILcontext* context, void *Lump, ILuint Size)
+ILuint DdsHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSaveDdsInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
-
 
 //! Checks if an image is a cubemap
 ILuint GetCubemapInfo(ILcontext* context, ILimage* image, ILint* faces)
@@ -131,9 +140,8 @@ ILuint GetCubemapInfo(ILcontext* context, ILimage* image, ILint* faces)
 	return ret;
 }
 
-
 // Internal function used to save the Dds.
-ILboolean iSaveDdsInternal(ILcontext* context)
+ILboolean DdsHandler::saveInternal()
 {
 	ILenum	DXTCFormat;
 	ILuint	counter, numMipMaps, image, numFaces, i;
@@ -182,7 +190,6 @@ ILboolean iSaveDdsInternal(ILcontext* context)
 
 	return IL_TRUE;
 }
-
 
 // @TODO:  Finish this, as it is incomplete.
 ILboolean WriteHeader(ILcontext* context, ILimage *Image, ILenum DXTCFormat, ILuint CubeFlags)
@@ -308,7 +315,6 @@ ILboolean WriteHeader(ILcontext* context, ILimage *Image, ILenum DXTCFormat, ILu
 
 #endif//IL_NO_DDS
 
-
 ILuint ILAPIENTRY ilGetDXTCData(ILcontext* context, void *Buffer, ILuint BufferSize, ILenum DXTCFormat)
 {
 	ILubyte	*CurData = NULL;
@@ -362,7 +368,6 @@ ILuint ILAPIENTRY ilGetDXTCData(ILcontext* context, void *Buffer, ILuint BufferS
 	return retVal;
 }
 
-
 // Added the next two functions based on Charles Bloom's rant at
 //  http://cbloomrants.blogspot.com/2008/12/12-08-08-dxtc-summary.html.
 //  This code is by ryg and from the Molly Rocket forums:
@@ -377,7 +382,6 @@ ILushort As16Bit(ILint r, ILint g, ILint b)
 {
 	return (Mul8Bit(r,31) << 11) + (Mul8Bit(g,63) << 5) + Mul8Bit(b,31);
 }
-
 
 ILushort *CompressTo565(ILcontext* context, ILimage *Image)
 {
@@ -470,7 +474,6 @@ ILushort *CompressTo565(ILcontext* context, ILimage *Image)
 
 	return Data;
 }
-
 
 ILubyte *CompressTo88(ILcontext* context, ILimage *Image)
 {
@@ -624,7 +627,6 @@ void CompressToRXGB(ILcontext* context, ILimage *Image, ILushort** xgb, ILubyte*
 	if (TempImage != Image)
 		ilCloseImage(TempImage);
 }
-
 
 ILuint Compress(ILcontext* context, ILimage *Image, ILenum DXTCFormat)
 {
@@ -914,7 +916,6 @@ ILuint Compress(ILcontext* context, ILimage *Image, ILenum DXTCFormat)
 	return Count;  // Returns 0 if no compression was done.
 }
 
-
 // Assumed to be 16-bit (5:6:5).
 ILboolean GetBlock(ILushort *Block, ILushort *Data, ILimage *Image, ILuint XPos, ILuint YPos)
 {
@@ -936,7 +937,6 @@ ILboolean GetBlock(ILushort *Block, ILushort *Data, ILimage *Image, ILuint XPos,
 
 	return IL_TRUE;
 }
-
 
 ILboolean GetAlphaBlock(ILubyte *Block, ILubyte *Data, ILimage *Image, ILuint XPos, ILuint YPos)
 {
@@ -976,7 +976,6 @@ ILboolean Get3DcBlock(ILubyte *Block, ILubyte *Data, ILimage *Image, ILuint XPos
 	return IL_TRUE;
 }
 
-
 void ShortToColor565(ILushort Pixel, Color565 *Colour)
 {
 	Colour->nRed   = (Pixel & 0xF800) >> 11;
@@ -984,7 +983,6 @@ void ShortToColor565(ILushort Pixel, Color565 *Colour)
 	Colour->nBlue  = (Pixel & 0x001F);
 	return;
 }
-
 
 void ShortToColor888(ILushort Pixel, Color888 *Colour)
 {
@@ -994,18 +992,15 @@ void ShortToColor888(ILushort Pixel, Color888 *Colour)
 	return;
 }
 
-
 ILushort Color565ToShort(Color565 *Colour)
 {
 	return (Colour->nRed << 11) | (Colour->nGreen << 5) | (Colour->nBlue);
 }
 
-
 ILushort Color888ToShort(Color888 *Colour)
 {
 	return ((Colour->r >> 3) << 11) | ((Colour->g >> 2) << 5) | (Colour->b >> 3);
 }
-
 
 ILuint GenBitMask(ILushort ex0, ILushort ex1, ILuint NumCols, ILushort *In, ILubyte *Alpha, Color888 *OutCol)
 {
@@ -1069,7 +1064,6 @@ ILuint GenBitMask(ILushort ex0, ILushort ex1, ILuint NumCols, ILushort *In, ILub
 	return BitMask;
 }
 
-
 void GenAlphaBitMask(ILubyte a0, ILubyte a1, ILubyte *In, ILubyte *Mask, ILubyte *Out)
 {
 	ILubyte Alphas[8], M[16];
@@ -1132,7 +1126,6 @@ void GenAlphaBitMask(ILubyte a0, ILubyte a1, ILubyte *In, ILubyte *Mask, ILubyte
 	return;
 }
 
-
 ILuint RMSAlpha(ILubyte *Orig, ILubyte *Test)
 {
 	ILuint	RMS = 0, i;
@@ -1147,7 +1140,6 @@ ILuint RMSAlpha(ILubyte *Orig, ILubyte *Test)
 
 	return RMS;
 }
-
 
 ILuint Distance(Color888 *c1, Color888 *c2)
 {
@@ -1180,7 +1172,6 @@ void ChooseEndpoints(ILushort *Block, ILushort *ex0, ILushort *ex1)
 #undef Sum
 #undef NormSquared
 
-
 void ChooseAlphaEndpoints(ILubyte *Block, ILubyte *a0, ILubyte *a1)
 {
 	ILuint	i, Lowest = 0xFF, Highest = 0;
@@ -1195,7 +1186,6 @@ void ChooseAlphaEndpoints(ILubyte *Block, ILubyte *a0, ILubyte *a1)
 	*a0 = Lowest;
 	*a1 = Highest;
 }
-
 
 void CorrectEndDXT1(ILushort *ex0, ILushort *ex1, ILboolean HasAlpha)
 {
@@ -1219,7 +1209,6 @@ void CorrectEndDXT1(ILushort *ex0, ILushort *ex1, ILboolean HasAlpha)
 	return;
 }
 
-
 void PreMult(ILushort *Data, ILubyte *Alpha)
 {
 	Color888	Colour;
@@ -1241,7 +1230,6 @@ void PreMult(ILushort *Data, ILubyte *Alpha)
 
 	return;
 }
-
 
 //! Compresses data to a DXT format using different methods.
 //  The data must be in unsigned byte RGBA or BGRA format.  Only DXT1, DXT3 and DXT5 are supported.

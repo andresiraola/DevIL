@@ -27,8 +27,6 @@ ilDetermineType
 ilDetermineTypeF
 ilDetermineTypeL
 ilDisable
-ilDxtcDataToImage
-ilDxtcDataToSurface
 ilEnable
 ilFormatFunc
 ilGenImage

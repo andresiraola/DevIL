@@ -10,15 +10,14 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef BMP_H
-#define BMP_H
+#pragma once
 
 #include "il_internal.h"
 
 #ifdef _WIN32
-	#pragma pack(push, bmp_struct, 1)
+#pragma pack(push, bmp_struct, 1)
 #endif
+
 typedef struct BMPHEAD {
 	ILushort	bfType;
 	ILint		bfSize;
@@ -54,18 +53,15 @@ typedef struct OS2_HEAD
 	ILushort	cPlanes;
 	ILushort	cBitCount;
 } IL_PACKSTRUCT OS2_HEAD;
+
 #ifdef _WIN32
-	#pragma pack(pop, bmp_struct)
+#pragma pack(pop, bmp_struct)
 #endif
 
 // Internal functions
 ILboolean	iGetBmpHead(ILcontext* context, BMPHEAD * const Header);
 ILboolean	iGetOS2Head(ILcontext* context, OS2_HEAD * const Header);
-ILboolean	iIsValidBmp(ILcontext* context);
-ILboolean	iCheckBmp(const BMPHEAD *CONST_RESTRICT Header);
 ILboolean	iCheckOS2(const OS2_HEAD *CONST_RESTRICT Header);
-ILboolean	iLoadBitmapInternal(ILcontext* context);
-ILboolean	iSaveBitmapInternal(ILcontext* context);
 ILboolean	ilReadUncompBmp(ILcontext* context, BMPHEAD *Info);
 ILboolean	ilReadRLE8Bmp(ILcontext* context, BMPHEAD *Info);
 ILboolean	ilReadRLE4Bmp(ILcontext* context, BMPHEAD *Info);
@@ -77,31 +73,29 @@ ILboolean	iGetOS2Bmp(ILcontext* context, OS2_HEAD *Header);
 #define INLINE
 #endif
 
-#ifndef NOINLINE
-INLINE void GetShiftFromMask(const ILuint Mask, ILuint * CONST_RESTRICT ShiftLeft, ILuint * CONST_RESTRICT ShiftRight) {
-	ILuint Temp, i;
+class BmpHandler
+{
+protected:
+	ILcontext * context;
 
-	if( Mask == 0 ) {
-		*ShiftLeft = *ShiftRight = 0;
-		return;
-	}
+	ILboolean	check(const BMPHEAD *CONST_RESTRICT Header);
 
-	Temp = Mask;
-	for( i = 0; i < 32; i++, Temp >>= 1 ) {
-		if( Temp & 1 )
-			break;
-	}
-	*ShiftRight = i;
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+	ILboolean	saveInternal();
 
-	// Temp is preserved, so use it again:
-	for( i = 0; i < 8; i++, Temp >>= 1 ) {
-		if( !(Temp & 1) )
-			break;
-	}
-	*ShiftLeft = 8 - i;
+public:
+	BmpHandler(ILcontext* context);
 
-	return;
-}
-#endif
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
 
-#endif//BMP_H
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+
+	ILboolean	save(ILconst_string FileName);
+	ILuint		saveF(ILHANDLE File);
+	ILuint		saveL(void *Lump, ILuint Size);
+};

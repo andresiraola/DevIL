@@ -10,7 +10,6 @@
 //
 //-----------------------------------------------------------------------------
 
-
 //
 //
 // Note:  Almost all this code is from nVidia's DDS-loading example at
@@ -23,22 +22,11 @@
 //	Volume Textures without the COMPLEX bit set, so the specs aren't taken
 //	too strictly while reading.
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_DDS
+
 #include "il_dds.h"
-
-
-// Global variables
-//@TODO: Move these out of global space
-static DDSHEAD	Head;				// Image header
-static DXT10HEAD HeadDXT10;			// DirectX 10 extension header
-static ILubyte	*CompData = NULL;	// Compressed data
-static ILuint	CompSize;			// Compressed size
-//static ILuint	CompFormat;			// Compressed format
-static ILimage	*Image;
-static ILint	Width, Height, Depth;
-static ILboolean	Has16BitComponents;
 
 ILuint CubemapDirections[CUBEMAP_SIDES] = {
 	DDS_CUBEMAP_POSITIVEX,
@@ -49,9 +37,17 @@ ILuint CubemapDirections[CUBEMAP_SIDES] = {
 	DDS_CUBEMAP_NEGATIVEZ
 };
 
+ILboolean	check(DDSHEAD *Head);
+void		GetBitsFromMask(ILuint Mask, ILuint *ShiftLeft, ILuint *ShiftRight);
+
+DdsHandler::DdsHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid .dds file.
-ILboolean ilIsValidDds(ILcontext* context, ILconst_string FileName)
+ILboolean DdsHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	DdsFile;
 	ILboolean	bDds = IL_FALSE;
@@ -67,38 +63,35 @@ ILboolean ilIsValidDds(ILcontext* context, ILconst_string FileName)
 		return bDds;
 	}
 
-	bDds = ilIsValidDdsF(context, DdsFile);
+	bDds = isValidF(DdsFile);
 	context->impl->icloser(DdsFile);
 
 	return bDds;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .dds file at the current position.
-ILboolean ilIsValidDdsF(ILcontext* context, ILHANDLE File)
+ILboolean DdsHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidDds(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid .dds lump.
-ILboolean ilIsValidDdsL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean DdsHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidDds(context);
+	return isValidInternal();
 }
 
-
 // Internal function used to get the .dds header from the current file.
-ILboolean iGetDdsHead(ILcontext* context, DDSHEAD *Header)
+ILboolean DdsHandler::iGetDdsHead(DDSHEAD *Header)
 {
 	ILint i;
 
@@ -135,7 +128,6 @@ ILboolean iGetDdsHead(ILcontext* context, DDSHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function used to get the DirectX 10 DDS header extension (24 bytes)
 ILboolean iGetDXT10Head(ILcontext* context, DXT10HEAD *Header)
 {
@@ -148,24 +140,22 @@ ILboolean iGetDXT10Head(ILcontext* context, DXT10HEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidDds(ILcontext* context)
+ILboolean DdsHandler::isValidInternal()
 {
 	ILboolean	IsValid;
 	DDSHEAD		Head;
 
-	iGetDdsHead(context, &Head);
+	iGetDdsHead(&Head);
 	context->impl->iseek(context, -(ILint)sizeof(DDSHEAD), IL_SEEK_CUR);  // Go ahead and restore to previous state
 
-	IsValid = iCheckDds(&Head);
+	IsValid = check(&Head);
 
 	return IsValid;
 }
 
-
 // Internal function used to check if the HEADER is a valid .dds header.
-ILboolean iCheckDds(DDSHEAD *Head)
+ILboolean check(DDSHEAD *Head)
 {
 	if (strncmp((const char*)Head->Signature, "DDS ", 4))
 		return IL_FALSE;
@@ -181,7 +171,6 @@ ILboolean iCheckDds(DDSHEAD *Head)
 	return IL_TRUE;
 }
 
-
 // Internal function used to check if the HEADER is a valid DirectX 10 extension header.
 ILboolean iCheckDxt10(DXT10HEAD *Head)
 {
@@ -194,9 +183,8 @@ ILboolean iCheckDxt10(DXT10HEAD *Head)
 	return IL_TRUE;
 }
 
-
 //! Reads a .dds file
-ILboolean ilLoadDds(ILcontext* context, ILconst_string FileName)
+ILboolean DdsHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	DdsFile;
 	ILboolean	bDds = IL_FALSE;
@@ -207,37 +195,34 @@ ILboolean ilLoadDds(ILcontext* context, ILconst_string FileName)
 		return bDds;
 	}
 
-	bDds = ilLoadDdsF(context, DdsFile);
+	bDds = loadF(DdsFile);
 	context->impl->icloser(DdsFile);
 
 	return bDds;
 }
 
-
 //! Reads an already-opened .dds file
-ILboolean ilLoadDdsF(ILcontext* context, ILHANDLE File)
+ILboolean DdsHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadDdsInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .dds
-ILboolean ilLoadDdsL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean DdsHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadDdsInternal(context);
+	return loadInternal();
 }
 
-
-void Check16BitComponents(DDSHEAD *Header)
+void DdsHandler::Check16BitComponents(DDSHEAD *Header)
 {
 	if (Header->RGBBitCount != 32)
 		Has16BitComponents = IL_FALSE;
@@ -254,8 +239,7 @@ void Check16BitComponents(DDSHEAD *Header)
 	return;
 }
 
-
-ILubyte iCompFormatToBpp(ILenum Format)
+ILubyte DdsHandler::iCompFormatToBpp(ILenum Format)
 {
 	//non-compressed (= non-FOURCC) codes
 	if (Format == PF_LUMINANCE || Format == PF_LUMINANCE_ALPHA || Format == PF_ARGB)
@@ -277,8 +261,7 @@ ILubyte iCompFormatToBpp(ILenum Format)
 		return 4;
 }
 
-
-ILubyte iCompFormatToBpc(ILenum Format)
+ILubyte DdsHandler::iCompFormatToBpc(ILenum Format)
 {
 	if (Has16BitComponents)
 		return 2;
@@ -292,7 +275,6 @@ ILubyte iCompFormatToBpc(ILenum Format)
 	else
 		return 1;
 }
-
 
 ILubyte iCompFormatToChannelCount(ILenum Format)
 {
@@ -308,8 +290,7 @@ ILubyte iCompFormatToChannelCount(ILenum Format)
 		return 4;
 }
 
-
-ILboolean iLoadDdsCubemapInternal(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
+ILboolean DdsHandler::iLoadCubemapInternal(ILuint CompFormat, ILboolean IsDXT10)
 {
 	ILuint	i;
 	ILubyte	Bpp, Channels, Bpc;
@@ -359,10 +340,10 @@ ILboolean iLoadDdsCubemapInternal(ILcontext* context, ILuint CompFormat, ILboole
 				ilActiveFace(context, i);
 			}
 
-			if (!ReadData(context, CompFormat, IsDXT10))
+			if (!ReadData(CompFormat, IsDXT10))
 				return IL_FALSE;
 
-			if (!AllocImage(context, CompFormat, IsDXT10)) {
+			if (!AllocImage(CompFormat, IsDXT10)) {
 				if (CompData) {
 					ifree(CompData);
 					CompData = NULL;
@@ -372,7 +353,7 @@ ILboolean iLoadDdsCubemapInternal(ILcontext* context, ILuint CompFormat, ILboole
 
 			Image->CubeFlags = CubemapDirections[i];
 
-			if (!DdsDecompress(context, CompFormat, IsDXT10)) {
+			if (!DdsDecompress(CompFormat, IsDXT10)) {
 				if (CompData) {
 					ifree(CompData);
 					CompData = NULL;
@@ -380,7 +361,7 @@ ILboolean iLoadDdsCubemapInternal(ILcontext* context, ILuint CompFormat, ILboole
 				return IL_FALSE;
 			}
 
-			if (!ReadMipmaps(context, CompFormat, IsDXT10)) {
+			if (!ReadMipmaps(CompFormat, IsDXT10)) {
 				if (CompData) {
 					ifree(CompData);
 					CompData = NULL;
@@ -399,8 +380,7 @@ ILboolean iLoadDdsCubemapInternal(ILcontext* context, ILuint CompFormat, ILboole
 	return ilFixImage(context);
 }
 
-
-ILboolean iLoadDdsInternal(ILcontext* context)
+ILboolean DdsHandler::loadInternal()
 {
 	ILuint		BlockSize = 0;
 	ILuint		CompFormat;
@@ -415,12 +395,12 @@ ILboolean iLoadDdsInternal(ILcontext* context)
 		return IL_FALSE;
 	}
 
-	if (!iGetDdsHead(context, &Head))
+	if (!iGetDdsHead(&Head))
 	{
 		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
-	if (!iCheckDds(&Head))
+	if (!check(&Head))
 	{
 		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
@@ -466,7 +446,7 @@ ILboolean iLoadDdsInternal(ILcontext* context)
 	Image = context->impl->iCurImage;
 	if (Head.ddsCaps1 & DDS_COMPLEX) {
 		if (Head.ddsCaps2 & DDS_CUBEMAP) {
-			if (!iLoadDdsCubemapInternal(context, CompFormat, IsDXT10))
+			if (!iLoadCubemapInternal(CompFormat, IsDXT10))
 				return IL_FALSE;
 			return IL_TRUE;
 		}
@@ -477,16 +457,16 @@ ILboolean iLoadDdsInternal(ILcontext* context)
 	Depth = Head.Depth;
 	AdjustVolumeTexture(&Head, CompFormat, IsDXT10);
 
-	if (!ReadData(context, CompFormat, IsDXT10))
+	if (!ReadData(CompFormat, IsDXT10))
 		return IL_FALSE;
-	if (!AllocImage(context, CompFormat, IsDXT10)) {
+	if (!AllocImage(CompFormat, IsDXT10)) {
 		if (CompData) {
 			ifree(CompData);
 			CompData = NULL;
 		}
 		return IL_FALSE;
 	}
-	if (!DdsDecompress(context, CompFormat, IsDXT10)) {
+	if (!DdsDecompress(CompFormat, IsDXT10)) {
 		if (CompData) {
 			ifree(CompData);
 			CompData = NULL;
@@ -494,7 +474,7 @@ ILboolean iLoadDdsInternal(ILcontext* context)
 		return IL_FALSE;
 	}
 
-	if (!ReadMipmaps(context, CompFormat, IsDXT10)) {
+	if (!ReadMipmaps(CompFormat, IsDXT10)) {
 		if (CompData) {
 			ifree(CompData);
 			CompData = NULL;
@@ -511,8 +491,7 @@ ILboolean iLoadDdsInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-
-ILuint DecodePixelFormat(ILuint *CompFormat)
+ILuint DdsHandler::DecodePixelFormat(ILuint *CompFormat)
 {
 	ILuint BlockSize;
 
@@ -625,7 +604,6 @@ ILuint DecodePixelFormat(ILuint *CompFormat)
 
 	return BlockSize;
 }
-
 
 // From https://msdn.microsoft.com/en-us/windows/uwp/gaming/complete-code-for-ddstextureloader
 //
@@ -759,10 +737,9 @@ static size_t BitsPerPixel(DXGI_FORMAT fmt)
 	}
 }
 
-
 // The few volume textures that I have don't have consistent LinearSize
 //	entries, even though the DDS_LINEARSIZE flag is set.
-void AdjustVolumeTexture(DDSHEAD *Head, ILuint CompFormat, ILboolean IsDXT10)
+void DdsHandler::AdjustVolumeTexture(DDSHEAD *Head, ILuint CompFormat, ILboolean IsDXT10)
 {
 	if (Head->Depth <= 1)
 		return;
@@ -822,9 +799,8 @@ void AdjustVolumeTexture(DDSHEAD *Head, ILuint CompFormat, ILboolean IsDXT10)
 	return;
 }
 
-
 // Reads the compressed data
-ILboolean ReadData(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
+ILboolean DdsHandler::ReadData(ILuint CompFormat, ILboolean IsDXT10)
 {
 	ILuint	Bps;
 	ILint	y, z;
@@ -881,8 +857,7 @@ ILboolean ReadData(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
 	return IL_TRUE;
 }
 
-
-ILboolean AllocImage(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
+ILboolean DdsHandler::AllocImage(ILuint CompFormat, ILboolean IsDXT10)
 {
 	ILubyte channels = 4;
 	ILenum format = IL_RGBA;
@@ -993,7 +968,6 @@ ILboolean AllocImage(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
 	return IL_TRUE;
 }
 
-
 /*
  * Assumes that the global variable CompFormat stores the format of the
  * global pointer CompData (that's the pointer to the compressed data).
@@ -1008,7 +982,7 @@ ILboolean AllocImage(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
  *
  * @TODO: don't use globals, clean this function (and this file) up
  */
-ILboolean DdsDecompress(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
+ILboolean DdsHandler::DdsDecompress(ILuint CompFormat, ILboolean IsDXT10)
 {
 	if (IsDXT10)
 	{  //@TODO: Put in compressed formats
@@ -1066,8 +1040,7 @@ ILboolean DdsDecompress(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10
 	return IL_FALSE;
 }
 
-
-ILboolean ReadMipmaps(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
+ILboolean DdsHandler::ReadMipmaps(ILuint CompFormat, ILboolean IsDXT10)
 {
 	ILuint	i, CompFactor=0;
 	ILubyte	Bpp, Channels, Bpc;
@@ -1183,7 +1156,7 @@ ILboolean ReadMipmaps(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
 			Head.LinearSize >>= 1;
 		}
 
-		if (!ReadData(context, CompFormat, IsDXT10))
+		if (!ReadData(CompFormat, IsDXT10))
 			goto mip_fail;
 
 		if (ilGetInteger(context, IL_KEEP_DXTC_DATA) == IL_TRUE && isCompressed == IL_TRUE && CompData) {
@@ -1195,7 +1168,7 @@ ILboolean ReadMipmaps(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10)
 			memcpy(Image->DxtcData, CompData, Image->DxtcSize);
 		}
 
-		if (!DdsDecompress(context, CompFormat, IsDXT10))
+		if (!DdsDecompress(CompFormat, IsDXT10))
 			goto mip_fail;
 	}
 
@@ -1216,7 +1189,6 @@ mip_fail:
 	Image->Mipmaps = NULL;
 	return IL_FALSE;
 }
-
 
 void DxtcReadColors(const ILubyte* Data, Color8888* Out)
 {
@@ -1253,12 +1225,10 @@ void DxtcReadColor(ILushort Data, Color8888* Out)
 	Out->b = b << 3 | r >> 2;
 }
 
-
 // Defined at the bottom of the file
 //ILboolean DecompressDXT1(ILimage *lImage, ILubyte *lCompData)
 
-
-ILboolean DecompressDXT2(ILimage *lImage, ILubyte *lCompData)
+ILboolean DdsHandler::DecompressDXT2(ILimage *lImage, ILubyte *lCompData)
 {
 	// Can do color & alpha same as dxt3, but color is pre-multiplied 
 	//   so the result will be wrong unless corrected. 
@@ -1268,7 +1238,6 @@ ILboolean DecompressDXT2(ILimage *lImage, ILubyte *lCompData)
 
 	return IL_TRUE;
 }
-
 
 ILboolean DecompressDXT3(ILimage *lImage, ILubyte *lCompData)
 {
@@ -1342,8 +1311,7 @@ ILboolean DecompressDXT3(ILimage *lImage, ILubyte *lCompData)
 	return IL_TRUE;
 }
 
-
-ILboolean DecompressDXT4(ILimage *lImage, ILubyte *lCompData)
+ILboolean DdsHandler::DecompressDXT4(ILimage *lImage, ILubyte *lCompData)
 {
 	// Can do color & alpha same as dxt5, but color is pre-multiplied 
 	//   so the result will be wrong unless corrected. 
@@ -1353,7 +1321,6 @@ ILboolean DecompressDXT4(ILimage *lImage, ILubyte *lCompData)
 
 	return IL_FALSE;
 }
-
 
 ILboolean DecompressDXT5(ILimage *lImage, ILubyte *lCompData)
 {
@@ -1473,8 +1440,7 @@ ILboolean DecompressDXT5(ILimage *lImage, ILubyte *lCompData)
 	return IL_TRUE;
 }
 
-
-ILboolean Decompress3Dc()
+ILboolean DdsHandler::Decompress3Dc()
 {
 	int			x, y, z, i, j, k, t1, t2;
 	ILubyte		*Temp, *Temp2;
@@ -1564,8 +1530,7 @@ ILboolean Decompress3Dc()
 	return IL_TRUE;
 }
 
-
-ILboolean DecompressAti1n()
+ILboolean DdsHandler::DecompressAti1n()
 {
 	int			x, y, z, i, j, k, t1, t2;
 	ILubyte		*Temp;
@@ -1623,11 +1588,10 @@ ILboolean DecompressAti1n()
 	return IL_TRUE;
 }
 
-
 //This is nearly exactly the same as DecompressDXT5...
 //I have to clean up this file (put common code in
 //helper functions etc)
-ILboolean DecompressRXGB()
+ILboolean DdsHandler::DecompressRXGB()
 {
 	int			x, y, z, i, j, k, Select;
 	ILubyte		*Temp;
@@ -1752,7 +1716,6 @@ ILboolean DecompressRXGB()
 	return IL_TRUE;
 }
 
-
 //Taken from OpenEXR
 unsigned int
 halfToFloat (unsigned short y)
@@ -1815,7 +1778,6 @@ halfToFloat (unsigned short y)
 	return (s << 31) | (e << 23) | m;
 }
 
-
 ILboolean iConvFloat16ToFloat32(ILuint* dest, ILushort* src, ILuint size)
 {
 	ILuint i;
@@ -1827,7 +1789,6 @@ ILboolean iConvFloat16ToFloat32(ILuint* dest, ILushort* src, ILuint size)
 
 	return IL_TRUE;
 }
-
 
 // Same as iConvFloat16ToFloat32, but we have to set the blue channel to 1.0f.
 //  The destination format is RGB, and the source is R16G16 (little endian).
@@ -1845,7 +1806,6 @@ ILboolean iConvG16R16ToFloat32(ILuint* dest, ILushort* src, ILuint size)
 	return IL_TRUE;
 }
 
-
 // Same as iConvFloat16ToFloat32, but we have to set the green and blue channels
 //  to 1.0f.  The destination format is RGB, and the source is R16.
 ILboolean iConvR16ToFloat32(ILuint* dest, ILushort* src, ILuint size)
@@ -1862,8 +1822,7 @@ ILboolean iConvR16ToFloat32(ILuint* dest, ILushort* src, ILuint size)
 	return IL_TRUE;
 }
 
-
-ILboolean DecompressFloat(ILuint lCompFormat)
+ILboolean DdsHandler::DecompressFloat(ILuint lCompFormat)
 {
 	ILuint i, j, Size;
 
@@ -1902,8 +1861,7 @@ ILboolean DecompressFloat(ILuint lCompFormat)
 	}
 }
 
-
-void CorrectPreMult()
+void DdsHandler::CorrectPreMult()
 {
 	ILuint i;
 
@@ -1918,16 +1876,14 @@ void CorrectPreMult()
 	return;
 }
 
-
-ILboolean DecompressARGBDX10(ILcontext* context, ILuint CompFormat)
+ILboolean DdsHandler::DecompressARGBDX10(ILcontext* context, ILuint CompFormat)
 {
 	//@TODO: Will certainly fail if context->impl->iCurImage->SizeOfData != "Compressed" Size
 	memcpy(context->impl->iCurImage->Data, CompData, context->impl->iCurImage->SizeOfData);
 	return IL_TRUE;
 }
 
-
-ILboolean DecompressARGB(ILuint CompFormat)
+ILboolean DdsHandler::DecompressARGB(ILuint CompFormat)
 {
 	ILuint ReadI = 0, TempBpp, i;
 	ILuint RedL, RedR;
@@ -2006,7 +1962,6 @@ ILboolean DecompressARGB(ILuint CompFormat)
 	return IL_TRUE;
 }
 
-
 // This function simply counts how many contiguous bits are in the mask.
 ILuint CountBitsFromMask(ILuint Mask)
 {
@@ -2026,10 +1981,9 @@ ILuint CountBitsFromMask(ILuint Mask)
 	return Count;
 }
 
-
 // Same as DecompressARGB, but it works on images with more than 8 bits
 //  per channel, such as a2r10g10b10 and a2b10g10r10.
-ILboolean DecompressARGB16(ILuint CompFormat)
+ILboolean DdsHandler::DecompressARGB16(ILuint CompFormat)
 {
 	ILuint ReadI = 0, TempBpp, i;
 	ILuint RedL, RedR;
@@ -2111,7 +2065,6 @@ ILboolean DecompressARGB16(ILuint CompFormat)
 	return IL_TRUE;
 }
 
-
 // @TODO:  Look at using the BSF/BSR operands for inline ASM here.
 void GetBitsFromMask(ILuint Mask, ILuint *ShiftLeft, ILuint *ShiftRight)
 {
@@ -2138,7 +2091,6 @@ void GetBitsFromMask(ILuint Mask, ILuint *ShiftLeft, ILuint *ShiftRight)
 
 	return;
 }
-
 
 //
 //
@@ -2189,7 +2141,7 @@ void ilFreeImageDxtcData(ILcontext* context)
 /*
  * This assumes DxtcData, DxtcFormat, width, height, and depth are valid
  */
-ILAPI ILboolean ILAPIENTRY ilDxtcDataToSurface(ILcontext* context)
+/*ILboolean DdsHandler::ilDxtcDataToSurface()
 {
 	ILuint CompFormat;
 
@@ -2241,10 +2193,9 @@ ILAPI ILboolean ILAPIENTRY ilDxtcDataToSurface(ILcontext* context)
 	//@TODO: origin should be set in Decompress()...
 	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 	return ilFixCur(context);
-}
+}*/
 
-
-ILAPI ILboolean ILAPIENTRY ilDxtcDataToImage(ILcontext* context)
+/*ILAPI ILboolean ILAPIENTRY ilDxtcDataToImage(ILcontext* context)
 {
 	ILint i, j;
 	ILuint ImgID = ilGetInteger(context, IL_CUR_IMAGE);
@@ -2269,8 +2220,7 @@ ILAPI ILboolean ILAPIENTRY ilDxtcDataToImage(ILcontext* context)
     ilBindImage(context, ImgID);
 
 	return ret;
-}
-
+}*/
 
 ILAPI ILboolean ILAPIENTRY ilSurfaceToDxtcData(ILcontext* context, ILenum Format)
 {

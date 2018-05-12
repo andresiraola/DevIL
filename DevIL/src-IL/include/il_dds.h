@@ -10,16 +10,14 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef DDS_H
-#define DDS_H
+#pragma once
 
 #include "il_internal.h"
-
 
 #ifdef _WIN32
 	#pragma pack(push, dds_struct, 1)
 #endif
+
 typedef struct DDSHEAD
 {
 	ILbyte	Signature[4];
@@ -47,14 +45,15 @@ typedef struct DDSHEAD
 	ILuint	ddsCaps1, ddsCaps2, ddsCaps3, ddsCaps4; // direct draw surface capabilities
 	ILuint	TextureStage;
 } IL_PACKSTRUCT DDSHEAD;
+
 #ifdef _WIN32
 	#pragma pack(pop, dds_struct)
 #endif
 
-
 #ifdef _WIN32
 #pragma pack(push, dxt10_struct, 1)
 #endif
+
 typedef struct DXT10HEAD
 {
 	ILuint	dxgiFormat;
@@ -63,10 +62,10 @@ typedef struct DXT10HEAD
 	ILuint	arraySize;
 	ILuint	miscFlags2;
 } IL_PACKSTRUCT DXT10HEAD;
+
 #ifdef _WIN32
 #pragma pack(pop, dxt10_struct)
 #endif
-
 
 // use cast to struct instead of RGBA_MAKE as struct is
 //  much
@@ -78,7 +77,6 @@ typedef struct Color8888
 	ILubyte a;
 } Color8888;
 
-
 typedef struct Color888
 {
 	ILubyte r;		// change the order of names to change the 
@@ -86,14 +84,12 @@ typedef struct Color888
 	ILubyte b;		//  Last one is MSB, 1st is LSB.
 } Color888;
 
-
 typedef struct Color565
 {
 	unsigned nBlue  : 5;		// order of names changes
 	unsigned nGreen : 6;		//  byte order of output to 32 bit
 	unsigned nRed	: 5;
 } Color565;
-
 
 typedef struct DXTColBlock
 {
@@ -116,7 +112,6 @@ typedef struct DXTAlphaBlock3BitLinear
 
 	ILbyte stuff[6];
 } DXTAlphaBlock3BitLinear;
-
 
 // Defines
 
@@ -323,32 +318,18 @@ extern "C" {
 #endif
 
 // Internal functions
-ILboolean	iLoadDdsInternal(ILcontext* context);
-ILboolean	iIsValidDds(ILcontext* context);
-ILboolean	iCheckDds(DDSHEAD *Head);
-void		AdjustVolumeTexture(DDSHEAD *Head, ILuint CompFormat, ILboolean IsDXT10);
-ILboolean	ReadData(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10);
-ILboolean	AllocImage(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10);
-ILboolean	DdsDecompress(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10);
-ILboolean	ReadMipmaps(ILcontext* context, ILuint CompFormat, ILboolean IsDXT10);
-ILuint		DecodePixelFormat(ILuint *CompFormat);
+ILboolean	DecompressDXT1(ILimage *lImage, ILubyte *lCompData);
+ILboolean	DecompressDXT3(ILimage *lImage, ILubyte *lCompData);
+ILboolean	DecompressDXT5(ILimage *lImage, ILubyte *lCompData);
 void		DxtcReadColor(ILushort Data, Color8888* Out);
 void		DxtcReadColors(const ILubyte* Data, Color8888* Out);
-ILboolean	DecompressARGB(ILuint CompFormat);
-ILboolean	DecompressARGB16(ILuint CompFormat);
-ILboolean	DecompressARGBDX10(ILcontext* context, ILuint CompFormat);
-ILboolean	DecompressDXT1(ILimage *lImage, ILubyte *lCompData);
-ILboolean	DecompressDXT2(ILimage *lImage, ILubyte *lCompData);
-ILboolean	DecompressDXT3(ILimage *lImage, ILubyte *lCompData);
-ILboolean	DecompressDXT4(ILimage *lImage, ILubyte *lCompData);
-ILboolean	DecompressDXT5(ILimage *lImage, ILubyte *lCompData);
-ILboolean	Decompress3Dc();
-ILboolean	DecompressAti1n();
-ILboolean	DecompressRXGB();
 ILboolean	iConvFloat16ToFloat32(ILuint* dest, ILushort* src, ILuint size);
-ILboolean	DecompressFloat(ILuint lCompFormat);
-void		CorrectPreMult();
-void		GetBitsFromMask(ILuint Mask, ILuint *ShiftLeft, ILuint *ShiftRight);
+
+/*ILboolean	iLoadDdsInternal(ILcontext* context);
+ILboolean	iIsValidDds(ILcontext* context);
+
+ILboolean	DecompressARGB16(ILuint CompFormat);
+
 ILboolean	iSaveDdsInternal(ILcontext* context);
 ILboolean	WriteHeader(ILcontext* context, ILimage *Image, ILenum DXTCFormat, ILuint CubeFlags);
 ILushort	*CompressTo565(ILcontext* context, ILimage *Image);
@@ -371,10 +352,64 @@ void		CorrectEndDXT1(ILushort *ex0, ILushort *ex1, ILboolean HasAlpha);
 void		PreMult(ILushort *Data, ILubyte *Alpha);
 
 
-extern ILuint CubemapDirections[CUBEMAP_SIDES];
+extern ILuint CubemapDirections[CUBEMAP_SIDES];*/
 
 #ifdef __cplusplus
 }
-#endif
+#endif*/
 
-#endif//DDS_H
+class DdsHandler
+{
+protected:
+	ILcontext*	context;
+
+	DDSHEAD		Head;				// Image header
+	DXT10HEAD	HeadDXT10;			// DirectX 10 extension header
+	ILubyte*	CompData = NULL;	// Compressed data
+	ILuint		CompSize;			// Compressed size
+	//ILuint	CompFormat;			// Compressed format
+	ILimage*	Image;
+	ILint		Width, Height, Depth;
+	ILboolean	Has16BitComponents;
+
+	void		AdjustVolumeTexture(DDSHEAD *Head, ILuint CompFormat, ILboolean IsDXT10);
+	ILboolean	AllocImage(ILuint CompFormat, ILboolean IsDXT10);
+	void		Check16BitComponents(DDSHEAD *Header);
+	void		CorrectPreMult();
+	ILuint		DecodePixelFormat(ILuint *CompFormat);
+	ILboolean	Decompress3Dc();
+	ILboolean	DecompressAti1n();
+	ILboolean	DecompressARGB(ILuint CompFormat);
+	ILboolean	DecompressARGB16(ILuint CompFormat);
+	ILboolean	DecompressARGBDX10(ILcontext* context, ILuint CompFormat);
+	ILboolean	DecompressDXT2(ILimage *lImage, ILubyte *lCompData);
+	ILboolean	DecompressDXT4(ILimage *lImage, ILubyte *lCompData);
+	ILboolean	DecompressFloat(ILuint lCompFormat);
+	ILboolean	DecompressRXGB();
+	ILboolean	DdsDecompress(ILuint CompFormat, ILboolean IsDXT10);
+	ILubyte		iCompFormatToBpp(ILenum Format);
+	ILubyte		iCompFormatToBpc(ILenum Format);
+	ILboolean	iGetDdsHead(DDSHEAD *Header);
+	ILboolean	iLoadCubemapInternal(ILuint CompFormat, ILboolean IsDXT10);
+	ILboolean	ReadData(ILuint CompFormat, ILboolean IsDXT10);
+	ILboolean	ReadMipmaps(ILuint CompFormat, ILboolean IsDXT10);
+
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+	ILboolean	saveInternal();
+
+public:
+	DdsHandler(ILcontext* context);
+
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
+
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+
+	ILboolean	save(ILconst_string FileName);
+	ILuint		saveF(ILHANDLE File);
+	ILuint		saveL(void *Lump, ILuint Size);
+};

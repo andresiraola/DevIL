@@ -12,8 +12,10 @@
 //-----------------------------------------------------------------------------
 
 #include "il_internal.h"
+
 #ifndef IL_NO_TEXTURE
 
+#include "il_dds.h"
 
 //! Reads a TEXTURE file
 ILboolean ilLoadTexture(ILcontext* context, ILconst_string FileName)
@@ -33,7 +35,6 @@ ILboolean ilLoadTexture(ILcontext* context, ILconst_string FileName)
 	return bTexture;
 }
 
-
 //! Reads an already-opened TEXTURE file
 ILboolean ilLoadTextureF(ILcontext* context, ILHANDLE File)
 {
@@ -45,12 +46,15 @@ ILboolean ilLoadTextureF(ILcontext* context, ILHANDLE File)
 	// From http://forums.totalwar.org/vb/showthread.php?t=70886, all that needs to be done
 	//  is to strip out the first 48 bytes, and then it is DDS data.
 	context->impl->iseek(context, 48, IL_SEEK_CUR);
-	bRet = ilLoadDdsF(context, File);
+
+	DdsHandler handler(context);
+
+	bRet = handler.loadF(File);
+	
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
-
 
 //! Reads from a memory "lump" that contains a TEXTURE
 ILboolean ilLoadTextureL(ILcontext* context, const void *Lump, ILuint Size)
@@ -59,8 +63,10 @@ ILboolean ilLoadTextureL(ILcontext* context, const void *Lump, ILuint Size)
 	// From http://forums.totalwar.org/vb/showthread.php?t=70886, all that needs to be done
 	//  is to strip out the first 48 bytes, and then it is DDS data.
 	context->impl->iseek(context, 48, IL_SEEK_CUR);
-	return ilLoadDdsL(context, Lump, Size);
+
+	DdsHandler handler(context);
+
+	return handler.loadL(Lump, Size);
 }
 
-#endif//IL_NO_TEXTURE
-
+#endif // IL_NO_TEXTURE

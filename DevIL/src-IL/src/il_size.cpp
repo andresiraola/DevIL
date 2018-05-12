@@ -11,12 +11,16 @@
 //-----------------------------------------------------------------------------
 
 #include "il_internal.h"
-#include "il_png.h"
-#include "il_jpeg.h"
+
+#include "il_bmp.h"
+#include "il_dds.h"
 #include "il_hdr.h"
-#include "il_tiff.h"
-#include "il_targa.h"
+#include "il_jpeg.h"
+#include "il_png.h"
 #include "il_psd.h"
+#include "il_raw.h"
+#include "il_targa.h"
+#include "il_tiff.h"
 
 //! Fake seek function
 ILint ILAPIENTRY iSizeSeek(ILcontext* context, ILint Offset, ILuint Mode)
@@ -84,14 +88,22 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 	{
 		#ifndef IL_NO_BMP
 		case IL_BMP:
-			ilSaveBmpL(context, NULL, 0);
-			break;
+		{
+			BmpHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_BMP
 
 		#ifndef IL_NO_DDS
 		case IL_DDS:
-			ilSaveDdsL(context, NULL, 0);
-			break;
+		{
+			DdsHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_DDS
 
 		#ifndef IL_NO_EXR
@@ -160,8 +172,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_RAW
 		case IL_RAW:
-			ilSaveRawL(context, NULL, 0);
-			break;
+		{
+			RawHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_RAW
 
 		#ifndef IL_NO_SGI

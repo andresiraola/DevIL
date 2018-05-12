@@ -10,9 +10,7 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef GIF_H
-#define GIF_H
+#pragma once
 
 #include "il_internal.h"
 
@@ -22,6 +20,7 @@
 #ifdef _WIN32
 	#pragma pack(push, gif_struct, 1)
 #endif
+
 typedef struct GIFHEAD
 {
 	char		Sig[6];
@@ -53,19 +52,45 @@ typedef struct GFXCONTROL
 
 			//if a gfxcontrol was read from the file, IL_TRUE otherwise
 } IL_PACKSTRUCT GFXCONTROL;
+
 #ifdef _WIN32
 	#pragma pack(pop, gif_struct)
 #endif
 
-// Internal functions
-ILboolean iLoadGifInternal(ILcontext* context);
-ILboolean ilLoadGifF(ILcontext* context, ILHANDLE File);
-ILboolean iIsValidGif(ILcontext* context);
-ILboolean iGetPalette(ILcontext* context, ILubyte Info, ILpal *Pal, ILboolean UsePrevPal, ILimage *PrevImage);
-ILboolean GetImages(ILcontext* context, ILpal *GlobalPal, GIFHEAD *GifHead);
-ILboolean SkipExtensions(ILcontext* context, GFXCONTROL *Gfx);
-ILboolean GifGetData(ILcontext* context, ILimage *Image, ILubyte *Data, ILuint ImageSize, ILuint Width, ILuint Height, ILuint Stride, ILuint PalOffset, GFXCONTROL *Gfx);
-ILboolean RemoveInterlace(ILcontext* context, ILimage *image);
-ILboolean ConvertTransparent(ILcontext* context, ILimage *Image, ILubyte TransColour);
+class GifHandler
+{
+protected:
+	ILcontext * context;
 
-#endif//GIF_H
+	ILenum		GifType;
+
+	ILboolean	success;
+
+	ILint		curr_size, clear, ending, newcodes, top_slot, slot, navail_bytes = 0, nbits_left = 0;
+	ILubyte		b1;
+	ILubyte		byte_buff[257];
+	ILubyte*	pbytes;
+	ILubyte*	stack;
+	ILubyte*	suffix;
+	ILshort*	prefix;
+
+	ILint		get_next_code();
+	void		cleanUpGifLoadState();
+
+	ILboolean	GetImages(ILpal *GlobalPal, GIFHEAD *GifHead);
+	ILboolean	GifGetData(ILimage *Image, ILubyte *Data, ILuint ImageSize, ILuint Width, ILuint Height, ILuint Stride, ILuint PalOffset, GFXCONTROL *Gfx);
+
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+
+public:
+	GifHandler(ILcontext* context);
+
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
+
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+};

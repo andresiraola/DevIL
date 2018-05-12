@@ -14,17 +14,25 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_GIF
 
 #include "il_gif.h"
 
+ILboolean iGetPalette(ILcontext* context, ILubyte Info, ILpal *Pal, ILboolean UsePrevPal, ILimage *PrevImage);
+ILboolean SkipExtensions(ILcontext* context, GFXCONTROL *Gfx);
+ILboolean RemoveInterlace(ILcontext* context, ILimage *image);
+ILboolean ConvertTransparent(ILcontext* context, ILimage *Image, ILubyte TransColour);
 
-ILenum	GifType;
+GifHandler::GifHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid Gif file.
-ILboolean ilIsValidGif(ILcontext* context, ILconst_string FileName)
+ILboolean GifHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	GifFile;
 	ILboolean	bGif = IL_FALSE;
@@ -40,38 +48,35 @@ ILboolean ilIsValidGif(ILcontext* context, ILconst_string FileName)
 		return bGif;
 	}
 
-	bGif = ilIsValidGifF(context, GifFile);
+	bGif = isValidF(GifFile);
 	context->impl->icloser(GifFile);
 
 	return bGif;
 }
 
-
 //! Checks if the ILHANDLE contains a valid Gif file at the current position.
-ILboolean ilIsValidGifF(ILcontext* context, ILHANDLE File)
+ILboolean GifHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidGif(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid Gif lump.
-ILboolean ilIsValidGifL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean GifHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidGif(context);
+	return isValidInternal();
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidGif(ILcontext* context)
+ILboolean GifHandler::isValidInternal()
 {
 	char Header[6];
 	
@@ -87,9 +92,8 @@ ILboolean iIsValidGif(ILcontext* context)
 	return IL_FALSE;
 }
 
-
 //! Reads a Gif file
-ILboolean ilLoadGif(ILcontext* context, ILconst_string FileName)
+ILboolean GifHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	GifFile;
 	ILboolean	bGif = IL_FALSE;
@@ -100,38 +104,35 @@ ILboolean ilLoadGif(ILcontext* context, ILconst_string FileName)
 		return bGif;
 	}
 
-	bGif = ilLoadGifF(context, GifFile);
+	bGif = loadF(GifFile);
 	context->impl->icloser(GifFile);
 
 	return bGif;
 }
 
-
 //! Reads an already-opened Gif file
-ILboolean ilLoadGifF(ILcontext* context, ILHANDLE File)
+ILboolean GifHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadGifInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a Gif
-ILboolean ilLoadGifL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean GifHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-   	return iLoadGifInternal(context);
+   	return loadInternal();
 }
 
-
 // Internal function used to load the Gif.
-ILboolean iLoadGifInternal(ILcontext* context)
+ILboolean GifHandler::loadInternal()
 {
 	GIFHEAD	Header;
 	ILpal	GlobalPal;
@@ -174,7 +175,7 @@ ILboolean iLoadGifInternal(ILcontext* context)
 		}
 	}
 
-	if (!GetImages(context, &GlobalPal, &Header))
+	if (!GetImages(&GlobalPal, &Header))
 		return IL_FALSE;
 
 	if (GlobalPal.Palette && GlobalPal.PalSize)
@@ -184,7 +185,6 @@ ILboolean iLoadGifInternal(ILcontext* context)
 
 	return ilFixImage(context);
 }
-
 
 ILboolean iGetPalette(ILcontext* context, ILubyte Info, ILpal *Pal, ILboolean UsePrevPal, ILimage *PrevImage)
 {
@@ -227,8 +227,7 @@ ILboolean iGetPalette(ILcontext* context, ILubyte Info, ILpal *Pal, ILboolean Us
 	return IL_TRUE;
 }
 
-
-ILboolean GetImages(ILcontext* context, ILpal *GlobalPal, GIFHEAD *GifHead)
+ILboolean GifHandler::GetImages(ILpal *GlobalPal, GIFHEAD *GifHead)
 {
 	IMAGEDESC	ImageDesc, OldImageDesc;
 	GFXCONTROL	Gfx;
@@ -328,7 +327,7 @@ ILboolean GetImages(ILcontext* context, ILpal *GlobalPal, GIFHEAD *GifHead)
 			}
 		}
 
-		if (!GifGetData(context, Image, Image->Data + ImageDesc.OffX + ImageDesc.OffY*Image->Width, Image->SizeOfData,
+		if (!GifGetData(Image, Image->Data + ImageDesc.OffX + ImageDesc.OffY*Image->Width, Image->SizeOfData,
 				ImageDesc.Width, ImageDesc.Height, Image->Width, PalOffset, &Gfx)) {
 			memset(Image->Data, 0, Image->SizeOfData);  //@TODO: Remove this.  For debugging purposes right now.
 			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
@@ -379,7 +378,6 @@ error_clean:
 	}*/
 	return IL_FALSE;
 }
-
 
 ILboolean SkipExtensions(ILcontext* context, GFXCONTROL *Gfx)
 {
@@ -438,18 +436,7 @@ ILboolean SkipExtensions(ILcontext* context, GFXCONTROL *Gfx)
 	return IL_TRUE;
 }
 
-
 #define MAX_CODES 4096
-
-ILint	curr_size, clear, ending, newcodes, top_slot, slot, navail_bytes = 0, nbits_left = 0;
-ILubyte	b1;
-ILubyte	byte_buff[257];
-ILubyte	*pbytes;
-ILubyte	*stack;
-ILubyte	*suffix;
-ILshort	*prefix;
-
-ILboolean success;
 
 ILuint code_mask[13] =
 {
@@ -462,8 +449,8 @@ ILuint code_mask[13] =
    0x07FFL, 0x0FFFL
 };
 
-
-ILint get_next_code(ILcontext* context) {
+ILint GifHandler::get_next_code()
+{
 	ILint	i, t;
 	ILuint	ret;
 
@@ -528,15 +515,14 @@ ILint get_next_code(ILcontext* context) {
 	return (ret & code_mask[curr_size]);
 }
 
-static void cleanUpGifLoadState()
+void GifHandler::cleanUpGifLoadState()
 {
 	ifree(stack);
 	ifree(suffix);
 	ifree(prefix);
-
 }
 
-ILboolean GifGetData(ILcontext* context, ILimage *Image, ILubyte *Data, ILuint ImageSize, ILuint Width, ILuint Height, ILuint Stride, ILuint PalOffset, GFXCONTROL *Gfx)
+ILboolean GifHandler::GifGetData(ILimage *Image, ILubyte *Data, ILuint ImageSize, ILuint Width, ILuint Height, ILuint Stride, ILuint PalOffset, GFXCONTROL *Gfx)
 {
 	ILubyte	*sp;
 	ILint	code, fc, oc;
@@ -572,13 +558,13 @@ ILboolean GifGetData(ILcontext* context, ILimage *Image, ILubyte *Data, ILuint I
 	oc = fc = 0;
 	sp = stack;
 
-	while ((c = get_next_code(context)) != ending && Read < Height) {
+	while ((c = get_next_code()) != ending && Read < Height) {
 		if (c == clear)
 		{
 			curr_size = size + 1;
 			slot = newcodes;
 			top_slot = 1 << curr_size;
-			while ((c = get_next_code(context)) == clear);
+			while ((c = get_next_code()) == clear);
 			if (c == ending)
 				break;
 			if (c >= slot)
@@ -670,7 +656,6 @@ ILboolean GifGetData(ILcontext* context, ILimage *Image, ILubyte *Data, ILuint I
 	return IL_TRUE;
 }
 
-
 /*From the GIF spec:
 
   The rows of an Interlaced images are arranged in the following order:
@@ -718,7 +703,6 @@ ILboolean RemoveInterlace(ILcontext* context, ILimage *image)
 	return IL_TRUE;
 }
 
-
 // Uses the transparent colour index to make an alpha channel.
 ILboolean ConvertTransparent(ILcontext* context, ILimage *Image, ILubyte TransColour)
 {
@@ -752,4 +736,4 @@ ILboolean ConvertTransparent(ILcontext* context, ILimage *Image, ILubyte TransCo
 	return IL_TRUE;
 }
 
-#endif //IL_NO_GIF
+#endif // IL_NO_GIF

@@ -13,14 +13,49 @@
 #define IL_BMP_C
 
 #include "il_internal.h"
+
 #ifndef IL_NO_BMP
+
 #include "il_bmp.h"
 #include "il_endian.h"
+
 #include <stdio.h>
-void GetShiftFromMask(const ILuint Mask, ILuint * CONST_RESTRICT ShiftLeft, ILuint * CONST_RESTRICT ShiftRight);
+
+#ifndef NOINLINE
+INLINE void GetShiftFromMask(const ILuint Mask, ILuint * CONST_RESTRICT ShiftLeft, ILuint * CONST_RESTRICT ShiftRight) {
+	ILuint Temp, i;
+
+	if (Mask == 0) {
+		*ShiftLeft = *ShiftRight = 0;
+		return;
+	}
+
+	Temp = Mask;
+	for (i = 0; i < 32; i++, Temp >>= 1) {
+		if (Temp & 1)
+			break;
+	}
+	*ShiftRight = i;
+
+	// Temp is preserved, so use it again:
+	for (i = 0; i < 8; i++, Temp >>= 1) {
+		if (!(Temp & 1))
+			break;
+	}
+	*ShiftLeft = 8 - i;
+
+	return;
+}
+#endif
+
+BmpHandler::BmpHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid .bmp file.
-ILboolean ilIsValidBmp(ILcontext* context, ILconst_string CONST_RESTRICT FileName)
+ILboolean BmpHandler::isValid(ILconst_string CONST_RESTRICT FileName)
 {
 	ILHANDLE	BitmapFile;
 	ILboolean	bBitmap = IL_FALSE;
@@ -36,33 +71,31 @@ ILboolean ilIsValidBmp(ILcontext* context, ILconst_string CONST_RESTRICT FileNam
 		return bBitmap;
 	}
 
-	bBitmap = ilIsValidBmpF(context, BitmapFile);
+	bBitmap = isValidF(BitmapFile);
 	context->impl->icloser(BitmapFile);
 
 	return bBitmap;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .bmp file at the current position.
-ILboolean ilIsValidBmpF(ILcontext* context, ILHANDLE File)
+ILboolean BmpHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidBmp(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid .bmp lump.
-ILboolean ilIsValidBmpL(ILcontext* context, const void * Lump, ILuint Size)
+ILboolean BmpHandler::isValidL(const void * Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidBmp(context);
+	return isValidInternal();
 }
 
 // Internal function used to get the .bmp header from the current file.
@@ -85,7 +118,6 @@ ILboolean iGetBmpHead(ILcontext* context, BMPHEAD * const Header)
 	Header->biClrImportant = GetLittleInt(context);
 	return IL_TRUE;
 }
-
 
 ILboolean iGetOS2Head(ILcontext* context, OS2_HEAD * const Header)
 {
@@ -110,9 +142,8 @@ ILboolean iGetOS2Head(ILcontext* context, OS2_HEAD * const Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidBmp(ILcontext* context)
+ILboolean BmpHandler::isValidInternal()
 {
 	BMPHEAD		Head;
 	OS2_HEAD	Os2Head;
@@ -121,7 +152,7 @@ ILboolean iIsValidBmp(ILcontext* context)
 	iGetBmpHead(context, &Head);
 	context->impl->iseek(context, -(ILint)sizeof(BMPHEAD), IL_SEEK_CUR);  // Go ahead and restore to previous state
 
-	IsValid = iCheckBmp(&Head);
+	IsValid = check(&Head);
 	if (!IsValid) {
 		iGetOS2Head(context, &Os2Head);
 		context->impl->iseek(context, -(ILint)sizeof(BMPHEAD), IL_SEEK_CUR);
@@ -130,21 +161,20 @@ ILboolean iIsValidBmp(ILcontext* context)
 	return IsValid;
 }
 
-
 // Internal function used to check if the HEADER is a valid .bmp header.
-ILboolean iCheckBmp (const BMPHEAD * CONST_RESTRICT Header)
+ILboolean BmpHandler::check(const BMPHEAD * CONST_RESTRICT Header)
 {
 	//if ((Header->bfType != ('B'|('M'<<8))) || ((Header->biSize != 0x28) && (Header->biSize != 0x0C)))
-	if ((Header->bfType != ('B'|('M'<<8))) || (Header->biSize != 0x28))
+	if ((Header->bfType != ('B' | ('M' << 8))) || (Header->biSize != 0x28))
 		return IL_FALSE;
 	if (Header->biHeight == 0 || Header->biWidth < 1)
 		return IL_FALSE;
 	if (Header->biPlanes > 1)  // Not sure...
 		return IL_FALSE;
-	if(Header->biCompression != 0 && Header->biCompression != 1 &&
+	if (Header->biCompression != 0 && Header->biCompression != 1 &&
 		Header->biCompression != 2 && Header->biCompression != 3)
 		return IL_FALSE;
-	if(Header->biCompression == 3 && Header->biBitCount != 16 && Header->biBitCount != 32)
+	if (Header->biCompression == 3 && Header->biBitCount != 16 && Header->biBitCount != 32)
 		return IL_FALSE;
 	if (Header->biBitCount != 1 && Header->biBitCount != 4 && Header->biBitCount != 8 &&
 		Header->biBitCount != 16 && Header->biBitCount != 24 && Header->biBitCount != 32)
@@ -152,25 +182,23 @@ ILboolean iCheckBmp (const BMPHEAD * CONST_RESTRICT Header)
 	return IL_TRUE;
 }
 
-
-ILboolean iCheckOS2 (const OS2_HEAD * CONST_RESTRICT Header)
+ILboolean iCheckOS2(const OS2_HEAD * CONST_RESTRICT Header)
 {
-	if ((Header->bfType != ('B'|('M'<<8))) || (Header->DataOff < 26) || (Header->cbFix < 12))
+	if ((Header->bfType != ('B' | ('M' << 8))) || (Header->DataOff < 26) || (Header->cbFix < 12))
 		return IL_FALSE;
 	if (Header->cPlanes != 1)
 		return IL_FALSE;
 	if (Header->cx == 0 || Header->cy == 0)
 		return IL_FALSE;
 	if (Header->cBitCount != 1 && Header->cBitCount != 4 && Header->cBitCount != 8 &&
-		 Header->cBitCount != 24)
-		 return IL_FALSE;
+		Header->cBitCount != 24)
+		return IL_FALSE;
 
 	return IL_TRUE;
 }
 
-
 //! Reads a .bmp file
-ILboolean ilLoadBmp(ILcontext* context, ILconst_string FileName) {
+ILboolean BmpHandler::load(ILconst_string FileName) {
 	ILHANDLE	BitmapFile;
 	ILboolean	bBitmap = IL_FALSE;
 
@@ -180,38 +208,35 @@ ILboolean ilLoadBmp(ILcontext* context, ILconst_string FileName) {
 		return bBitmap;
 	}
 
-	bBitmap = ilLoadBmpF(context, BitmapFile);
+	bBitmap = loadF(BitmapFile);
 	context->impl->icloser(BitmapFile);
 
 	return bBitmap;
 }
 
-
 //! Reads an already-opened .bmp file
-ILboolean ilLoadBmpF(ILcontext* context, ILHANDLE File)
+ILboolean BmpHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadBitmapInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .bmp
-ILboolean ilLoadBmpL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean BmpHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadBitmapInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the .bmp.
-ILboolean iLoadBitmapInternal(ILcontext* context)
+ILboolean BmpHandler::loadInternal()
 {
 	BMPHEAD		Header;
 	OS2_HEAD	Os2Head;
@@ -223,7 +248,7 @@ ILboolean iLoadBitmapInternal(ILcontext* context)
 	}
 
 	iGetBmpHead(context, &Header);
-	if (!iCheckBmp(&Header)) {
+	if (!check(&Header)) {
 		context->impl->iseek(context, -(ILint)sizeof(BMPHEAD), IL_SEEK_CUR);
 		iGetOS2Head(context, &Os2Head);
 		if (!iCheckOS2(&Os2Head)) {
@@ -243,21 +268,21 @@ ILboolean iLoadBitmapInternal(ILcontext* context)
 
 	switch (Header.biCompression)
 	{
-		case 0:	// No compression
-		case 3:	// BITFIELDS compression is handled in 16 bit
-						// and 32 bit code in ilReadUncompBmp()
-			bBitmap = ilReadUncompBmp(context, &Header);
-			break;
-		case 1:  //	RLE 8-bit / pixel (BI_RLE8)
-			bBitmap = ilReadRLE8Bmp(context, &Header);
-			break;
-		case 2:  // RLE 4-bit / pixel (BI_RLE4)
-			bBitmap = ilReadRLE4Bmp(context, &Header);
-			break;
+	case 0:	// No compression
+	case 3:	// BITFIELDS compression is handled in 16 bit
+					// and 32 bit code in ilReadUncompBmp()
+		bBitmap = ilReadUncompBmp(context, &Header);
+		break;
+	case 1:  //	RLE 8-bit / pixel (BI_RLE8)
+		bBitmap = ilReadRLE8Bmp(context, &Header);
+		break;
+	case 2:  // RLE 4-bit / pixel (BI_RLE4)
+		bBitmap = ilReadRLE4Bmp(context, &Header);
+		break;
 
-		default:
-			ilSetError(context, IL_INVALID_FILE_HEADER);
-			return IL_FALSE;
+	default:
+		ilSetError(context, IL_INVALID_FILE_HEADER);
+		return IL_FALSE;
 	}
 
 	if (!ilFixImage(context))
@@ -265,7 +290,6 @@ ILboolean iLoadBitmapInternal(ILcontext* context)
 
 	return bBitmap;
 }
-
 
 // Reads an uncompressed .bmp
 //	One of the absolute ugliest functions I've ever written!
@@ -283,7 +307,7 @@ ILboolean ilReadUncompBmp(ILcontext* context, BMPHEAD * Header)
 	else
 		Bpp = (ILubyte)(Header->biBitCount >> 3);  // Convert to bytes per pixel
 
-	if(Bpp == 2 || Bpp == 4)
+	if (Bpp == 2 || Bpp == 4)
 		Bpp = 3;
 
 	// Update the current image with the new dimensions
@@ -294,43 +318,43 @@ ILboolean ilReadUncompBmp(ILcontext* context, BMPHEAD * Header)
 
 	switch (Header->biBitCount)
 	{
-		case 1:
-			//context->impl->iCurImage->Format = IL_LUMINANCE;
-			context->impl->iCurImage->Format = IL_COLOUR_INDEX;
-			context->impl->iCurImage->Pal.PalType = IL_PAL_BGR32;
-			context->impl->iCurImage->Pal.PalSize = 2 * 4;
-			context->impl->iCurImage->Pal.Palette = (ILubyte*)ialloc(context, context->impl->iCurImage->Pal.PalSize);
-			if (context->impl->iCurImage->Pal.Palette == NULL) {
-				return IL_FALSE;
-			}
-			break;
-
-		case 4:
-		case 8:
-			context->impl->iCurImage->Format = IL_COLOUR_INDEX;
-			context->impl->iCurImage->Pal.PalType = IL_PAL_BGR32;
-			
-			// if there are 256 colors biClrUsed is 0
-			context->impl->iCurImage->Pal.PalSize = Header->biClrUsed ? 
-					Header->biClrUsed * 4 : 256 * 4;
-			
-			if (Header->biBitCount == 4)  // biClrUsed is 0 for 4-bit bitmaps
-				context->impl->iCurImage->Pal.PalSize = 16 * 4;
-			context->impl->iCurImage->Pal.Palette = (ILubyte*)ialloc(context, context->impl->iCurImage->Pal.PalSize);
-			if (context->impl->iCurImage->Pal.Palette == NULL) {
-				return IL_FALSE;
-			}
-			break;
-
-		case 16:
-		case 24:
-		case 32:
-			context->impl->iCurImage->Format = IL_BGR;
-			break;
-
-		default:
-			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
+	case 1:
+		//context->impl->iCurImage->Format = IL_LUMINANCE;
+		context->impl->iCurImage->Format = IL_COLOUR_INDEX;
+		context->impl->iCurImage->Pal.PalType = IL_PAL_BGR32;
+		context->impl->iCurImage->Pal.PalSize = 2 * 4;
+		context->impl->iCurImage->Pal.Palette = (ILubyte*)ialloc(context, context->impl->iCurImage->Pal.PalSize);
+		if (context->impl->iCurImage->Pal.Palette == NULL) {
 			return IL_FALSE;
+		}
+		break;
+
+	case 4:
+	case 8:
+		context->impl->iCurImage->Format = IL_COLOUR_INDEX;
+		context->impl->iCurImage->Pal.PalType = IL_PAL_BGR32;
+
+		// if there are 256 colors biClrUsed is 0
+		context->impl->iCurImage->Pal.PalSize = Header->biClrUsed ?
+			Header->biClrUsed * 4 : 256 * 4;
+
+		if (Header->biBitCount == 4)  // biClrUsed is 0 for 4-bit bitmaps
+			context->impl->iCurImage->Pal.PalSize = 16 * 4;
+		context->impl->iCurImage->Pal.Palette = (ILubyte*)ialloc(context, context->impl->iCurImage->Pal.PalSize);
+		if (context->impl->iCurImage->Pal.Palette == NULL) {
+			return IL_FALSE;
+		}
+		break;
+
+	case 16:
+	case 24:
+	case 32:
+		context->impl->iCurImage->Format = IL_BGR;
+		break;
+
+	default:
+		ilSetError(context, IL_ILLEGAL_FILE_VALUE);
+		return IL_FALSE;
 	}
 
 	// A height of 0 is illegal
@@ -361,193 +385,192 @@ ILboolean ilReadUncompBmp(ILcontext* context, BMPHEAD * Header)
 	// We have to handle 1 and 4-bit images separately, because we have to expand them.
 	switch (Header->biBitCount)
 	{
-		case 1:
+	case 1:
+		//changed 2003-09-01
+		if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
+			iPreCache(context, context->impl->iCurImage->Width / 8 * context->impl->iCurImage->Height);
+
+		PadSize = ((32 - (context->impl->iCurImage->Width % 32)) / 8) % 4;  // Has to truncate
+		for (j = 0; j < context->impl->iCurImage->Height; j++) {
+			Read = 0;
+			for (i = 0; i < context->impl->iCurImage->Width; ) {
+				if (context->impl->iread(context, &ByteData, 1, 1) != 1) {
+					iUnCache(context);
+					return IL_FALSE;
+				}
+				Read++;
+				k = 128;
+				for (c = 0; c < 8; c++) {
+					context->impl->iCurImage->Data[j * context->impl->iCurImage->Width + i] =
+						(!!(ByteData & k) == 1 ? 1 : 0);
+					k >>= 1;
+					if (++i >= context->impl->iCurImage->Width)
+						break;
+				}
+			}
+			//context->impl->iseek(context, PadSize, IL_SEEK_CUR);
+			context->impl->iread(context, Padding, 1, PadSize);
+		}
+
+		iUnCache(context);
+		break;
+
+	case 4:
+		//changed 2003-09-01
+		if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
+			iPreCache(context, context->impl->iCurImage->Width / 2 * context->impl->iCurImage->Height);
+
+		PadSize = ((8 - (context->impl->iCurImage->Width % 8)) / 2) % 4;  // Has to truncate
+		for (j = 0; j < context->impl->iCurImage->Height; j++) {
+			for (i = 0; i < context->impl->iCurImage->Width; i++) {
+				if (context->impl->iread(context, &ByteData, 1, 1) != 1) {
+					iUnCache(context);
+					return IL_FALSE;
+				}
+				context->impl->iCurImage->Data[j * context->impl->iCurImage->Width + i] = ByteData >> 4;
+				if (++i == context->impl->iCurImage->Width)
+					break;
+				context->impl->iCurImage->Data[j * context->impl->iCurImage->Width + i] = ByteData & 0x0F;
+			}
+			context->impl->iread(context, Padding, 1, PadSize);//context->impl->iseek(context, PadSize, IL_SEEK_CUR);
+		}
+
+		iUnCache(context);
+		break;
+
+	case 16:
+		//padding
+		//2003-09-09: changed context->impl->iCurImage->Bps to context->impl->iCurImage->Width*2,
+		//because context->impl->iCurImage->Bps refers to the 24 bit devil image
+		PadSize = (4 - (context->impl->iCurImage->Width * 2 % 4)) % 4;
+
+		//check if bitfield compression is used
+		rMask = 0x7C00;
+		gMask = 0x03E0;
+		bMask = 0x001F;
+		rShiftR = 10;
+		gShiftR = 5;
+		bShiftR = 0;
+		rShiftL = 3;
+		gShiftL = 3;
+		bShiftL = 3;
+		if (Header->biCompression == 3) //bitfields
+		{
+			context->impl->iseek(context, Header->bfDataOff - 12, IL_SEEK_SET); //seek to bitfield data
+			context->impl->iread(context, &rMask, 4, 1);
+			context->impl->iread(context, &gMask, 4, 1);
+			context->impl->iread(context, &bMask, 4, 1);
+			UInt(&rMask);
+			UInt(&gMask);
+			UInt(&bMask);
+			GetShiftFromMask(rMask, &rShiftL, &rShiftR);
+			GetShiftFromMask(gMask, &gShiftL, &gShiftR);
+			GetShiftFromMask(bMask, &bShiftL, &bShiftR);
+		}
+
+		k = 0;
+
+		//changed 2003-09-01
+		if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
+			iPreCache(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height);
+
+		//@TODO: This may not be safe for Big Endian.
+		for (j = 0; j < context->impl->iCurImage->Height; j++) {
+			for (i = 0; i < context->impl->iCurImage->Width; i++, k += 3) {
+				if (context->impl->iread(context, &Read16, 2, 1) != 1) {
+					iUnCache(context);
+					return IL_FALSE;
+				}
+				context->impl->iCurImage->Data[k] = ((Read16 & bMask) >> bShiftR) << bShiftL;
+				context->impl->iCurImage->Data[k + 1] = ((Read16 & gMask) >> gShiftR) << gShiftL;
+				context->impl->iCurImage->Data[k + 2] = ((Read16 & rMask) >> rShiftR) << rShiftL;
+			}
+			context->impl->iread(context, Padding, 1, PadSize);
+		}
+
+		iUnCache(context);
+		break;
+
+	case 8:
+	case 24:
+		// For 8 and 24 bit, Bps is equal to the bmps bps
+		PadSize = (4 - (context->impl->iCurImage->Bps % 4)) % 4;
+		if (PadSize == 0) {
+			if (context->impl->iread(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfPlane) != context->impl->iCurImage->SizeOfPlane)
+				return IL_FALSE;
+		}
+		else {	// Microsoft requires lines to be padded if the widths aren't multiples of 4.
 			//changed 2003-09-01
 			if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
-				iPreCache(context, context->impl->iCurImage->Width / 8 * context->impl->iCurImage->Height);
+				iPreCache(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height);
 
-			PadSize = ((32 - (context->impl->iCurImage->Width % 32)) / 8) % 4;  // Has to truncate
-			for (j = 0; j < context->impl->iCurImage->Height; j++) {
-				Read = 0;
-				for (i = 0; i < context->impl->iCurImage->Width; ) {
-					if (context->impl->iread(context, &ByteData, 1, 1) != 1) {
-						iUnCache(context);
-						return IL_FALSE;
-					}
-					Read++;
-					k = 128;
-					for (c = 0; c < 8; c++) {
-						context->impl->iCurImage->Data[j * context->impl->iCurImage->Width + i] = 
-							(!!(ByteData & k) == 1 ? 1 : 0);
-						k >>= 1;
-						if (++i >= context->impl->iCurImage->Width)
-							break;
-					}
+			PadSize = (4 - (context->impl->iCurImage->Bps % 4));
+			for (i = 0; i < context->impl->iCurImage->SizeOfPlane; i += context->impl->iCurImage->Bps) {
+				if (context->impl->iread(context, context->impl->iCurImage->Data + i, 1, context->impl->iCurImage->Bps) != context->impl->iCurImage->Bps) {
+					iUnCache(context);
+					return IL_FALSE;
 				}
 				//context->impl->iseek(context, PadSize, IL_SEEK_CUR);
 				context->impl->iread(context, Padding, 1, PadSize);
 			}
 
 			iUnCache(context);
-			break;
+		}
+		break;
 
-		case 4:
-			//changed 2003-09-01
-			if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
-				iPreCache(context, context->impl->iCurImage->Width / 2 * context->impl->iCurImage->Height);
+	case 32:
+		//32bit files are always padded to 4 byte...
+		//check if bitfield compression is used
+		rMask = 0xFF0000;
+		gMask = 0x00FF00;
+		bMask = 0x0000FF;
+		rShiftR = 16;
+		gShiftR = 8;
+		bShiftR = 0;
+		rShiftL = 0;
+		gShiftL = 0;
+		bShiftL = 0;
+		if (Header->biCompression == 3) //bitfields
+		{
+			context->impl->iseek(context, Header->bfDataOff - 12, IL_SEEK_SET); //seek to bitfield data
+			context->impl->iread(context, &rMask, 4, 1);
+			context->impl->iread(context, &gMask, 4, 1);
+			context->impl->iread(context, &bMask, 4, 1);
+			UInt(&rMask);
+			UInt(&gMask);
+			UInt(&bMask);
+			GetShiftFromMask(rMask, &rShiftL, &rShiftR);
+			GetShiftFromMask(gMask, &gShiftL, &gShiftR);
+			GetShiftFromMask(bMask, &bShiftL, &bShiftR);
+		}
 
-			PadSize = ((8 - (context->impl->iCurImage->Width % 8)) / 2) % 4;  // Has to truncate
-			for (j = 0; j < context->impl->iCurImage->Height; j++) {
-				for (i = 0; i < context->impl->iCurImage->Width; i++) {
-					if (context->impl->iread(context, &ByteData, 1, 1) != 1) {
-						iUnCache(context);
-						return IL_FALSE;
-					}
-					context->impl->iCurImage->Data[j * context->impl->iCurImage->Width + i] = ByteData >> 4;
-					if (++i == context->impl->iCurImage->Width)
-						break;
-					context->impl->iCurImage->Data[j * context->impl->iCurImage->Width + i] = ByteData & 0x0F;
-				}
-				context->impl->iread(context, Padding, 1, PadSize);//context->impl->iseek(context, PadSize, IL_SEEK_CUR);
-			}
+		//TODO: win98 supports per-pixel alpha, so
+		//load to rgba????
 
-			iUnCache(context);
-			break;
+		//changed 2003-09-01
+		if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
+			iPreCache(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height);
 
-		case 16: 
-			//padding
-			//2003-09-09: changed context->impl->iCurImage->Bps to context->impl->iCurImage->Width*2,
-			//because context->impl->iCurImage->Bps refers to the 24 bit devil image
-			PadSize = (4 - (context->impl->iCurImage->Width*2 % 4)) % 4;
-
-			//check if bitfield compression is used
-			rMask = 0x7C00;
-			gMask = 0x03E0;
-			bMask = 0x001F;
-			rShiftR = 10;
-			gShiftR = 5;
-			bShiftR = 0;
-			rShiftL = 3;
-			gShiftL = 3;
-			bShiftL = 3;
-			if (Header->biCompression == 3) //bitfields
-			{
-				context->impl->iseek(context, Header->bfDataOff - 12, IL_SEEK_SET); //seek to bitfield data
-				context->impl->iread(context, &rMask, 4, 1);
-				context->impl->iread(context, &gMask, 4, 1);
-				context->impl->iread(context, &bMask, 4, 1);
-				UInt(&rMask);
-				UInt(&gMask);
-				UInt(&bMask);
-				GetShiftFromMask(rMask, &rShiftL, &rShiftR);
-				GetShiftFromMask(gMask, &gShiftL, &gShiftR);
-				GetShiftFromMask(bMask, &bShiftL, &bShiftR);
-			}
-
-			k = 0;
-
-			//changed 2003-09-01
-			if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
-				iPreCache(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height);
-
-			//@TODO: This may not be safe for Big Endian.
-			for (j = 0; j < context->impl->iCurImage->Height; j++) {
-				for(i = 0; i < context->impl->iCurImage->Width; i++, k += 3) {
-					if (context->impl->iread(context, &Read16, 2, 1) != 1) {
-						iUnCache(context);
-						return IL_FALSE;
-					}
-					context->impl->iCurImage->Data[k] = ((Read16 & bMask) >> bShiftR) << bShiftL;
-					context->impl->iCurImage->Data[k + 1] = ((Read16 & gMask) >> gShiftR)  << gShiftL;
-					context->impl->iCurImage->Data[k + 2] = ((Read16 & rMask) >> rShiftR) << rShiftL;
-				}
-				context->impl->iread(context, Padding, 1, PadSize);
-			}
-
-			iUnCache(context);
-			break;
-
-		case 8:
-		case 24:
-            // For 8 and 24 bit, Bps is equal to the bmps bps
-			PadSize = (4 - (context->impl->iCurImage->Bps % 4)) % 4;
-			if (PadSize == 0) {
-				if (context->impl->iread(context, context->impl->iCurImage->Data, 1, context->impl->iCurImage->SizeOfPlane) != context->impl->iCurImage->SizeOfPlane)
-					return IL_FALSE;
-			}
-			else {	// Microsoft requires lines to be padded if the widths aren't multiples of 4.
-				//changed 2003-09-01
-				if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
-					iPreCache(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height);
-
-				PadSize = (4 - (context->impl->iCurImage->Bps % 4));
-				for (i = 0; i < context->impl->iCurImage->SizeOfPlane; i += context->impl->iCurImage->Bps) {
-					if (context->impl->iread(context, context->impl->iCurImage->Data + i, 1, context->impl->iCurImage->Bps) != context->impl->iCurImage->Bps) {
-						iUnCache(context);
-						return IL_FALSE;
-					}
-					//context->impl->iseek(context, PadSize, IL_SEEK_CUR);
-					context->impl->iread(context, Padding, 1, PadSize);
-				}
-
+		for (i = 0; i < context->impl->iCurImage->SizeOfData; i += 3) {
+			if (context->impl->iread(context, &Read, 4, 1) != 1) {
 				iUnCache(context);
-			}
-			break;
-
-		case 32: 
-			//32bit files are always padded to 4 byte...
-			//check if bitfield compression is used
-			rMask = 0xFF0000;
-			gMask = 0x00FF00;
-			bMask = 0x0000FF;
-			rShiftR = 16;
-			gShiftR = 8;
-			bShiftR = 0;
-			rShiftL = 0;
-			gShiftL = 0;
-			bShiftL = 0;
-			if (Header->biCompression == 3) //bitfields
-			{
-				context->impl->iseek(context, Header->bfDataOff - 12, IL_SEEK_SET); //seek to bitfield data
-				context->impl->iread(context, &rMask, 4, 1);
-				context->impl->iread(context, &gMask, 4, 1);
-				context->impl->iread(context, &bMask, 4, 1);
-				UInt(&rMask);
-				UInt(&gMask);
-				UInt(&bMask);
-				GetShiftFromMask(rMask, &rShiftL, &rShiftR);
-				GetShiftFromMask(gMask, &gShiftL, &gShiftR);
-				GetShiftFromMask(bMask, &bShiftL, &bShiftR);
+				return IL_FALSE;
 			}
 
-			//TODO: win98 supports per-pixel alpha, so
-			//load to rgba????
+			context->impl->iCurImage->Data[i] = ((Read & bMask) >> bShiftR) << bShiftL;
+			context->impl->iCurImage->Data[i + 1] = ((Read & gMask) >> gShiftR) << gShiftL;
+			context->impl->iCurImage->Data[i + 2] = ((Read & rMask) >> rShiftR) << rShiftL;
+		}
 
-			//changed 2003-09-01
-			if (iGetHint(context, IL_MEM_SPEED_HINT) == IL_FASTEST)
-				iPreCache(context, context->impl->iCurImage->Width * context->impl->iCurImage->Height);
+		iUnCache(context);
+		break;
 
-			for(i = 0; i < context->impl->iCurImage->SizeOfData; i += 3) {
-				if (context->impl->iread(context, &Read, 4, 1) != 1) {
-					iUnCache(context);
-					return IL_FALSE;
-				}
-
-				context->impl->iCurImage->Data[i] = ((Read & bMask) >> bShiftR) << bShiftL;
-				context->impl->iCurImage->Data[i + 1] = ((Read & gMask) >> gShiftR) << gShiftL;
-				context->impl->iCurImage->Data[i + 2] = ((Read & rMask) >> rShiftR) << rShiftL;
-			}
-
-			iUnCache(context);
-			break;
-
-		default:
-			return IL_FALSE; //shouldn't happen, we checked that before
+	default:
+		return IL_FALSE; //shouldn't happen, we checked that before
 	}
 
 	return IL_TRUE;
 }
-
 
 ILboolean ilReadRLE8Bmp(ILcontext* context, BMPHEAD *Header)
 {
@@ -576,8 +599,8 @@ ILboolean ilReadRLE8Bmp(ILcontext* context, BMPHEAD *Header)
 	// If the image height is negative, then the image is flipped
 	//	(Normal is IL_ORIGIN_LOWER_LEFT)
 	context->impl->iCurImage->Origin = Header->biHeight < 0 ?
-		 IL_ORIGIN_UPPER_LEFT : IL_ORIGIN_LOWER_LEFT;
-	
+		IL_ORIGIN_UPPER_LEFT : IL_ORIGIN_LOWER_LEFT;
+
 	// Read the palette
 	context->impl->iseek(context, sizeof(BMPHEAD), IL_SEEK_SET);
 	if (context->impl->iread(context, context->impl->iCurImage->Pal.Palette, context->impl->iCurImage->Pal.PalSize, 1) != 1)
@@ -586,44 +609,44 @@ ILboolean ilReadRLE8Bmp(ILcontext* context, BMPHEAD *Header)
 	// Seek to the data from the "beginning" of the file
 	context->impl->iseek(context, Header->bfDataOff, IL_SEEK_SET);
 
-    while (offset < context->impl->iCurImage->SizeOfData) {
+	while (offset < context->impl->iCurImage->SizeOfData) {
 		if (context->impl->iread(context, Bytes, sizeof(Bytes), 1) != 1)
 			return IL_FALSE;
 		if (Bytes[0] == 0x00) {  // Escape sequence
 			switch (Bytes[1])
 			{
-				case 0x00:  // End of line
-					offset = endOfLine;
-					endOfLine += context->impl->iCurImage->Width;
-					break;
-				case 0x01:  // End of bitmap
-					offset = context->impl->iCurImage->SizeOfData;
-					break;
-				case 0x2:
-					if (context->impl->iread(context, Bytes, sizeof(Bytes), 1) != 1)
+			case 0x00:  // End of line
+				offset = endOfLine;
+				endOfLine += context->impl->iCurImage->Width;
+				break;
+			case 0x01:  // End of bitmap
+				offset = context->impl->iCurImage->SizeOfData;
+				break;
+			case 0x2:
+				if (context->impl->iread(context, Bytes, sizeof(Bytes), 1) != 1)
+					return IL_FALSE;
+				offset += Bytes[0] + Bytes[1] * context->impl->iCurImage->Width;
+				endOfLine += Bytes[1] * context->impl->iCurImage->Width;
+				break;
+			default:
+				count = IL_MIN(Bytes[1], context->impl->iCurImage->SizeOfData - offset);
+				if (context->impl->iread(context, context->impl->iCurImage->Data + offset, (ILuint)count, 1) != 1)
+					return IL_FALSE;
+				offset += count;
+				if ((count & 1) == 1)  // Must be on a word boundary
+					if (context->impl->iread(context, Bytes, 1, 1) != 1)
 						return IL_FALSE;
-					offset += Bytes[0] + Bytes[1] * context->impl->iCurImage->Width;
-					endOfLine += Bytes[1] * context->impl->iCurImage->Width;
-					break;
-				default:
-					count = IL_MIN(Bytes[1], context->impl->iCurImage->SizeOfData-offset);
-					if (context->impl->iread(context, context->impl->iCurImage->Data + offset, (ILuint)count, 1) != 1)
-						return IL_FALSE;
-					offset += count;
-					if ((count & 1) == 1)  // Must be on a word boundary
-						if (context->impl->iread(context, Bytes, 1, 1) != 1)
-							return IL_FALSE;
-					break;
+				break;
 			}
-		} else {
-			count = IL_MIN (Bytes[0], context->impl->iCurImage->SizeOfData-offset);
+		}
+		else {
+			count = IL_MIN(Bytes[0], context->impl->iCurImage->SizeOfData - offset);
 			memset(context->impl->iCurImage->Data + offset, Bytes[1], count);
 			offset += count;
 		}
 	}
 	return IL_TRUE;
 }
-
 
 //changed 2003-09-01
 //deleted ilReadRLE8Bmp() USE_POINTER version
@@ -632,7 +655,7 @@ ILboolean ilReadRLE4Bmp(ILcontext* context, BMPHEAD *Header)
 {
 	ILubyte	Bytes[2];
 	ILuint	i;
-    size_t	offset = 0, count, endOfLine = Header->biWidth;
+	size_t	offset = 0, count, endOfLine = Header->biWidth;
 
 	// Update the current image with the new dimensions
 	if (!ilTexImage(context, Header->biWidth, abs(Header->biHeight), 1, 1, 0, IL_UNSIGNED_BYTE, NULL))
@@ -655,7 +678,7 @@ ILboolean ilReadRLE4Bmp(ILcontext* context, BMPHEAD *Header)
 	// If the image height is negative, then the image is flipped
 	//	(Normal is IL_ORIGIN_LOWER_LEFT)
 	context->impl->iCurImage->Origin = Header->biHeight < 0 ?
-		 IL_ORIGIN_UPPER_LEFT : IL_ORIGIN_LOWER_LEFT;
+		IL_ORIGIN_UPPER_LEFT : IL_ORIGIN_LOWER_LEFT;
 
 	// Read the palette
 	context->impl->iseek(context, sizeof(BMPHEAD), IL_SEEK_SET);
@@ -667,26 +690,26 @@ ILboolean ilReadRLE4Bmp(ILcontext* context, BMPHEAD *Header)
 	context->impl->iseek(context, Header->bfDataOff, IL_SEEK_SET);
 
 	while (offset < context->impl->iCurImage->SizeOfData) {
-      int align;
+		int align;
 		if (context->impl->iread(context, &Bytes[0], sizeof(Bytes), 1) != 1)
 			return IL_FALSE;
 		if (Bytes[0] == 0x0) {				// Escape sequence
-         switch (Bytes[1]) {
-         case 0x0:	// End of line
-            offset = endOfLine;
-            endOfLine += context->impl->iCurImage->Width;
-            break;
-         case 0x1:	// End of bitmap
-            offset = context->impl->iCurImage->SizeOfData;
-            break;
-         case 0x2:
+			switch (Bytes[1]) {
+			case 0x0:	// End of line
+				offset = endOfLine;
+				endOfLine += context->impl->iCurImage->Width;
+				break;
+			case 0x1:	// End of bitmap
+				offset = context->impl->iCurImage->SizeOfData;
+				break;
+			case 0x2:
 				if (context->impl->iread(context, &Bytes[0], sizeof(Bytes), 1) != 1)
 					return IL_FALSE;
-            offset += Bytes[0] + Bytes[1] * context->impl->iCurImage->Width;
-            endOfLine += Bytes[1] * context->impl->iCurImage->Width;
-            break;
-         default:	  // Run of pixels
-            count = IL_MIN (Bytes[1], context->impl->iCurImage->SizeOfData-offset);
+				offset += Bytes[0] + Bytes[1] * context->impl->iCurImage->Width;
+				endOfLine += Bytes[1] * context->impl->iCurImage->Width;
+				break;
+			default:	  // Run of pixels
+				count = IL_MIN(Bytes[1], context->impl->iCurImage->SizeOfData - offset);
 
 				for (i = 0; i < count; i++) {
 					int byte;
@@ -707,18 +730,18 @@ ILboolean ilReadRLE4Bmp(ILcontext* context, BMPHEAD *Header)
 					if (context->impl->iread(context, &Bytes[0], sizeof(Bytes[0]), 1) != 1)
 						return IL_FALSE;
 			}
-		} else {
-         count = IL_MIN (Bytes[0], context->impl->iCurImage->SizeOfData-offset);
-         Bytes[0] = (Bytes[1] >> 4);
+		}
+		else {
+			count = IL_MIN(Bytes[0], context->impl->iCurImage->SizeOfData - offset);
+			Bytes[0] = (Bytes[1] >> 4);
 			Bytes[1] &= 0x0F;
 			for (i = 0; i < count; i++)
-				context->impl->iCurImage->Data[offset++] = Bytes [i & 1];
+				context->impl->iCurImage->Data[offset++] = Bytes[i & 1];
 		}
 	}
 
-   return IL_TRUE;
+	return IL_TRUE;
 }
-
 
 //changed 2003-09-01
 //deleted ilReadRLE4Bmp() USE_POINTER version
@@ -780,7 +803,7 @@ ILboolean iGetOS2Bmp(ILcontext* context, OS2_HEAD *Header)
 		context->impl->iCurImage->Pal.PalSize = 16 * 3;
 		context->impl->iCurImage->Pal.PalType = IL_PAL_BGR24;
 
-		if (context->impl->iread(context, context->impl->iCurImage->Pal.Palette, 1, 16 * 3) != 16*3)
+		if (context->impl->iread(context, context->impl->iCurImage->Pal.Palette, 1, 16 * 3) != 16 * 3)
 			return IL_FALSE;
 
 		PadSize = ((8 - (context->impl->iCurImage->Width % 8)) / 2) % 4;  // Has to truncate
@@ -813,7 +836,7 @@ ILboolean iGetOS2Bmp(ILcontext* context, OS2_HEAD *Header)
 		context->impl->iCurImage->Pal.PalSize = 256 * 3;
 		context->impl->iCurImage->Pal.PalType = IL_PAL_BGR24;
 
-		if (context->impl->iread(context, context->impl->iCurImage->Pal.Palette, 1, 256 * 3) != 256*3)
+		if (context->impl->iread(context, context->impl->iCurImage->Pal.Palette, 1, 256 * 3) != 256 * 3)
 			return IL_FALSE;
 	}
 	else { //has to be 24 bpp
@@ -840,9 +863,8 @@ ILboolean iGetOS2Bmp(ILcontext* context, OS2_HEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Writes a Bmp file
-ILboolean ilSaveBmp(ILcontext* context, const ILstring FileName)
+ILboolean BmpHandler::save(const ILstring FileName)
 {
 	ILHANDLE	BitmapFile;
 	ILuint		BitmapSize;
@@ -860,7 +882,7 @@ ILboolean ilSaveBmp(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	BitmapSize = ilSaveBmpF(context, BitmapFile);
+	BitmapSize = saveF(BitmapFile);
 	context->impl->iclosew(BitmapFile);
 
 	if (BitmapSize == 0)
@@ -868,33 +890,30 @@ ILboolean ilSaveBmp(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Bmp to an already-opened file
-ILuint ilSaveBmpF(ILcontext* context, ILHANDLE File)
+ILuint BmpHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveBitmapInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Bmp to a memory "lump"
-ILuint ilSaveBmpL(ILcontext* context, void *Lump, ILuint Size)
+ILuint BmpHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSaveBitmapInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 // Internal function used to save the .bmp.
-ILboolean iSaveBitmapInternal(ILcontext* context)
+ILboolean BmpHandler::saveInternal()
 {
 	//int compress_rle8 = ilGetInteger(context, IL_BMP_RLE);
 	int compress_rle8 = IL_FALSE; // disabled BMP RLE compression. broken
@@ -910,7 +929,7 @@ ILboolean iSaveBitmapInternal(ILcontext* context)
 
 	context->impl->iputc(context, 'B');  // Comprises the
 	context->impl->iputc(context, 'M');  //  "signature"
-	
+
 	SaveLittleUInt(context, 0);  // Will come back and change later in this function (filesize)
 	SaveLittleUInt(context, 0);  // Reserved
 
@@ -929,11 +948,12 @@ ILboolean iSaveBitmapInternal(ILcontext* context)
 
 	// If the current image has a palette, take care of it
 	TempPal = &context->impl->iCurImage->Pal;
-	if( context->impl->iCurImage->Pal.PalSize && context->impl->iCurImage->Pal.Palette && context->impl->iCurImage->Pal.PalType != IL_PAL_NONE ) {
+	if (context->impl->iCurImage->Pal.PalSize && context->impl->iCurImage->Pal.Palette && context->impl->iCurImage->Pal.PalType != IL_PAL_NONE) {
 		// If the palette in .bmp format, write it directly
 		if (context->impl->iCurImage->Pal.PalType == IL_PAL_BGR32) {
 			TempPal = &context->impl->iCurImage->Pal;
-		} else {
+		}
+		else {
 			TempPal = iConvertPal(context, &context->impl->iCurImage->Pal, IL_PAL_BGR32);
 			if (TempPal == NULL) {
 				return IL_FALSE;
@@ -942,25 +962,28 @@ ILboolean iSaveBitmapInternal(ILcontext* context)
 	}
 
 	SaveLittleUInt(context, 54 + TempPal->PalSize);  // Offset of the data
-	
+
 	//Changed 20040923: moved this block above writing of
 	//BITMAPINFOHEADER, so that the written header refers to
 	//TempImage instead of the original image
-	
+
 	// @TODO LUMINANCE converted to BGR insteaf of beign saved to luminance
 	if (context->impl->iCurImage->Format != IL_BGR && context->impl->iCurImage->Format != IL_BGRA && context->impl->iCurImage->Format != IL_COLOUR_INDEX) {
 		if (context->impl->iCurImage->Format == IL_RGBA) {
 			TempImage = iConvertImage(context, context->impl->iCurImage, IL_BGRA, IL_UNSIGNED_BYTE);
-		} else {
+		}
+		else {
 			TempImage = iConvertImage(context, context->impl->iCurImage, IL_BGR, IL_UNSIGNED_BYTE);
 		}
 		if (TempImage == NULL)
 			return IL_FALSE;
-	} else if (context->impl->iCurImage->Bpc > 1) {
+	}
+	else if (context->impl->iCurImage->Bpc > 1) {
 		TempImage = iConvertImage(context, context->impl->iCurImage, context->impl->iCurImage->Format, IL_UNSIGNED_BYTE);
 		if (TempImage == NULL)
 			return IL_FALSE;
-	} else {
+	}
+	else {
 		TempImage = context->impl->iCurImage;
 	}
 
@@ -970,7 +993,8 @@ ILboolean iSaveBitmapInternal(ILcontext* context)
 			ilCloseImage(TempImage);
 			return IL_FALSE;
 		}
-	} else {
+	}
+	else {
 		TempData = TempImage->Data;
 	}
 
@@ -983,13 +1007,14 @@ ILboolean iSaveBitmapInternal(ILcontext* context)
 	/*if (context->impl->iCurImage->Origin == IL_ORIGIN_UPPER_LEFT)
 		SaveLittleInt(context, -(ILint)context->impl->iCurImage->Height);
 	else*/
-		SaveLittleInt(context, TempImage->Height);
+	SaveLittleInt(context, TempImage->Height);
 
 	SaveLittleUShort(context, 1);  // Number of planes
 	SaveLittleUShort(context, (ILushort)((ILushort)TempImage->Bpp << 3));  // Bpp
-	if( compress_rle8 == IL_TRUE ) {
+	if (compress_rle8 == IL_TRUE) {
 		SaveLittleInt(context, 1); // rle8 compression
-	} else {
+	}
+	else {
 		SaveLittleInt(context, 0);
 	}
 	SaveLittleInt(context, 0);  // Size of image (Obsolete)
@@ -998,33 +1023,36 @@ ILboolean iSaveBitmapInternal(ILcontext* context)
 
 	if (TempImage->Pal.PalType != IL_PAL_NONE) {
 		SaveLittleInt(context, ilGetInteger(context, IL_PALETTE_NUM_COLS));  // Num colours used
-	} else {
+	}
+	else {
 		SaveLittleInt(context, 0);
 	}
 	SaveLittleInt(context, 0);  // Important colour (none)
 
 	context->impl->iwrite(context, TempPal->Palette, 1, TempPal->PalSize);
 
-	
-	if( compress_rle8 == IL_TRUE ) {
+
+	if (compress_rle8 == IL_TRUE) {
 		//@TODO compress and save
-		ILubyte *Dest = (ILubyte*)ialloc(context, (long)((double)TempImage->SizeOfPlane*130/127));
-		FileSize = ilRleCompress(context, TempImage->Data,TempImage->Width,TempImage->Height,
-						TempImage->Depth,TempImage->Bpp,Dest,IL_BMPCOMP,NULL);
-		context->impl->iwrite(context, Dest,1,FileSize);
-	} else {
+		ILubyte *Dest = (ILubyte*)ialloc(context, (long)((double)TempImage->SizeOfPlane * 130 / 127));
+		FileSize = ilRleCompress(context, TempImage->Data, TempImage->Width, TempImage->Height,
+			TempImage->Depth, TempImage->Bpp, Dest, IL_BMPCOMP, NULL);
+		context->impl->iwrite(context, Dest, 1, FileSize);
+	}
+	else {
 		PadSize = (4 - (TempImage->Bps % 4)) % 4;
 		// No padding, so write data directly.
 		if (PadSize == 0) {
 			context->impl->iwrite(context, TempData, 1, TempImage->SizeOfPlane);
-		} else {  // Odd width, so we must pad each line.
+		}
+		else {  // Odd width, so we must pad each line.
 			for (i = 0; i < TempImage->SizeOfPlane; i += TempImage->Bps) {
 				context->impl->iwrite(context, TempData + i, 1, TempImage->Bps); // Write data
 				context->impl->iwrite(context, &Padding, 1, PadSize); // Write pad byte(s)
 			}
 		}
 	}
-	
+
 	// Write the filesize
 	FileSize = context->impl->itellw(context);
 	context->impl->iseekw(context, 2, IL_SEEK_SET);
@@ -1038,11 +1066,10 @@ ILboolean iSaveBitmapInternal(ILcontext* context)
 		ifree(TempData);
 	if (TempImage != context->impl->iCurImage)
 		ilCloseImage(TempImage);
-	
+
 	context->impl->iseekw(context, FileSize, IL_SEEK_SET);
-	
+
 	return IL_TRUE;
 }
-
 
 #endif//IL_NO_BMP

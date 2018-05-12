@@ -556,8 +556,8 @@ ILAPI ILenum	ILAPIENTRY ilDetermineType(ILcontext* context, ILconst_string FileN
 ILAPI ILenum	ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File);
 ILAPI ILenum	ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint Size);
 ILAPI ILboolean ILAPIENTRY ilDisable(ILenum Mode);
-ILAPI ILboolean ILAPIENTRY ilDxtcDataToImage(void);
-ILAPI ILboolean ILAPIENTRY ilDxtcDataToSurface(ILcontext* context);
+//ILAPI ILboolean ILAPIENTRY ilDxtcDataToImage(void);
+//ILAPI ILboolean ILAPIENTRY ilDxtcDataToSurface(ILcontext* context);
 ILAPI ILboolean ILAPIENTRY ilEnable(ILenum Mode);
 ILAPI void		ILAPIENTRY ilFlipSurfaceDxtcData(void);
 ILAPI ILboolean ILAPIENTRY ilFormatFunc(ILcontext* context, ILenum Mode);
