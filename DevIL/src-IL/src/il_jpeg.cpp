@@ -32,12 +32,6 @@
 			#pragma warning(disable : 4005)  // Redefinitions in
 			#pragma warning(disable : 4142)  //  jmorecfg.h
 		#endif
-
-		#include <jpeglib.h>
-
-		#if JPEG_LIB_VERSION < 62
-			#warning DevIL was designed with libjpeg 6b or higher in mind.  Consider upgrading at www.ijg.org
-		#endif
 	#else
 		#include <ijl.h>
 		#include <limits.h>
@@ -45,7 +39,6 @@
 
 #include "il_jpeg.h"
 #include <setjmp.h>
-
 
 #if (defined(_WIN32) || defined(_WIN64)) && defined(IL_USE_PRAGMA_LIBS)
 	#if defined(_MSC_VER) || defined(__BORLANDC__)
@@ -62,11 +55,11 @@
 	#endif
 #endif
 
+JpegHandler::JpegHandler(ILcontext* context) :
+	context(context)
+{
 
-static ILboolean jpgErrorOccured = IL_FALSE;
-
-// define a protype of ilLoadFromJpegStruct
-ILboolean ilLoadFromJpegStruct(ILcontext* context, void *_JpegInfo);
+}
 
 // Internal function used to get the .jpg header from the current file.
 void iGetJpgHead(ILcontext* context, ILubyte *Header)
@@ -76,30 +69,27 @@ void iGetJpgHead(ILcontext* context, ILubyte *Header)
 	return;
 }
 
-
 // Internal function used to check if the HEADER is a valid .Jpg header.
-ILboolean iCheckJpg(ILubyte Header[2])
+ILboolean JpegHandler::check(ILubyte Header[2])
 {
 	if (Header[0] != 0xFF || Header[1] != 0xD8)
 		return IL_FALSE;
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidJpeg(ILcontext* context)
+ILboolean JpegHandler::isValidInternal()
 {
 	ILubyte Head[2];
 
 	iGetJpgHead(context, Head);
 	context->impl->iseek(context, -2, IL_SEEK_CUR);  // Go ahead and restore to previous state
 
-	return iCheckJpg(Head);
+	return check(Head);
 }
 
-
 //! Checks if the file specified in FileName is a valid .jpg file.
-ILboolean ilIsValidJpeg(ILcontext* context, ILconst_string FileName)
+ILboolean JpegHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	JpegFile;
 	ILboolean	bJpeg = IL_FALSE;
@@ -120,62 +110,59 @@ ILboolean ilIsValidJpeg(ILcontext* context, ILconst_string FileName)
 		return bJpeg;
 	}
 
-	bJpeg = ilIsValidJpegF(context, JpegFile);
+	bJpeg = isValidF(JpegFile);
 	context->impl->icloser(JpegFile);
 
 	return bJpeg;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .jpg file at the current position.
-ILboolean ilIsValidJpegF(ILcontext* context, ILHANDLE File)
+ILboolean JpegHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidJpeg(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
-ILboolean ilIsValidJpegL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean JpegHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidJpeg(context);
+	return isValidInternal();
 }
-
 
 #ifndef IL_USE_IJL // Use libjpeg instead of the IJL.
 
 typedef struct {
 	struct jpeg_error_mgr pub;	/* public fields */
 
-	ILcontext* context;
+	JpegHandler* handler;
 } error_mgr;
 
 typedef error_mgr  * ierror_ptr;
 
 // Overrides libjpeg's stupid error/warning handlers. =P
 //void ExitErrorHandle (struct jpeg_common_struct *JpegInfo)
-void ExitErrorHandle(j_common_ptr cinfo)
+void JpegHandler::ExitErrorHandle(j_common_ptr cinfo)
 {
 	ierror_ptr err = (ierror_ptr)cinfo->err;
-	ilSetError(err->context, IL_LIB_JPEG_ERROR);
-	jpgErrorOccured = IL_TRUE;
+	ilSetError(err->handler->context, IL_LIB_JPEG_ERROR);
+	err->handler->jpgErrorOccured = IL_TRUE;
 	return;
 }
+
 void OutputMsg(struct jpeg_common_struct *JpegInfo)
 {
 	return;
 }
 
-
 //! Reads a jpeg file
-ILboolean ilLoadJpeg(ILcontext* context, ILconst_string FileName)
+ILboolean JpegHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	JpegFile;
 	ILboolean	bJpeg = IL_FALSE;
@@ -186,48 +173,44 @@ ILboolean ilLoadJpeg(ILcontext* context, ILconst_string FileName)
 		return bJpeg;
 	}
 
-	bJpeg = ilLoadJpegF(context, JpegFile);
+	bJpeg = loadF(JpegFile);
 	context->impl->icloser(JpegFile);
 
 	return bJpeg;
 }
 
-
 //! Reads an already-opened jpeg file
-ILboolean ilLoadJpegF(ILcontext* context, ILHANDLE File)
+ILboolean JpegHandler::loadF(ILHANDLE File)
 {
 	ILboolean	bRet;
 	ILuint		FirstPos;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadJpegInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 // Reads from a memory "lump" containing a jpeg
-ILboolean ilLoadJpegL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean JpegHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadJpegInternal(context);
+	return loadInternal();
 }
-
 
 typedef struct {
   struct jpeg_source_mgr pub;	/* public fields */
 
   JOCTET * buffer;		/* start of buffer */
   boolean start_of_file;	/* have we gotten any data yet? */
-  ILcontext* context;
+  JpegHandler* handler;
 } iread_mgr;
 
 typedef iread_mgr * iread_ptr;
 
 #define INPUT_BUF_SIZE  4096  // choose an efficiently iread'able size
-
 
 METHODDEF(void)
 init_source (j_decompress_ptr cinfo)
@@ -236,19 +219,17 @@ init_source (j_decompress_ptr cinfo)
 	src->start_of_file = (boolean)IL_TRUE;
 }
 
-
-METHODDEF(boolean)
-fill_input_buffer (j_decompress_ptr cinfo)
+boolean JpegHandler::fill_input_buffer (j_decompress_ptr cinfo)
 {
 	iread_ptr src = (iread_ptr) cinfo->src;
 	ILint nbytes;
 
-	nbytes = src->context->impl->iread(src->context, src->buffer, 1, INPUT_BUF_SIZE);
+	nbytes = src->handler->context->impl->iread(src->handler->context, src->buffer, 1, INPUT_BUF_SIZE);
 
 	if (nbytes <= 0) {
 		if (src->start_of_file) {  // Treat empty input file as fatal error
 			//ERREXIT(cinfo, JERR_INPUT_EMPTY);
-			jpgErrorOccured = IL_TRUE;
+			src->handler->jpgErrorOccured = IL_TRUE;
 		}
 		//WARNMS(cinfo, JWRN_JPEG_EOF);
 		// Insert a fake EOI marker
@@ -258,7 +239,7 @@ fill_input_buffer (j_decompress_ptr cinfo)
 		return (boolean)IL_FALSE;
 	}
 	if (nbytes < INPUT_BUF_SIZE) {
-		ilGetError(src->context);  // Gets rid of the IL_FILE_READ_ERROR.
+		ilGetError(src->handler->context);  // Gets rid of the IL_FILE_READ_ERROR.
 	}
 
 	src->pub.next_input_byte = src->buffer;
@@ -268,9 +249,7 @@ fill_input_buffer (j_decompress_ptr cinfo)
 	return (boolean)IL_TRUE;
 }
 
-
-METHODDEF(void)
-skip_input_data (j_decompress_ptr cinfo, long num_bytes)
+void JpegHandler::skip_input_data (j_decompress_ptr cinfo, long num_bytes)
 {
 	iread_ptr src = (iread_ptr) cinfo->src;
 
@@ -284,16 +263,13 @@ skip_input_data (j_decompress_ptr cinfo, long num_bytes)
 	}
 }
 
-
 METHODDEF(void)
 term_source (j_decompress_ptr cinfo)
 {
 	// no work necessary here
 }
 
-
-GLOBAL(void)
-devil_jpeg_read_init (ILcontext* context, j_decompress_ptr cinfo)
+void JpegHandler::devil_jpeg_read_init (j_decompress_ptr cinfo)
 {
 	iread_ptr src;
 
@@ -314,22 +290,21 @@ devil_jpeg_read_init (ILcontext* context, j_decompress_ptr cinfo)
 	src->pub.term_source = term_source;
 	src->pub.bytes_in_buffer = 0;  // forces fill_input_buffer on first read
 	src->pub.next_input_byte = NULL;  // until buffer loaded
-	src->context = context;
+	src->handler = this;
 }
-
 
 jmp_buf	JpegJumpBuffer;
 
-static void iJpegErrorExit(j_common_ptr cinfo )
+void JpegHandler::iJpegErrorExit(j_common_ptr cinfo )
 {
 	ierror_ptr err = (ierror_ptr)cinfo->err;
-	ilSetError( err->context, IL_LIB_JPEG_ERROR );
+	ilSetError( err->handler->context, IL_LIB_JPEG_ERROR );
 	jpeg_destroy( cinfo );
 	longjmp( JpegJumpBuffer, 1 );
 }
 
 // Internal function used to load the jpeg.
-ILboolean iLoadJpegInternal(ILcontext* context)
+ILboolean JpegHandler::loadInternal()
 {
 	ierror_ptr Error = new error_mgr();
 	struct jpeg_decompress_struct	JpegInfo;
@@ -351,10 +326,10 @@ ILboolean iLoadJpegInternal(ILcontext* context)
 
 		//jpeg_stdio_src(&JpegInfo, iGetFile());
 
-		devil_jpeg_read_init(context, &JpegInfo);
+		devil_jpeg_read_init(&JpegInfo);
 		jpeg_read_header(&JpegInfo, (boolean)IL_TRUE);
 
-		result = ilLoadFromJpegStruct(context, &JpegInfo);
+		result = loadFromJpegStruct(&JpegInfo);
 
 		jpeg_finish_decompress(&JpegInfo);
 		jpeg_destroy_decompress(&JpegInfo);
@@ -369,8 +344,6 @@ ILboolean iLoadJpegInternal(ILcontext* context)
 	return result;
 }
 
-
-
 typedef struct
 {
 	struct jpeg_destination_mgr		pub;
@@ -382,7 +355,6 @@ typedef struct
 typedef iwrite_mgr *iwrite_ptr;
 
 #define OUTPUT_BUF_SIZE 4096
-
 
 METHODDEF(void)
 init_destination(j_compress_ptr cinfo)
@@ -415,7 +387,6 @@ term_destination (j_compress_ptr cinfo)
 	return;
 }
 
-
 GLOBAL(void)
 devil_jpeg_write_init(ILcontext* context, j_compress_ptr cinfo)
 {
@@ -437,9 +408,8 @@ devil_jpeg_write_init(ILcontext* context, j_compress_ptr cinfo)
 	return;
 }
 
-
 //! Writes a Jpeg file
-ILboolean ilSaveJpeg(ILcontext* context, const ILstring FileName)
+ILboolean JpegHandler::save(const ILstring FileName)
 {
 	ILHANDLE	JpegFile;
 	ILuint		JpegSize;
@@ -457,7 +427,7 @@ ILboolean ilSaveJpeg(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	JpegSize = ilSaveJpegF(context, JpegFile);
+	JpegSize = saveF(JpegFile);
 	context->impl->iclosew(JpegFile);
 
 	if (JpegSize == 0)
@@ -465,33 +435,30 @@ ILboolean ilSaveJpeg(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Jpeg to an already-opened file
-ILuint ilSaveJpegF(ILcontext* context, ILHANDLE File)
+ILuint JpegHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveJpegInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Jpeg to a memory "lump"
-ILuint ilSaveJpegL(ILcontext* context, void *Lump, ILuint Size)
+ILuint JpegHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSaveJpegInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 // Internal function used to save the Jpeg.
-ILboolean iSaveJpegInternal(ILcontext* context)
+ILboolean JpegHandler::saveInternal()
 {
 	struct		jpeg_compress_struct JpegInfo;
 	struct		jpeg_error_mgr Error;
@@ -601,14 +568,10 @@ ILboolean iSaveJpegInternal(ILcontext* context)
 	return IL_TRUE;
 }
 
-
-
 #else // Use the IJL instead of libjpeg.
 
-
-
 //! Reads a jpeg file
-ILboolean ilLoadJpeg(ILconst_string FileName)
+ILboolean JpegHandler::load(ILconst_string FileName)
 {
 	if (!iFileExists(FileName)) {
 		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
@@ -617,16 +580,14 @@ ILboolean ilLoadJpeg(ILconst_string FileName)
 	return iLoadJpegInternal(FileName, NULL, 0);
 }
 
-
 // Reads from a memory "lump" containing a jpeg
-ILboolean ilLoadJpegL(ILcontext* context, void *Lump, ILuint Size)
+ILboolean JpegHandler::loadL(ILcontext* context, void *Lump, ILuint Size)
 {
 	return iLoadJpegInternal(NULL, Lump, Size);
 }
 
-
 // Internal function used to load the jpeg.
-ILboolean iLoadJpegInternal(ILstring FileName, void *Lump, ILuint Size)
+ILboolean JpegHandler::iLoadJpegInternal(ILstring FileName, void *Lump, ILuint Size)
 {
     JPEG_CORE_PROPERTIES Image;
 
@@ -721,9 +682,8 @@ ILboolean iLoadJpegInternal(ILstring FileName, void *Lump, ILuint Size)
 	return ilFixImage(context);
 }
 
-
 //! Writes a Jpeg file
-ILboolean ilSaveJpeg(ILconst_string FileName)
+ILboolean JpegHandler::save(ILconst_string FileName)
 {
 	if (ilGetBoolean(context, IL_FILE_MODE) == IL_FALSE) {
 		if (iFileExists(FileName)) {
@@ -732,19 +692,19 @@ ILboolean ilSaveJpeg(ILconst_string FileName)
 		}
 	}
 
-	return iSaveJpegInternal(FileName, NULL, 0);
+	return saveInternal(FileName, NULL, 0);
 }
 
 
 //! Writes a Jpeg to a memory "lump"
-ILboolean ilSaveJpegL(ILcontext* context, void *Lump, ILuint Size)
+ILboolean JpegHandler::saveL(void *Lump, ILuint Size)
 {
-	return iSaveJpegInternal(NULL, Lump, Size);
+	return saveInternal(NULL, Lump, Size);
 }
 
 
 // Internal function used to save the Jpeg.
-ILboolean iSaveJpegInternal(ILstring FileName, void *Lump, ILuint Size)
+ILboolean JpegHandler::saveInternal(ILstring FileName, void *Lump, ILuint Size)
 {
 	JPEG_CORE_PROPERTIES	Image;
 	ILuint	Quality;
@@ -861,7 +821,6 @@ ILboolean iSaveJpegInternal(ILstring FileName, void *Lump, ILuint Size)
 
 #endif//IL_USE_IJL
 
-
 // Access point for applications wishing to use the jpeg library directly in
 // conjunction with DevIL.
 //
@@ -869,7 +828,7 @@ ILboolean iSaveJpegInternal(ILstring FileName, void *Lump, ILuint Size)
 // this function is called. The caller must call jpeg_finish_decompress because
 // the caller may still need decompressor after calling this for e.g. examining
 // saved markers.
-ILboolean ilLoadFromJpegStruct(ILcontext* context, void *_JpegInfo)
+ILboolean JpegHandler::loadFromJpegStruct(void *_JpegInfo)
 {
 #ifndef IL_NO_JPG
 #ifndef IL_USE_IJL
@@ -936,7 +895,7 @@ ILboolean ilLoadFromJpegStruct(ILcontext* context, void *_JpegInfo)
 // is also responsible for calling jpeg_finish_compress in case the
 // caller still needs to compressor for something.
 // 
-ILboolean ilSaveFromJpegStruct(ILcontext* context, void *_JpegInfo)
+ILboolean JpegHandler::saveFromJpegStruct(void *_JpegInfo)
 {
 #ifndef IL_NO_JPG
 #ifndef IL_USE_IJL

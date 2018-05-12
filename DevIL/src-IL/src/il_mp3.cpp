@@ -12,6 +12,8 @@
 
 #include "il_internal.h"
 #ifndef IL_NO_MP3
+#include "il_png.h"
+#include "il_jpeg.h"
 
 typedef struct MP3HEAD
 {
@@ -29,9 +31,6 @@ typedef struct MP3HEAD
 ILboolean iLoadMp3Internal(ILcontext* context);
 ILboolean iIsValidMp3(ILcontext* context);
 ILboolean iCheckMp3(MP3HEAD *Header);
-ILboolean iLoadJpegInternal(ILcontext* context);
-ILboolean iLoadPngInternal(ILcontext* context);
-
 
 //! Checks if the file specified in FileName is a valid MP3 file.
 ILboolean ilIsValidMp3(ILcontext* context, ILconst_string FileName)
@@ -260,12 +259,20 @@ ILboolean iLoadMp3Internal(ILcontext* context)
 	{
 #ifndef IL_NO_JPG
 		case MP3_JPG:
-			return iLoadJpegInternal(context);
+		{
+			JpegHandler handler(context);
+
+			return handler.loadInternal();
+		}
 #endif//IL_NO_JPG
 
 #ifndef IL_NO_PNG
 		case MP3_PNG:
-			return iLoadPngInternal(context);
+		{
+			PngHandler handler(context);
+
+			return handler.loadInternal();
+		}
 #endif//IL_NO_PNG
 
 		// Either a picture was not found, or the MIME type was not recognized.

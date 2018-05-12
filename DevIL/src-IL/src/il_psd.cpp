@@ -10,20 +10,24 @@
 //
 //-----------------------------------------------------------------------------
 
-
 // Information about the .psd format was taken from Adobe's PhotoShop SDK at
 //  http://partners.adobe.com/asn/developer/gapsdk/PhotoshopSDK.html
 //  Information about the Packbits compression scheme was found at
 //	http://partners.adobe.com/asn/developer/PDFS/TN/TIFF6.pdf
 
 #include "il_internal.h"
+
 #ifndef IL_NO_PSD
 #include "il_psd.h"
+
+ILboolean	GetSingleChannel(ILcontext* context, PSDHEAD *Head, ILubyte *Buffer, ILboolean Compressed);
+ILboolean	ParseResources(ILcontext* context, ILuint ResourceSize, ILubyte *Resources);
 
 static float ubyte_to_float(ILubyte val)
 {
 	return ((float)val) / 255.0f;
 }
+
 static float ushort_to_float(ILushort val)
 {
 	return ((float)val) / 65535.0f;
@@ -33,14 +37,20 @@ static ILubyte float_to_ubyte(float val)
 {
 	return (ILubyte)(val * 255.0f);
 }
+
 static ILushort float_to_ushort(float val)
 {
 	return (ILushort)(val * 65535.0f);
 }
 
+PsdHandler::PsdHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid Psd file.
-ILboolean ilIsValidPsd(ILcontext* context, ILconst_string FileName)
+ILboolean PsdHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	PsdFile;
 	ILboolean	bPsd = IL_FALSE;
@@ -57,35 +67,32 @@ ILboolean ilIsValidPsd(ILcontext* context, ILconst_string FileName)
 		return bPsd;
 	}
 
-	bPsd = ilIsValidPsdF(context, PsdFile);
+	bPsd = isValidF(PsdFile);
 	context->impl->icloser(PsdFile);
 
 	return bPsd;
 }
 
-
 //! Checks if the ILHANDLE contains a valid Psd file at the current position.
-ILboolean ilIsValidPsdF(ILcontext* context, ILHANDLE File)
+ILboolean PsdHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidPsd(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid Psd lump.
-ILboolean ilIsValidPsdL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PsdHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidPsd(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the Psd header from the current file.
 ILboolean iGetPsdHead(ILcontext* context, PSDHEAD *Header)
@@ -102,21 +109,19 @@ ILboolean iGetPsdHead(ILcontext* context, PSDHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidPsd(ILcontext* context)
+ILboolean PsdHandler::isValidInternal()
 {
 	PSDHEAD	Head;
 
 	iGetPsdHead(context, &Head);
 	context->impl->iseek(context, -(ILint)sizeof(PSDHEAD), IL_SEEK_CUR);
 
-	return iCheckPsd(&Head);
+	return check(&Head);
 }
 
-
 // Internal function used to check if the HEADER is a valid Psd header.
-ILboolean iCheckPsd(PSDHEAD *Header)
+ILboolean PsdHandler::check(PSDHEAD *Header)
 {
 	ILuint i;
 
@@ -138,9 +143,8 @@ ILboolean iCheckPsd(PSDHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a Psd file
-ILboolean ilLoadPsd(ILcontext* context, ILconst_string FileName)
+ILboolean PsdHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	PsdFile;
 	ILboolean	bPsd = IL_FALSE;
@@ -151,38 +155,35 @@ ILboolean ilLoadPsd(ILcontext* context, ILconst_string FileName)
 		return bPsd;
 	}
 
-	bPsd = ilLoadPsdF(context, PsdFile);
+	bPsd = loadF(PsdFile);
 	context->impl->icloser(PsdFile);
 
 	return bPsd;
 }
 
-
 //! Reads an already-opened Psd file
-ILboolean ilLoadPsdF(ILcontext* context, ILHANDLE File)
+ILboolean PsdHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadPsdInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a Psd
-ILboolean ilLoadPsdL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PsdHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadPsdInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the Psd.
-ILboolean iLoadPsdInternal(ILcontext* context)
+ILboolean PsdHandler::loadInternal()
 {
 	PSDHEAD	Header;
 
@@ -192,39 +193,37 @@ ILboolean iLoadPsdInternal(ILcontext* context)
 	}
 
 	iGetPsdHead(context, &Header);
-	if (!iCheckPsd(&Header)) {
+	if (!check(&Header)) {
 		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
 
-	if (!ReadPsd(context, &Header))
+	if (!ReadPsd(&Header))
 		return IL_FALSE;
 	context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 
 	return ilFixImage(context);
 }
 
-
-ILboolean ReadPsd(ILcontext* context, PSDHEAD *Head)
+ILboolean PsdHandler::ReadPsd(PSDHEAD *Head)
 {
 	switch (Head->Mode)
 	{
 		case 1:  // Greyscale
-			return ReadGrey(context, Head);
+			return ReadGrey(Head);
 		case 2:  // Indexed
-			return ReadIndexed(context, Head);
+			return ReadIndexed(Head);
 		case 3:  // RGB
-			return ReadRGB(context, Head);
+			return ReadRGB(Head);
 		case 4:  // CMYK
-			return ReadCMYK(context, Head);
+			return ReadCMYK(Head);
 	}
 
 	ilSetError(context, IL_FORMAT_NOT_SUPPORTED);
 	return IL_FALSE;
 }
 
-
-ILboolean ReadGrey(ILcontext* context, PSDHEAD *Head)
+ILboolean PsdHandler::ReadGrey(PSDHEAD *Head)
 {
 	ILuint		ColorMode, ResourceSize, MiscInfo;
 	ILushort	Compressed;
@@ -268,7 +267,7 @@ ILboolean ReadGrey(ILcontext* context, PSDHEAD *Head)
 
 	if (!ilTexImage(context, Head->Width, Head->Height, 1, 1, IL_LUMINANCE, Type, NULL))
 		goto cleanup_error;
-	if (!PsdGetData(context, Head, context->impl->iCurImage->Data, (ILboolean)Compressed))
+	if (!PsdGetData(Head, context->impl->iCurImage->Data, (ILboolean)Compressed))
 		goto cleanup_error;
 	if (!ParseResources(context, ResourceSize, Resources))
 		goto cleanup_error;
@@ -281,8 +280,7 @@ cleanup_error:
 	return IL_FALSE;
 }
 
-
-ILboolean ReadIndexed(ILcontext* context, PSDHEAD *Head)
+ILboolean PsdHandler::ReadIndexed(PSDHEAD *Head)
 {
 	ILuint		ColorMode, ResourceSize, MiscInfo, i, j, NumEnt;
 	ILushort	Compressed;
@@ -341,7 +339,7 @@ ILboolean ReadIndexed(ILcontext* context, PSDHEAD *Head)
 	ifree(Palette);
 	Palette = NULL;
 
-	if (!PsdGetData(context, Head, context->impl->iCurImage->Data, (ILboolean)Compressed))
+	if (!PsdGetData(Head, context->impl->iCurImage->Data, (ILboolean)Compressed))
 		goto cleanup_error;
 
 	ParseResources(context, ResourceSize, Resources);
@@ -357,8 +355,7 @@ cleanup_error:
 	return IL_FALSE;
 }
 
-
-ILboolean ReadRGB(ILcontext* context, PSDHEAD *Head)
+ILboolean PsdHandler::ReadRGB(PSDHEAD *Head)
 {
 	ILuint		ColorMode, ResourceSize, MiscInfo;
 	ILushort	Compressed;
@@ -416,7 +413,7 @@ ILboolean ReadRGB(ILcontext* context, PSDHEAD *Head)
 	}
 	if (!ilTexImage(context, Head->Width, Head->Height, 1, (Format==IL_RGB) ? 3 : 4, Format, Type, NULL))
 		goto cleanup_error;
-	if (!PsdGetData(context, Head, context->impl->iCurImage->Data, (ILboolean)Compressed))
+	if (!PsdGetData(Head, context->impl->iCurImage->Data, (ILboolean)Compressed))
 		goto cleanup_error;
 	if (!ParseResources(context, ResourceSize, Resources))
 		goto cleanup_error;
@@ -429,8 +426,7 @@ cleanup_error:
 	return IL_FALSE;
 }
 
-
-ILboolean ReadCMYK(ILcontext* context, PSDHEAD *Head)
+ILboolean PsdHandler::ReadCMYK(PSDHEAD *Head)
 {
 	ILuint		ColorMode, ResourceSize, MiscInfo, Size, i, j;
 	ILushort	Compressed;
@@ -483,7 +479,7 @@ ILboolean ReadCMYK(ILcontext* context, PSDHEAD *Head)
 	}
 	if (!ilTexImage(context, Head->Width, Head->Height, 1, (ILubyte)Head->Channels, Format, Type, NULL))
 		goto cleanup_error;
-	if (!PsdGetData(context, Head, context->impl->iCurImage->Data, (ILboolean)Compressed))
+	if (!PsdGetData(Head, context->impl->iCurImage->Data, (ILboolean)Compressed))
 		goto cleanup_error;
 
 	Size = context->impl->iCurImage->Bpc * context->impl->iCurImage->Width * context->impl->iCurImage->Height;
@@ -524,8 +520,7 @@ cleanup_error:
 	return IL_FALSE;
 }
 
-
-ILuint *GetCompChanLen(ILcontext* context, PSDHEAD *Head)
+ILuint* PsdHandler::GetCompChanLen(PSDHEAD *Head)
 {
 	ILushort	*RleTable;
 	ILuint		*ChanLen, c, i, j;
@@ -559,8 +554,6 @@ ILuint *GetCompChanLen(ILcontext* context, PSDHEAD *Head)
 
 	return ChanLen;
 }
-
-
 
 static const ILuint READ_COMPRESSED_SUCCESS					= 0;
 static const ILuint READ_COMPRESSED_ERROR_FILE_CORRUPT		= 1;
@@ -624,8 +617,7 @@ static ILuint ReadCompressedChannel(ILcontext* context, const ILuint ChanLen, IL
 	return READ_COMPRESSED_SUCCESS;
 }
 
-
-ILboolean PsdGetData(ILcontext* context, PSDHEAD *Head, void *Buffer, ILboolean Compressed)
+ILboolean PsdHandler::PsdGetData(PSDHEAD *Head, void *Buffer, ILboolean Compressed)
 {
 	ILuint		c, x, y, i, Size, ReadResult, NumChan;
 	ILubyte		*Channel = NULL;
@@ -727,7 +719,7 @@ ILboolean PsdGetData(ILcontext* context, PSDHEAD *Head, void *Buffer, ILboolean 
 		}
 	}
 	else {
-		ChanLen = GetCompChanLen(context, Head);
+		ChanLen = GetCompChanLen(Head);
 
 		Size = Head->Width * Head->Height;
 		for (c = 0; c < NumChan; c++) {
@@ -791,7 +783,6 @@ file_read_error:
 	return IL_FALSE;
 }
 
-
 ILboolean ParseResources(ILcontext* context, ILuint ResourceSize, ILubyte *Resources)
 {
 	ILushort	ID;
@@ -854,7 +845,6 @@ ILboolean ParseResources(ILcontext* context, ILuint ResourceSize, ILubyte *Resou
 	return IL_TRUE;
 }
 
-
 ILboolean GetSingleChannel(ILcontext* context, PSDHEAD *Head, ILubyte *Buffer, ILboolean Compressed)
 {
 	ILuint		i;
@@ -898,10 +888,8 @@ ILboolean GetSingleChannel(ILcontext* context, PSDHEAD *Head, ILubyte *Buffer, I
 	return IL_TRUE;
 }
 
-
-
 //! Writes a Psd file
-ILboolean ilSavePsd(ILcontext* context, const ILstring FileName)
+ILboolean PsdHandler::save(const ILstring FileName)
 {
 	ILHANDLE	PsdFile;
 	ILuint		PsdSize;
@@ -919,7 +907,7 @@ ILboolean ilSavePsd(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	PsdSize = ilSavePsdF(context, PsdFile);
+	PsdSize = saveF(PsdFile);
 	context->impl->iclosew(PsdFile);
 
 	if (PsdSize == 0)
@@ -927,33 +915,30 @@ ILboolean ilSavePsd(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Psd to an already-opened file
-ILuint ilSavePsdF(ILcontext* context, ILHANDLE File)
+ILuint PsdHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSavePsdInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Psd to a memory "lump"
-ILuint ilSavePsdL(ILcontext* context, void *Lump, ILuint Size)
+ILuint PsdHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSavePsdInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 // Internal function used to save the Psd.
-ILboolean iSavePsdInternal(ILcontext* context)
+ILboolean PsdHandler::saveInternal()
 {
 	ILubyte		*Signature = (ILubyte*)"8BPS";
 	ILimage		*TempImage;
@@ -1081,6 +1066,5 @@ ILboolean iSavePsdInternal(ILcontext* context)
 
 	return IL_TRUE;
 }
-
 
 #endif//IL_NO_PSD

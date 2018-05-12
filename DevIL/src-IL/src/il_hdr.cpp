@@ -16,9 +16,14 @@
 #include "il_hdr.h"
 #include "il_endian.h"
 
+HdrHandler::HdrHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid .hdr file.
-ILboolean ilIsValidHdr(ILcontext* context, ILconst_string FileName)
+ILboolean HdrHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	HdrFile;
 	ILboolean	bHdr = IL_FALSE;
@@ -34,35 +39,32 @@ ILboolean ilIsValidHdr(ILcontext* context, ILconst_string FileName)
 		return bHdr;
 	}
 
-	bHdr = ilIsValidHdrF(context, HdrFile);
+	bHdr = isValidF(HdrFile);
 	context->impl->icloser(HdrFile);
 
 	return bHdr;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .hdr file at the current position.
-ILboolean ilIsValidHdrF(ILcontext* context, ILHANDLE File)
+ILboolean HdrHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidHdr(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid .hdr lump.
-ILboolean ilIsValidHdrL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean HdrHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidHdr(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the .hdr header from the current file.
 ILboolean iGetHdrHead(ILcontext* context, HDRHEADER *Header)
@@ -124,7 +126,7 @@ ILboolean iGetHdrHead(ILcontext* context, HDRHEADER *Header)
 
 
 // Internal function to get the header and check it.
-ILboolean iIsValidHdr(ILcontext* context)
+ILboolean HdrHandler::isValidInternal()
 {
 	char	Head[10];
 	ILint	Read;
@@ -139,7 +141,6 @@ ILboolean iIsValidHdr(ILcontext* context)
 		|| strnicmp(Head, "#?RGBE", 6) == 0;
 }
 
-
 // Internal function used to check if the HEADER is a valid .hdr header.
 ILboolean iCheckHdr(HDRHEADER *Header)
 {
@@ -148,9 +149,8 @@ ILboolean iCheckHdr(HDRHEADER *Header)
 		|| strnicmp(Header->Signature, "#?RGBE", 6) == 0;
 }
 
-
 //! Reads a .hdr file
-ILboolean ilLoadHdr(ILcontext* context, ILconst_string FileName)
+ILboolean HdrHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	HdrFile;
 	ILboolean	bHdr = IL_FALSE;
@@ -161,38 +161,35 @@ ILboolean ilLoadHdr(ILcontext* context, ILconst_string FileName)
 		return bHdr;
 	}
 
-	bHdr = ilLoadHdrF(context, HdrFile);
+	bHdr = loadF(HdrFile);
 	context->impl->icloser(HdrFile);
 
 	return bHdr;
 }
 
-
 //! Reads an already-opened .hdr file
-ILboolean ilLoadHdrF(ILcontext* context, ILHANDLE File)
+ILboolean HdrHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadHdrInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .hdr
-ILboolean ilLoadHdrL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean HdrHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadHdrInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the .hdr.
-ILboolean iLoadHdrInternal(ILcontext* context)
+ILboolean HdrHandler::loadInternal()
 {
 	HDRHEADER	Header;
 	ILfloat *data;
@@ -227,7 +224,7 @@ ILboolean iLoadHdrInternal(ILcontext* context)
 	data = (ILfloat*)context->impl->iCurImage->Data;
 	scanline = (ILubyte*)ialloc(context, Header.Width*4);
 	for (i = 0; i < Header.Height; ++i) {
-		ReadScanline(context, scanline, Header.Width);
+		ReadScanline(scanline, Header.Width);
 
 		//convert hdrs internal format to floats
 		for (j = 0; j < 4*Header.Width; j += 4) {
@@ -260,7 +257,7 @@ ILboolean iLoadHdrInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-void ReadScanline(ILcontext* context, ILubyte *scanline, ILuint w) {
+void HdrHandler::ReadScanline(ILubyte *scanline, ILuint w) {
 	ILubyte *runner;
 	ILuint r, g, b, e, read, shift;
 
@@ -351,7 +348,7 @@ void ReadScanline(ILcontext* context, ILubyte *scanline, ILuint w) {
 
 
 //! Writes a Hdr file
-ILboolean ilSaveHdr(ILcontext* context, const ILstring FileName)
+ILboolean HdrHandler::save(const ILstring FileName)
 {
 	ILHANDLE	HdrFile;
 	ILuint		HdrSize;
@@ -369,7 +366,7 @@ ILboolean ilSaveHdr(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	HdrSize = ilSaveHdrF(context, HdrFile);
+	HdrSize = saveF(HdrFile);
 	context->impl->iclosew(HdrFile);
 
 	if (HdrSize == 0)
@@ -377,30 +374,27 @@ ILboolean ilSaveHdr(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Hdr to an already-opened file
-ILuint ilSaveHdrF(ILcontext* context, ILHANDLE File)
+ILuint HdrHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveHdrInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Hdr to a memory "lump"
-ILuint ilSaveHdrL(ILcontext* context, void *Lump, ILuint Size)
+ILuint HdrHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSaveHdrInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
-
 
 //
 // Much of the saving code is based on the code by Bruce Walter,
@@ -409,7 +403,6 @@ ILuint ilSaveHdrL(ILcontext* context, void *Lump, ILuint Size)
 // The actual source code file is
 //  http://www.graphics.cornell.edu/online/formats/rgbe/rgbe.c
 //
-
 
 /* standard conversion from float pixels to rgbe pixels */
 /* note: you can remove the "inline"s if your compiler complains about it */
@@ -562,9 +555,8 @@ ILboolean RGBE_WriteBytes_RLE(ILcontext* context, ILubyte *data, ILuint numbytes
 #undef MINRUNLENGTH
 }
 
-
 // Internal function used to save the Hdr.
-ILboolean iSaveHdrInternal(ILcontext* context)
+ILboolean HdrHandler::saveInternal()
 {
 	ILimage *TempImage;
 	rgbe_header_info stHeader;
@@ -652,6 +644,5 @@ ILboolean iSaveHdrInternal(ILcontext* context)
 		ilCloseImage(TempImage);
 	return IL_TRUE;
 }
-
 
 #endif//IL_NO_HDR

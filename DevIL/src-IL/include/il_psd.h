@@ -10,15 +10,14 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef PSD_H
-#define PSD_H
+#pragma once
 
 #include "il_internal.h"
 
 #ifdef _MSC_VER
 #pragma pack(push, packed_struct, 1)
 #endif
+
 typedef struct PSDHEAD
 {
 	ILubyte		Signature[4];
@@ -35,22 +34,39 @@ typedef struct PSDHEAD
 #pragma pack(pop,  packed_struct)
 #endif
 
-ILushort	ChannelNum;
+class PsdHandler
+{
+protected:
+	ILcontext * context;
 
-ILboolean	iIsValidPsd(ILcontext* context);
-ILboolean	iCheckPsd(PSDHEAD *Header);
-ILboolean	iLoadPsdInternal(ILcontext* context);
-ILboolean	ReadPsd(ILcontext* context, PSDHEAD *Head);
-ILboolean	ReadGrey(ILcontext* context, PSDHEAD *Head);
-ILboolean	ReadIndexed(ILcontext* context, PSDHEAD *Head);
-ILboolean	ReadRGB(ILcontext* context, PSDHEAD *Head);
-ILboolean	ReadCMYK(ILcontext* context, PSDHEAD *Head);
-ILuint		*GetCompChanLen(ILcontext* context, PSDHEAD *Head);
-ILboolean	PsdGetData(ILcontext* context, PSDHEAD *Head, void *Buffer, ILboolean Compressed);
-ILboolean	ParseResources(ILcontext* context, ILuint ResourceSize, ILubyte *Resources);
-ILboolean	GetSingleChannel(ILcontext* context, PSDHEAD *Head, ILubyte *Buffer, ILboolean Compressed);
-ILboolean	iSavePsdInternal(ILcontext* context);
+	ILushort	ChannelNum;
 
+	ILuint*		GetCompChanLen(PSDHEAD *Head);
+	ILboolean	PsdGetData(PSDHEAD *Head, void *Buffer, ILboolean Compressed);
+	ILboolean	ReadCMYK(PSDHEAD *Head);
+	ILboolean	ReadGrey(PSDHEAD *Head);
+	ILboolean	ReadIndexed(PSDHEAD *Head);
+	ILboolean	ReadPsd(PSDHEAD *Head);
+	ILboolean	ReadRGB(PSDHEAD *Head);
 
+	ILboolean	check(PSDHEAD *Header);
 
-#endif//PSD_H
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+	ILboolean	saveInternal();
+
+public:
+	PsdHandler(ILcontext* context);
+
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
+
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+
+	ILboolean	save(ILconst_string FileName);
+	ILuint		saveF(ILHANDLE File);
+	ILuint		saveL(void *Lump, ILuint Size);
+};

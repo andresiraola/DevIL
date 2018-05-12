@@ -13,8 +13,14 @@
 #include "il_internal.h"
 #include "il_register.h"
 #include "il_pal.h"
-#include <string.h>
+#include "il_png.h"
+#include "il_jpeg.h"
+#include "il_hdr.h"
+#include "il_tiff.h"
+#include "il_targa.h"
+#include "il_psd.h"
 
+#include <string.h>
 
 // Returns a widened version of a string.
 // Make sure to free this after it is used.  Code help from
@@ -197,8 +203,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 		return IL_TYPE_UNKNOWN;
 
 	#ifndef IL_NO_JPG
-	if (ilIsValidJpegF(context, File))
-		return IL_JPG;
+	{
+		JpegHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_JPG;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_DDS
@@ -207,8 +219,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 	#endif
 
 	#ifndef IL_NO_PNG
-	if (ilIsValidPngF(context, File))
-		return IL_PNG;
+	{
+		PngHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_PNG;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_BMP
@@ -232,8 +250,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 	#endif
 
 	#ifndef IL_NO_HDR
-	if (ilIsValidHdrF(context, File))
-		return IL_HDR;
+	{
+		HdrHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_HDR;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_ICNS
@@ -292,8 +316,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 	#endif
 
 	#ifndef IL_NO_PSD
-	if (ilIsValidPsdF(context, File))
-		return IL_PSD;
+	{
+		PsdHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_PSD;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_PSP
@@ -317,8 +347,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 	#endif
 
 	#ifndef IL_NO_TIF
-	if (ilIsValidTiffF(context, File))
-		return IL_TIF;
+	{
+		TiffHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_TIF;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_TPL
@@ -339,8 +375,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 	//moved tga to end of list because it has no magic number
 	//in header to assure that this is really a tga... (20040218)
 	#ifndef IL_NO_TGA
-	if (ilIsValidTgaF(context, File))
-		return IL_TGA;
+	{
+		TargaHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_TGA;
+		}
+	}
 	#endif
 	
 	return IL_TYPE_UNKNOWN;
@@ -353,8 +395,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 		return IL_TYPE_UNKNOWN;
 
 	#ifndef IL_NO_JPG
-	if (ilIsValidJpegL(context, Lump, Size))
-		return IL_JPG;
+	{
+		JpegHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_JPG;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_DDS
@@ -363,8 +411,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 	#endif
 
 	#ifndef IL_NO_PNG
-	if (ilIsValidPngL(context, Lump, Size))
-		return IL_PNG;
+	{
+		PngHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_PNG;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_BMP
@@ -388,8 +442,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 	#endif
 
 	#ifndef IL_NO_HDR
-	if (ilIsValidHdrL(context, Lump, Size))
-		return IL_HDR;
+	{
+		HdrHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_HDR;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_ICNS
@@ -448,8 +508,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 	#endif
 
 	#ifndef IL_NO_PSD
-	if (ilIsValidPsdL(context, Lump, Size))
-		return IL_PSD;
+	{
+		PsdHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_PSD;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_PSP
@@ -473,8 +539,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 	#endif
 
 	#ifndef IL_NO_TIF
-	if (ilIsValidTiffL(context, Lump, Size))
-		return IL_TIF;
+	{
+		TiffHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_TIF;
+		}
+	}
 	#endif
 
 	#ifndef IL_NO_TPL
@@ -495,8 +567,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 	//Moved Targa to end of list because it has no magic number
 	// in header to assure that this is really a tga... (20040218).
 	#ifndef IL_NO_TGA
-	if (ilIsValidTgaL(context, Lump, Size))
-		return IL_TGA;
+	{
+		TargaHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_TGA;
+		}
+	}
 	#endif
 
 	return IL_TYPE_UNKNOWN;
@@ -514,12 +592,20 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 	{
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			return ilIsValidTga(context, FileName);
+		{
+			TargaHandler handler(context);
+
+			return handler.isValid(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_JPG
 		case IL_JPG:
-			return ilIsValidJpeg(context, FileName);
+		{
+			JpegHandler handler(context);
+
+			return handler.isValid(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_DDS
@@ -529,7 +615,11 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			return ilIsValidPng(context, FileName);
+		{
+			PngHandler handler(context);
+
+			return handler.isValid(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_BMP
@@ -559,7 +649,11 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			return ilIsValidHdr(context, FileName);
+		{
+			HdrHandler handler(context);
+
+			return handler.isValid(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_ICNS
@@ -619,7 +713,11 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			return ilIsValidPsd(context, FileName);
+		{
+			PsdHandler handler(context);
+
+			return handler.isValid(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_PSP
@@ -644,7 +742,11 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			return ilIsValidTiff(context, FileName);
+		{
+			TiffHandler handler(context);
+
+			return handler.isValid(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_TPL
@@ -679,12 +781,20 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 	{
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			return ilIsValidTgaF(context, File);
+		{
+			TargaHandler handler(context);
+
+			return handler.isValidF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_JPG
 		case IL_JPG:
-			return ilIsValidJpegF(context, File);
+		{
+			JpegHandler handler(context);
+
+			return handler.isValidF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_DDS
@@ -694,7 +804,11 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			return ilIsValidPngF(context, File);
+		{
+			PngHandler handler(context);
+
+			return handler.isValidF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_BLP
@@ -724,7 +838,11 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			return ilIsValidHdrF(context, File);
+		{
+			HdrHandler handler(context);
+
+			return handler.isValidF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_ICNS
@@ -784,7 +902,11 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			return ilIsValidPsdF(context, File);
+		{
+			PsdHandler handler(context);
+
+			return handler.isValidF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_PSP
@@ -809,7 +931,11 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			return ilIsValidTiffF(context, File);
+		{
+			TiffHandler handler(context);
+
+			return handler.isValidF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_TPL
@@ -844,12 +970,20 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 	{
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			return ilIsValidTgaL(context, Lump, Size);
+		{
+			TargaHandler handler(context);
+
+			return handler.isValidL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_JPG
 		case IL_JPG:
-			return ilIsValidJpegL(context, Lump, Size);
+		{
+			JpegHandler handler(context);
+
+			return handler.isValidL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_DDS
@@ -859,7 +993,11 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			return ilIsValidPngL(context, Lump, Size);
+		{
+			PngHandler handler(context);
+
+			return handler.isValidL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_BMP
@@ -889,7 +1027,11 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			return ilIsValidHdrL(context, Lump, Size);
+		{
+			HdrHandler handler(context);
+
+			return handler.isValidL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_ICNS
@@ -949,7 +1091,11 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			return ilIsValidPsdL(context, Lump, Size);
+		{
+			PsdHandler handler(context);
+
+			return handler.isValidL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_PSP
@@ -974,7 +1120,11 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			return ilIsValidTiffL(context, Lump, Size);
+		{
+			TiffHandler handler(context);
+
+			return handler.isValidL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_TPL
@@ -1026,14 +1176,22 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			bRet = ilLoadTarga(context, FileName);
-			break;
+		{
+			TargaHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_JPG
 		case IL_JPG:
-			bRet = ilLoadJpeg(context, FileName);
-			break;
+		{
+			JpegHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_JP2
@@ -1050,8 +1208,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			bRet = ilLoadPng(context, FileName);
-			break;
+		{
+			PngHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_BLP
@@ -1080,8 +1242,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			bRet = ilLoadHdr(context, FileName);
-			break;
+		{
+			HdrHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_CUT
@@ -1215,8 +1381,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			bRet = ilLoadPsd(context, FileName);
-			break;
+		{
+			PsdHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_PSP
@@ -1263,8 +1433,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			bRet = ilLoadTiff(context, FileName);
-			break;
+		{
+			TiffHandler handler(context);
+
+			bRet = handler.load(FileName);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_TPL
@@ -1344,13 +1518,21 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			return ilLoadTargaF(context, File);
+		{
+			TargaHandler handler(context);
+
+			return handler.loadF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_JPG
 			#ifndef IL_USE_IJL
 			case IL_JPG:
-				return ilLoadJpegF(context, File);
+			{
+				JpegHandler handler(context);
+
+				return handler.loadF(File);
+			}
 			#endif
 		#endif
 
@@ -1366,7 +1548,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			return ilLoadPngF(context, File);
+		{
+			PngHandler handler(context);
+
+			return handler.loadF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_BLP
@@ -1423,7 +1609,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			return ilLoadHdrF(context, File);
+		{
+			HdrHandler handler(context);
+
+			return handler.loadF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_ICO
@@ -1503,7 +1693,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			return ilLoadPsdF(context, File);
+		{
+			PsdHandler handler(context);
+
+			return handler.loadF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_PSP
@@ -1543,7 +1737,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			return ilLoadTiffF(context, File);
+		{
+			TiffHandler handler(context);
+
+			return handler.loadF(File);
+		}
 		#endif
 
 		#ifndef IL_NO_TPL
@@ -1609,12 +1807,20 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			return ilLoadTargaL(context, Lump, Size);
+		{
+			TargaHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_JPG
 		case IL_JPG:
-			return ilLoadJpegL(context, Lump, Size);
+		{
+			JpegHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_JP2
@@ -1629,7 +1835,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			return ilLoadPngL(context, Lump, Size);
+		{
+			PngHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_BLP
@@ -1686,7 +1896,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			return ilLoadHdrL(context, Lump, Size);
+		{
+			HdrHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_ICO
@@ -1766,7 +1980,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			return ilLoadPsdL(context, Lump, Size);
+		{
+			PsdHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_PSP
@@ -1806,7 +2024,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			return ilLoadTiffL(context, Lump, Size);
+		{
+			TiffHandler handler(context);
+
+			return handler.loadL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_TPL
@@ -1881,16 +2103,24 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 
 		#ifndef IL_NO_TGA
 		if (!iStrCmp(Ext, IL_TEXT("tga")) || !iStrCmp(Ext, IL_TEXT("vda")) ||
-			!iStrCmp(Ext, IL_TEXT("icb")) || !iStrCmp(Ext, IL_TEXT("vst"))) {
-			bRet = ilLoadTarga(context, FileName);
+			!iStrCmp(Ext, IL_TEXT("icb")) || !iStrCmp(Ext, IL_TEXT("vst")))
+		{
+			TargaHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 		#endif
 
 		#ifndef IL_NO_JPG
 		if (!iStrCmp(Ext, IL_TEXT("jpg")) || !iStrCmp(Ext, IL_TEXT("jpe")) ||
-			!iStrCmp(Ext, IL_TEXT("jpeg")) || !iStrCmp(Ext, IL_TEXT("jif")) || !iStrCmp(Ext, IL_TEXT("jfif"))) {
-			bRet = ilLoadJpeg(context, FileName);
+			!iStrCmp(Ext, IL_TEXT("jpeg")) || !iStrCmp(Ext, IL_TEXT("jif")) || !iStrCmp(Ext, IL_TEXT("jfif")))
+		{
+			JpegHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 		#endif
@@ -1911,8 +2141,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 		#endif
 
 		#ifndef IL_NO_PNG
-		if (!iStrCmp(Ext, IL_TEXT("png"))) {
-			bRet = ilLoadPng(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("png")))
+		{
+			PngHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 		#endif
@@ -1960,8 +2194,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 		#endif
 
 		#ifndef IL_NO_HDR
-		if (!iStrCmp(Ext, IL_TEXT("hdr"))) {
-			bRet = ilLoadHdr(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("hdr")))
+		{
+			HdrHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 		#endif
@@ -2124,8 +2362,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 		#endif
 
 		#ifndef IL_NO_PSD
-		if (!iStrCmp(Ext, IL_TEXT("psd")) || !iStrCmp(Ext, IL_TEXT("pdd"))) {
-			bRet = ilLoadPsd(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("psd")) || !iStrCmp(Ext, IL_TEXT("pdd")))
+		{
+			PsdHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 		#endif
@@ -2177,8 +2419,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 		#endif
 
 		#ifndef IL_NO_TIF
-		if (!iStrCmp(Ext, IL_TEXT("tif")) || !iStrCmp(Ext, IL_TEXT("tiff"))) {
-			bRet = ilLoadTiff(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("tif")) || !iStrCmp(Ext, IL_TEXT("tiff")))
+		{
+			TiffHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 		#endif
@@ -2282,7 +2528,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			return ilSaveHdr(context, FileName);
+		{
+			HdrHandler handler(context);
+
+			return handler.save(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_JP2
@@ -2292,7 +2542,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_JPG
 		case IL_JPG:
-			return ilSaveJpeg(context, FileName);
+		{
+			JpegHandler handler(context);
+
+			return handler.save(FileName);
+		}
 		#endif
 
 		/*#ifndef IL_NO_KTX
@@ -2307,7 +2561,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			return ilSavePng(context, FileName);
+		{
+			PngHandler handler(context);
+
+			return handler.save(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_PNM
@@ -2317,7 +2575,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			return ilSavePsd(context, FileName);
+		{
+			PsdHandler handler(context);
+
+			return handler.save(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_RAW
@@ -2332,12 +2594,20 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			return ilSaveTarga(context, FileName);
+		{
+			TargaHandler handler(context);
+
+			return handler.save(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			return ilSaveTiff(context, FileName);
+		{
+			TiffHandler handler(context);
+
+			return handler.save(FileName);
+		}
 		#endif
 
 		#ifndef IL_NO_VTF
@@ -2396,8 +2666,12 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			Ret = ilSaveHdrF(context, File);
-			break;
+		{
+			HdrHandler handler(context);
+
+			Ret = handler.saveF(File);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_JP2
@@ -2409,8 +2683,12 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 		#ifndef IL_NO_JPG
 			#ifndef IL_USE_IJL
 			case IL_JPG:
-				Ret = ilSaveJpegF(context, File);
-				break;
+			{
+				JpegHandler handler(context);
+
+				Ret = handler.saveF(File);
+			}
+			break;
 			#endif
 		#endif
 
@@ -2422,14 +2700,22 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			Ret = ilSavePngF(context, File);
-			break;	
+		{
+			PngHandler handler(context);
+
+			Ret = handler.saveF(File);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			Ret = ilSavePsdF(context, File);
-			break;
+		{
+			PsdHandler handler(context);
+
+			Ret = handler.saveF(File);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_RAW
@@ -2446,8 +2732,12 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			Ret = ilSaveTargaF(context, File);
-			break;
+		{
+			TargaHandler handler(context);
+
+			Ret = handler.saveF(File);
+		}
+		break;
 		#endif
 
 		#ifndef IL_NO_VTF
@@ -2464,8 +2754,12 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			Ret = ilSaveTiffF(context, File);
-			break;
+		{
+			TiffHandler handler(context);
+
+			Ret = handler.saveF(File);
+		}
+		break;
 		#endif
 
 		default:
@@ -2514,7 +2808,11 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			return ilSaveHdrL(context, Lump, Size);
+		{
+			HdrHandler handler(context);
+
+			return handler.saveL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_JP2
@@ -2524,12 +2822,20 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 		#ifndef IL_NO_JPG
 		case IL_JPG:
-			return ilSaveJpegL(context, Lump, Size);
+		{
+			JpegHandler handler(context);
+
+			return handler.saveL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			return ilSavePngL(context, Lump, Size);
+		{
+			PngHandler handler(context);
+
+			return handler.saveL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_PNM
@@ -2539,7 +2845,11 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			return ilSavePsdL(context, Lump, Size);
+		{
+			PsdHandler handler(context);
+
+			return handler.saveL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_RAW
@@ -2554,7 +2864,11 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			return ilSaveTargaL(context, Lump, Size);
+		{
+			TargaHandler handler(context);
+
+			return handler.saveL(Lump, Size);
+		}
 		#endif
 
 		#ifndef IL_NO_DDS
@@ -2574,7 +2888,11 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			return ilSaveTiffL(context, Lump, Size);
+		{
+			TiffHandler handler(context);
+
+			return handler.saveL(Lump, Size);
+		}
 		#endif
 	}
 
@@ -2637,8 +2955,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 	#endif
 
 	#ifndef IL_NO_HDR
-	if (!iStrCmp(Ext, IL_TEXT("hdr"))) {
-		bRet = ilSaveHdr(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("hdr")))
+	{
+		HdrHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 	#endif
@@ -2651,8 +2973,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 	#endif
 
 	#ifndef IL_NO_JPG
-	if (!iStrCmp(Ext, IL_TEXT("jpg")) || !iStrCmp(Ext, IL_TEXT("jpeg")) || !iStrCmp(Ext, IL_TEXT("jpe"))) {
-		bRet = ilSaveJpeg(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("jpg")) || !iStrCmp(Ext, IL_TEXT("jpeg")) || !iStrCmp(Ext, IL_TEXT("jpe")))
+	{
+		JpegHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 	#endif
@@ -2665,8 +2991,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 	#endif
 
 	#ifndef IL_NO_PNG
-	if (!iStrCmp(Ext, IL_TEXT("png"))) {
-		bRet = ilSavePng(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("png")))
+	{
+		PngHandler handler(context);
+
+		bRet = handler.save(FileName);
+		
 		goto finish;
 	}
 	#endif
@@ -2687,8 +3017,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 	#endif
 
 	#ifndef IL_NO_PSD
-	if (!iStrCmp(Ext, IL_TEXT("psd"))) {
-		bRet = ilSavePsd(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("psd")))
+	{
+		PsdHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 	#endif
@@ -2709,15 +3043,23 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 	#endif
 
 	#ifndef IL_NO_TGA
-	if (!iStrCmp(Ext, IL_TEXT("tga"))) {
-		bRet = ilSaveTarga(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("tga")))
+	{
+		TargaHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 	#endif
 
 	#ifndef IL_NO_TIF
-	if (!iStrCmp(Ext, IL_TEXT("tif")) || !iStrCmp(Ext, IL_TEXT("tiff"))) {
-		bRet = ilSaveTiff(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("tif")) || !iStrCmp(Ext, IL_TEXT("tiff")))
+	{
+		TiffHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 	#endif

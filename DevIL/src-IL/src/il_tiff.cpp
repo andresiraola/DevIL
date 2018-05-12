@@ -10,9 +10,11 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_TIF
+
+#include "il_tiff.h"
 
 #include "tiffio.h"
 
@@ -20,7 +22,6 @@
 
 #define MAGIC_HEADER1	0x4949
 #define MAGIC_HEADER2	0x4D4D
-
 
 #if (defined(_WIN32) || defined(_WIN64)) && defined(IL_USE_PRAGMA_LIBS)
 	#if defined(_MSC_VER) || defined(__BORLANDC__)
@@ -33,18 +34,11 @@
 	#endif
 #endif
 
-
-/*----------------------------------------------------------------------------*/
-
 // No need for a separate header
-static ILboolean iLoadTiffInternal(ILcontext* context);
 static char*     iMakeString(void);
 static TIFF*     iTIFFOpen(ILcontext* context, char *Mode);
-static ILboolean iSaveTiffInternal(ILcontext* context/*, ILconst_string Filename*/);
 
-/*----------------------------------------------------------------------------*/
-
-ILboolean ilisValidTiffExtension(ILconst_string FileName)
+ILboolean isValidExtension(ILconst_string FileName)
 {
 	if (!iCheckExtension((ILstring)FileName, IL_TEXT("tif")) &&
 		!iCheckExtension((ILstring)FileName, IL_TEXT("tiff")))
@@ -53,15 +47,19 @@ ILboolean ilisValidTiffExtension(ILconst_string FileName)
 		return IL_TRUE;
 }
 
-/*----------------------------------------------------------------------------*/
+TiffHandler::TiffHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid tiff file.
-ILboolean ilIsValidTiff(ILcontext* context, ILconst_string FileName)
+ILboolean TiffHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	TiffFile;
 	ILboolean	bTiff = IL_FALSE;
 
-	if (!ilisValidTiffExtension((ILstring) FileName)) {
+	if (!isValidExtension((ILstring) FileName)) {
 		ilSetError(context, IL_INVALID_EXTENSION);
 		return bTiff;
 	}
@@ -72,15 +70,13 @@ ILboolean ilIsValidTiff(ILcontext* context, ILconst_string FileName)
 		return bTiff;
 	}
 
-	bTiff = ilIsValidTiffF(context, TiffFile);
+	bTiff = isValidF(TiffFile);
 	context->impl->icloser(TiffFile);
 
 	return bTiff;
 }
 
-/*----------------------------------------------------------------------------*/
-
-ILboolean ilisValidTiffFunc(ILcontext* context)
+ILboolean TiffHandler::isValidInternal()
 {
 	ILushort Header1, Header2;
 
@@ -100,35 +96,29 @@ ILboolean ilisValidTiffFunc(ILcontext* context)
 	return IL_TRUE;
 }
 
-/*----------------------------------------------------------------------------*/
-
 //! Checks if the ILHANDLE contains a valid tiff file at the current position.
-ILboolean ilIsValidTiffF(ILcontext* context, ILHANDLE File)
+ILboolean TiffHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = ilisValidTiffFunc(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-/*----------------------------------------------------------------------------*/
-
 //! Checks if Lump is a valid Tiff lump.
-ILboolean ilIsValidTiffL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean TiffHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return ilisValidTiffFunc(context);
+	return isValidInternal();
 }
 
-/*----------------------------------------------------------------------------*/
-
 //! Reads a Tiff file
-ILboolean ilLoadTiff(ILcontext* context, ILconst_string FileName)
+ILboolean TiffHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	TiffFile;
 	ILboolean	bTiff = IL_FALSE;
@@ -138,39 +128,33 @@ ILboolean ilLoadTiff(ILcontext* context, ILconst_string FileName)
 		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 	}
 	else {
-		bTiff = ilLoadTiffF(context, TiffFile);
+		bTiff = loadF(TiffFile);
 		context->impl->icloser(TiffFile);
 	}
 
 	return bTiff;
 }
 
-/*----------------------------------------------------------------------------*/
-
 //! Reads an already-opened Tiff file
-ILboolean ilLoadTiffF(ILcontext* context, ILHANDLE File)
+ILboolean TiffHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadTiffInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-/*----------------------------------------------------------------------------*/
-
 //! Reads from a memory "lump" that contains a Tiff
-ILboolean ilLoadTiffL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean TiffHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadTiffInternal(context);
+	return loadInternal();
 }
-
-/*----------------------------------------------------------------------------*/
 
 void warningHandler(const char* mod, const char* fmt, va_list ap)
 {
@@ -186,10 +170,7 @@ void errorHandler(const char* mod, const char* fmt, va_list ap)
 	//vsnprintf(buff, 1024, fmt, ap);
 }
 
-////
-
-/*
-ILboolean iLoadTiffInternal (TIFF* tif, ILimage* Image)
+/*ILboolean TiffHandler::loadInternal (TIFF* tif, ILimage* Image)
 {
 	////
 
@@ -250,14 +231,10 @@ ILboolean iLoadTiffInternal (TIFF* tif, ILimage* Image)
 		Image = Image->Next;
 		context->impl->iCurImage->NumNext++;
 	}
-}
-*/
-
-////
-
+}*/
 
 // Internal function used to load the Tiff.
-ILboolean iLoadTiffInternal(ILcontext* context)
+ILboolean TiffHandler::loadInternal()
 {
 	TIFF	 *tif;
 	uint16	 photometric, planarconfig, orientation;
@@ -716,8 +693,6 @@ ILboolean iLoadTiffInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-/*----------------------------------------------------------------------------*/
-
 /////////////////////////////////////////////////////////////////////////////////////////
 // Extension to load tiff files from memory
 // Marco Fabbricatore (fabbrica@ai-lab.fh-furtwangen.de)
@@ -730,8 +705,6 @@ _tiffFileReadProc(thandle_t fd, tdata_t pData, tsize_t tSize)
 	return context->impl->iread(context, pData, 1, (ILuint)tSize);
 }
 
-/*----------------------------------------------------------------------------*/
-
 // We have trouble sometimes reading when writing a file.  Specifically, the only time
 //  I have seen libtiff call this is at the beginning of writing a tiff, before
 //  anything is ever even written!  Also, we have to return 0, no matter what tSize
@@ -743,16 +716,12 @@ _tiffFileReadProcW(thandle_t fd, tdata_t pData, tsize_t tSize)
 	return 0;
 }
 
-/*----------------------------------------------------------------------------*/
-
 static tsize_t 
 _tiffFileWriteProc(thandle_t fd, tdata_t pData, tsize_t tSize)
 {
 	ILcontext* context = (ILcontext*)fd;
 	return context->impl->iwrite(context, pData, 1, (ILuint)tSize);
 }
-
-/*----------------------------------------------------------------------------*/
 
 static toff_t
 _tiffFileSeekProc(thandle_t fd, toff_t tOff, int whence)
@@ -768,8 +737,6 @@ _tiffFileSeekProc(thandle_t fd, toff_t tOff, int whence)
 	//return tOff;
 }
 
-/*----------------------------------------------------------------------------*/
-
 static toff_t
 _tiffFileSeekProcW(thandle_t fd, toff_t tOff, int whence)
 {
@@ -783,16 +750,12 @@ _tiffFileSeekProcW(thandle_t fd, toff_t tOff, int whence)
 	//return tOff;
 }
 
-/*----------------------------------------------------------------------------*/
-
 static int
 _tiffFileCloseProc(thandle_t fd)
 {
 	fd;
 	return (0);
 }
-
-/*----------------------------------------------------------------------------*/
 
 static toff_t
 _tiffFileSizeProc(thandle_t fd)
@@ -810,8 +773,6 @@ _tiffFileSizeProc(thandle_t fd)
 	return Size;
 }
 
-/*----------------------------------------------------------------------------*/
-
 static toff_t
 _tiffFileSizeProcW(thandle_t fd)
 {
@@ -825,8 +786,6 @@ _tiffFileSizeProcW(thandle_t fd)
 	return Size;
 }
 
-/*----------------------------------------------------------------------------*/
-
 #ifdef __BORLANDC__
 #pragma argsused
 #endif
@@ -837,8 +796,6 @@ _tiffDummyMapProc(thandle_t fd, tdata_t* pbase, toff_t* psize)
 	return 0;
 }
 
-/*----------------------------------------------------------------------------*/
-
 #ifdef __BORLANDC__
 #pragma argsused
 #endif
@@ -848,8 +805,6 @@ _tiffDummyUnmapProc(thandle_t fd, tdata_t base, toff_t size)
 	fd; base; size;
 	return;
 }
-
-/*----------------------------------------------------------------------------*/
 
 TIFF *iTIFFOpen(ILcontext* context, char *Mode)
 {
@@ -873,11 +828,8 @@ TIFF *iTIFFOpen(ILcontext* context, char *Mode)
 	return tif;
 }
 
-/*----------------------------------------------------------------------------*/
-
-
 //! Writes a Tiff file
-ILboolean ilSaveTiff(ILcontext* context, const ILstring FileName)
+ILboolean TiffHandler::save(const ILstring FileName)
 {
 	ILHANDLE	TiffFile;
 	ILuint		TiffSize;
@@ -895,7 +847,7 @@ ILboolean ilSaveTiff(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	TiffSize = ilSaveTiffF(context, TiffFile);
+	TiffSize = saveF(TiffFile);
 	context->impl->iclosew(TiffFile);
 
 	if (TiffSize == 0)
@@ -903,34 +855,31 @@ ILboolean ilSaveTiff(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Tiff to an already-opened file
-ILuint ilSaveTiffF(ILcontext* context, ILHANDLE File)
+ILuint TiffHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveTiffInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Tiff to a memory "lump"
-ILuint ilSaveTiffL(ILcontext* context, void *Lump, ILuint Size)
+ILuint TiffHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos = context->impl->itellw(context);
 	iSetOutputLump(context, Lump, Size);
-	if (iSaveTiffInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
-
 
 // @TODO:  Accept palettes!
 
 // Internal function used to save the Tiff.
-ILboolean iSaveTiffInternal(ILcontext* context/*, ILconst_string Filename*/)
+ILboolean TiffHandler::saveInternal(/*ILconst_string Filename*/)
 {
 	ILenum	Format;
 	ILenum	Compression;
@@ -1090,7 +1039,6 @@ ILboolean iSaveTiffInternal(ILcontext* context/*, ILconst_string Filename*/)
 	return IL_TRUE;
 }
 
-/*----------------------------------------------------------------------------*/
 // Makes a neat date string for the date field.
 // From http://www.awaresystems.be/imaging/tiff/tifftags/datetime.html :
 // The format is: "YYYY:MM:DD HH:MM:SS", with hours like those on
@@ -1115,7 +1063,5 @@ char *iMakeString()
 	
 	return TimeStr;
 }
-
-/*----------------------------------------------------------------------------*/
 
 #endif//IL_NO_TIF

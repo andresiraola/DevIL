@@ -11,8 +11,12 @@
 //-----------------------------------------------------------------------------
 
 #include "il_internal.h"
-
-ILuint iTargaSize(ILcontext* context);
+#include "il_png.h"
+#include "il_jpeg.h"
+#include "il_hdr.h"
+#include "il_tiff.h"
+#include "il_targa.h"
+#include "il_psd.h"
 
 //! Fake seek function
 ILint ILAPIENTRY iSizeSeek(ILcontext* context, ILint Offset, ILuint Mode)
@@ -98,8 +102,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_HDR
 		case IL_HDR:
-			ilSaveHdrL(context, NULL, 0);
-			break;
+		{
+			HdrHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_HDR
 
 		#ifndef IL_NO_JP2
@@ -110,8 +118,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_JPG
 		case IL_JPG:
-			ilSaveJpegL(context, NULL, 0);
-			break;
+		{
+			JpegHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_JPG
 
 		#ifndef IL_NO_PCX
@@ -122,8 +134,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_PNG
 		case IL_PNG:
-			ilSavePngL(context, NULL, 0);
-			break;
+		{
+			PngHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_PNG
 
 		#ifndef IL_NO_PNM
@@ -134,8 +150,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_PSD
 		case IL_PSD:
-			ilSavePsdL(context, NULL, 0);
-			break;
+		{
+			PsdHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_PSD
 
 		#ifndef IL_NO_RAW
@@ -152,15 +172,22 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_TGA
 		case IL_TGA:
-			//ilSaveTargaL(context, NULL, 0);
-			return iTargaSize(context);
-			break;
+		{
+			TargaHandler handler(context);
+
+			handler.size();
+		}
+		break;
 		#endif//IL_NO_TGA
 
 		#ifndef IL_NO_TIF
 		case IL_TIF:
-			ilSaveTiffL(context, NULL, 0);
-			break;
+		{
+			TiffHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_TIF
 
 		#ifndef IL_NO_WBMP

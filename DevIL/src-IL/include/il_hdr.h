@@ -10,14 +10,12 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef HDR_H
-#define HDR_H
+#pragma once
 
 #include "il_internal.h"
 
 #ifdef _WIN32
-	#pragma pack(push, gif_struct, 1)
+#pragma pack(push, gif_struct, 1)
 #endif
 
 typedef struct HDRHEADER
@@ -27,17 +25,34 @@ typedef struct HDRHEADER
 } IL_PACKSTRUCT HDRHEADER;
 
 #ifdef _WIN32
-	#pragma pack(pop, gif_struct)
+#pragma pack(pop, gif_struct)
 #endif
 
-// Internal functions
-ILboolean ilIsValidHdrF(ILcontext* context, ILHANDLE File);
-ILboolean iIsValidHdr(ILcontext* context);
-ILboolean iCheckHdr(HDRHEADER *Header);
-ILboolean ilLoadHdrF(ILcontext* context, ILHANDLE File);
-ILboolean iLoadHdrInternal(ILcontext* context);
-ILboolean iSaveHdrInternal(ILcontext* context);
+class HdrHandler
+{
+protected:
+	ILcontext* context;
 
-void ReadScanline(ILcontext* context, ILubyte *scanline, ILuint w);
+	ILboolean	check(HDRHEADER *Header);
 
-#endif//HDR_H
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+	ILboolean	saveInternal();
+
+	void		ReadScanline(ILubyte *scanline, ILuint w);
+
+public:
+	HdrHandler(ILcontext* context);
+
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
+
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+
+	ILboolean	save(ILconst_string FileName);
+	ILuint		saveF(ILHANDLE File);
+	ILuint		saveL(void *Lump, ILuint Size);
+};

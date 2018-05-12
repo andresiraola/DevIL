@@ -13,8 +13,9 @@
 // Most of the comments are left in this file from libpng's excellent example.c
 
 #include "il_internal.h"
+#include "il_png.h"
+
 #ifndef IL_NO_PNG
-#include <png.h>
 #include <stdlib.h>
 #if PNG_LIBPNG_VER < 10200
 	#warning DevIL was designed with libpng 1.2.0 or higher in mind.  Consider upgrading at www.libpng.org.
@@ -32,23 +33,15 @@
 	#endif
 #endif
 
-
-ILboolean	iIsValidPng(ILcontext* context);
-ILboolean	iLoadPngInternal(ILcontext* context);
-ILboolean	iSavePngInternal(ILcontext* context);
-
-ILint		readpng_init(ILcontext* context);
-ILboolean	readpng_get_image(ILcontext* context, ILdouble display_exponent);
-void		readpng_cleanup(void);
-
-png_structp png_ptr = NULL;
-png_infop   info_ptr = NULL;
-ILint		png_color_type;
-
 #define GAMMA_CORRECTION 1.0  // Doesn't seem to be doing anything...
 
+PngHandler::PngHandler(ILcontext* context) :
+	context(context)
+{
 
-ILboolean ilIsValidPng(ILcontext* context, ILconst_string FileName)
+}
+
+ILboolean PngHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	PngFile;
 	ILboolean	bPng = IL_FALSE;
@@ -64,35 +57,32 @@ ILboolean ilIsValidPng(ILcontext* context, ILconst_string FileName)
 		return bPng;
 	}
 
-	bPng = ilIsValidPngF(context, PngFile);
+	bPng = isValidF(PngFile);
 	context->impl->icloser(PngFile);
 
 	return bPng;
 }
 
-
-ILboolean ilIsValidPngF(ILcontext* context, ILHANDLE File)
+ILboolean PngHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidPng(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
-ILboolean ilIsValidPngL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PngHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidPng(context);
+	return isValidInternal();
 }
 
-
-ILboolean iIsValidPng(ILcontext* context)
+ILboolean PngHandler::isValidInternal()
 {
 	ILubyte 	Signature[8];
 	ILint		Read;
@@ -103,9 +93,8 @@ ILboolean iIsValidPng(ILcontext* context)
 	return !png_sig_cmp(Signature, 0, 8);  // DW 5/2/2016: They changed the behavior of this function?
 }
 
-
 // Reads a file
-ILboolean ilLoadPng(ILcontext* context, ILconst_string FileName)
+ILboolean PngHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	PngFile;
 	ILboolean	bPng = IL_FALSE;
@@ -116,37 +105,34 @@ ILboolean ilLoadPng(ILcontext* context, ILconst_string FileName)
 		return bPng;
 	}
 
-	bPng = ilLoadPngF(context, PngFile);
+	bPng = loadF(PngFile);
 	context->impl->icloser(PngFile);
 
 	return bPng;
 }
 
-
 // Reads an already-opened file
-ILboolean ilLoadPngF(ILcontext* context, ILHANDLE File)
+ILboolean PngHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadPngInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 // Reads from a memory "lump"
-ILboolean ilLoadPngL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PngHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadPngInternal(context);
+	return loadInternal();
 }
 
-
-ILboolean iLoadPngInternal(ILcontext* context)
+ILboolean PngHandler::loadInternal()
 {
 	png_ptr = NULL;
 	info_ptr = NULL;
@@ -155,14 +141,14 @@ ILboolean iLoadPngInternal(ILcontext* context)
 		ilSetError(context, IL_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
-	if (!iIsValidPng(context)) {
+	if (!isValidInternal()) {
 		ilSetError(context, IL_INVALID_VALUE);
 		return IL_FALSE;
 	}
 
-	if (readpng_init(context))
+	if (readpng_init())
 		return IL_FALSE;
-	if (!readpng_get_image(context, GAMMA_CORRECTION))
+	if (!readpng_get_image(GAMMA_CORRECTION))
 		return IL_FALSE;
 
 	readpng_cleanup();
@@ -170,14 +156,12 @@ ILboolean iLoadPngInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-
 static void png_read(png_structp png_ptr, png_bytep data, png_size_t length)
 {
 	ILcontext* context = (ILcontext*)png_get_io_ptr(png_ptr);
 	context->impl->iread(context, data, 1, (ILuint)length);
 	return;
 }
-
 
 static void png_error_func(png_structp png_ptr, png_const_charp message)
 {
@@ -201,8 +185,7 @@ static void png_warn_func(png_structp png_ptr, png_const_charp message)
 	return;
 }
 
-
-ILint readpng_init(ILcontext* context)
+ILint PngHandler::readpng_init()
 {
 	png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, png_error_func, png_warn_func);
 	if (!png_ptr)
@@ -249,7 +232,7 @@ ILint readpng_init(ILcontext* context)
 
 /* display_exponent == LUT_exponent * CRT_exponent */
 
-ILboolean readpng_get_image(ILcontext* context, ILdouble display_exponent)
+ILboolean PngHandler::readpng_get_image(ILdouble display_exponent)
 {
 	png_bytepp	row_pointers = NULL;
 	png_uint_32 width, height; // Changed the type to fix AMD64 bit problems, thanks to Eric Werness
@@ -407,8 +390,7 @@ ILboolean readpng_get_image(ILcontext* context, ILdouble display_exponent)
 	return IL_TRUE;
 }
 
-
-void readpng_cleanup()
+void PngHandler::readpng_cleanup()
 {
 	if (png_ptr && info_ptr) {
 		png_destroy_read_struct(&png_ptr, &info_ptr, NULL);
@@ -417,9 +399,8 @@ void readpng_cleanup()
 	}
 }
 
-
 //! Writes a Png file
-ILboolean ilSavePng(ILcontext* context, const ILstring FileName)
+ILboolean PngHandler::save(const ILstring FileName)
 {
 	ILHANDLE	PngFile;
 	ILuint		PngSize;
@@ -437,7 +418,7 @@ ILboolean ilSavePng(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	PngSize = ilSavePngF(context, PngFile);
+	PngSize = saveF(PngFile);
 	context->impl->iclosew(PngFile);
 
 	if (PngSize == 0)
@@ -445,30 +426,27 @@ ILboolean ilSavePng(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Png to an already-opened file
-ILuint ilSavePngF(ILcontext* context, ILHANDLE File)
+ILuint PngHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSavePngInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Png to a memory "lump"
-ILuint ilSavePngL(ILcontext* context, void *Lump, ILuint Size)
+ILuint PngHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSavePngInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
-
 
 void png_write(png_structp png_ptr, png_bytep data, png_size_t length)
 {
@@ -482,9 +460,8 @@ void flush_data(png_structp png_ptr)
 	return;
 }
 
-
 // Internal function used to save the Png.
-ILboolean iSavePngInternal(ILcontext* context)
+ILboolean PngHandler::saveInternal()
 {
 	png_structp png_ptr;
 	png_infop	info_ptr;
@@ -736,5 +713,4 @@ error_label:
 	return IL_FALSE;
 }
 
-
-#endif//IL_NO_PNG
+#endif // IL_NO_PNG

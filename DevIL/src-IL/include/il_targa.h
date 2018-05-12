@@ -10,9 +10,7 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef TARGA_H
-#define TARGA_H
+#pragma once
 
 #include "il_internal.h"
 
@@ -72,7 +70,6 @@ typedef struct TARGAEXT
 	ILint	KeyColor;			// the transparent colour
 } TARGAEXT;
 
-
 // Different Targa formats
 #define TGA_NO_DATA				0
 #define TGA_COLMAP_UNCOMP		1
@@ -82,7 +79,6 @@ typedef struct TARGAEXT
 #define TGA_UNMAP_COMP			10
 #define TGA_BW_COMP				11
 
-
 // Targa origins
 #define IMAGEDESC_ORIGIN_MASK	0x30
 #define IMAGEDESC_TOPLEFT		0x20
@@ -90,20 +86,38 @@ typedef struct TARGAEXT
 #define IMAGEDESC_BOTRIGHT		0x10
 #define IMAGEDESC_TOPRIGHT		0x30
 
+class TargaHandler
+{
+protected:
+	ILcontext * context;
 
-// Internal functions
-ILboolean	iIsValidTarga(ILcontext* context);
-ILboolean	iGetTgaHead(ILcontext* context, TARGAHEAD *Header);
-ILboolean	iCheckTarga(TARGAHEAD *Header);
-ILboolean	iLoadTargaInternal(ILcontext* context);
-ILboolean	iSaveTargaInternal(ILcontext* context);
-//ILvoid		iMakeString(char *Str);
-ILboolean	iReadBwTga(ILcontext* context, TARGAHEAD *Header);
-ILboolean	iReadColMapTga(ILcontext* context, TARGAHEAD *Header);
-ILboolean	iReadUnmapTga(ILcontext* context, TARGAHEAD *Header);
-ILboolean	iUncompressTgaData(ILcontext* context, ILimage *Image);
-ILboolean	i16BitTarga(ILcontext* context, ILimage *Image);
-void		iGetDateTime(ILuint *Month, ILuint *Day, ILuint *Yr, ILuint *Hr, ILuint *Min, ILuint *Sec);
+	ILboolean 	iGetTgaHead(TARGAHEAD *Header);
+	ILboolean	iReadColMapTga(TARGAHEAD *Header);
+	ILboolean	iReadUnmapTga(TARGAHEAD *Header);
+	ILboolean	iReadBwTga(TARGAHEAD *Header);
+	ILboolean	iUncompressTgaData(ILimage *Image);
+	ILboolean	i16BitTarga(ILimage *Image);
 
+	ILboolean	check(TARGAHEAD *Header);
 
-#endif//TARGA_H
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+	ILboolean	saveInternal();
+
+public:
+	TargaHandler(ILcontext* context);
+
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
+
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+
+	ILboolean	save(ILconst_string FileName);
+	ILuint		saveF(ILHANDLE File);
+	ILuint		saveL(void *Lump, ILuint Size);
+
+	ILuint		size();
+};

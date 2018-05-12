@@ -19,6 +19,7 @@
 #include "il_internal.h"
 #ifndef IL_NO_BLP
 #include "il_dds.h"
+#include "il_jpeg.h"
 
 
 typedef struct BLP1HEAD
@@ -579,6 +580,7 @@ ILboolean iLoadBlp1(ILcontext* context)
 			// We can only do the Jpeg decoding if we do not have IL_NO_JPEG defined.
 			return IL_FALSE;
 #else
+		{
 			JpegHeaderSize = GetLittleUInt(context);
 			JpegHeader = (ILubyte*)ialloc(context, JpegHeaderSize);
 			if (JpegHeader == NULL)
@@ -602,7 +604,9 @@ ILboolean iLoadBlp1(ILcontext* context)
 					return IL_FALSE;
 
 				// Just send the data straight to the Jpeg loader.
-				if (!ilLoadJpegL(context, JpegData, JpegHeaderSize + Header.MipLengths[i]))
+				JpegHandler jpegHandler(context);
+				
+				if (!jpegHandler.loadL(JpegData, JpegHeaderSize + Header.MipLengths[i]))
 					return IL_FALSE;
 
 				// The image data is in BGR(A) order, even though it is Jpeg-compressed.
@@ -614,6 +618,7 @@ ILboolean iLoadBlp1(ILcontext* context)
 				ifree(JpegData);
 			//}
 			ifree(JpegHeader);
+		}
 #endif//IL_NO_JPG
 			break;
 

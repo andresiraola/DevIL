@@ -10,7 +10,6 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
 #ifndef IL_NO_TGA
 #include "il_targa.h"
@@ -22,9 +21,16 @@
 #include <dos.h>
 #endif
 
+void		iGetDateTime(ILuint *Month, ILuint *Day, ILuint *Yr, ILuint *Hr, ILuint *Min, ILuint *Sec);
+
+TargaHandler::TargaHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid Targa file.
-ILboolean ilIsValidTga(ILcontext* context, ILconst_string FileName)
+ILboolean TargaHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	TargaFile;
 	ILboolean	bTarga = IL_FALSE;
@@ -43,38 +49,35 @@ ILboolean ilIsValidTga(ILcontext* context, ILconst_string FileName)
 		return bTarga;
 	}
 	
-	bTarga = ilIsValidTgaF(context, TargaFile);
+	bTarga = isValidF(TargaFile);
 	context->impl->icloser(TargaFile);
 	
 	return bTarga;
 }
 
-
 //! Checks if the ILHANDLE contains a valid Targa file at the current position.
-ILboolean ilIsValidTgaF(ILcontext* context, ILHANDLE File)
+ILboolean TargaHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidTarga(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid Targa lump.
-ILboolean ilIsValidTgaL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean TargaHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidTarga(context);
+	return isValidInternal();
 }
 
-
 // Internal function used to get the Targa header from the current file.
-ILboolean iGetTgaHead(ILcontext* context, TARGAHEAD *Header)
+ILboolean TargaHandler::iGetTgaHead(TARGAHEAD *Header)
 {
 	Header->IDLen = (ILubyte)context->impl->igetc(context);
 	Header->ColMapPresent = (ILubyte)context->impl->igetc(context);
@@ -93,22 +96,20 @@ ILboolean iGetTgaHead(ILcontext* context, TARGAHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidTarga(ILcontext* context)
+ILboolean TargaHandler::isValidInternal()
 {
 	TARGAHEAD	Head;
 	
-	if (!iGetTgaHead(context, &Head))
+	if (!iGetTgaHead(&Head))
 		return IL_FALSE;
 	context->impl->iseek(context, -(ILint)sizeof(TARGAHEAD), IL_SEEK_CUR);
 	
-	return iCheckTarga(&Head);
+	return check(&Head);
 }
 
-
 // Internal function used to check if the HEADER is a valid Targa header.
-ILboolean iCheckTarga(TARGAHEAD *Header)
+ILboolean TargaHandler::check(TARGAHEAD *Header)
 {
 	if (Header->Width == 0 || Header->Height == 0)
 		return IL_FALSE;
@@ -135,9 +136,8 @@ ILboolean iCheckTarga(TARGAHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a Targa file
-ILboolean ilLoadTarga(ILcontext* context, ILconst_string FileName)
+ILboolean TargaHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	TargaFile;
 	ILboolean	bTarga = IL_FALSE;
@@ -148,38 +148,35 @@ ILboolean ilLoadTarga(ILcontext* context, ILconst_string FileName)
 		return bTarga;
 	}
 
-	bTarga = ilLoadTargaF(context, TargaFile);
+	bTarga = loadF(TargaFile);
 	context->impl->icloser(TargaFile);
 
 	return bTarga;
 }
 
-
 //! Reads an already-opened Targa file
-ILboolean ilLoadTargaF(ILcontext* context, ILHANDLE File)
+ILboolean TargaHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadTargaInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a Targa
-ILboolean ilLoadTargaL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean TargaHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadTargaInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the Targa.
-ILboolean iLoadTargaInternal(ILcontext* context)
+ILboolean TargaHandler::loadInternal()
 {
 	TARGAHEAD	Header;
 	ILboolean	bTarga;
@@ -190,9 +187,9 @@ ILboolean iLoadTargaInternal(ILcontext* context)
 		return IL_FALSE;
 	}
 	
-	if (!iGetTgaHead(context, &Header))
+	if (!iGetTgaHead(&Header))
 		return IL_FALSE;
-	if (!iCheckTarga(&Header)) {
+	if (!check(&Header)) {
 		ilSetError(context, IL_INVALID_FILE_HEADER);
 		return IL_FALSE;
 	}
@@ -204,15 +201,15 @@ ILboolean iLoadTargaInternal(ILcontext* context)
 			return IL_FALSE;
 		case TGA_COLMAP_UNCOMP:
 		case TGA_COLMAP_COMP:
-			bTarga = iReadColMapTga(context, &Header);
+			bTarga = iReadColMapTga(&Header);
 			break;
 		case TGA_UNMAP_UNCOMP:
 		case TGA_UNMAP_COMP:
-			bTarga = iReadUnmapTga(context, &Header);
+			bTarga = iReadUnmapTga(&Header);
 			break;
 		case TGA_BW_UNCOMP:
 		case TGA_BW_COMP:
-			bTarga = iReadBwTga(context, &Header);
+			bTarga = iReadBwTga(&Header);
 			break;
 		default:
 			ilSetError(context, IL_ILLEGAL_FILE_VALUE);
@@ -247,8 +244,7 @@ ILboolean iLoadTargaInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-
-ILboolean iReadColMapTga(ILcontext* context, TARGAHEAD *Header)
+ILboolean TargaHandler::iReadColMapTga(TARGAHEAD *Header)
 {
 	char		ID[255];
 	ILuint		i;
@@ -312,7 +308,7 @@ ILboolean iReadColMapTga(ILcontext* context, TARGAHEAD *Header)
 	
 	if (Header->ImageType == TGA_COLMAP_COMP)
 	{
-		if (!iUncompressTgaData(context, context->impl->iCurImage))
+		if (!iUncompressTgaData(context->impl->iCurImage))
 		{
 			return IL_FALSE;
 		}
@@ -328,8 +324,7 @@ ILboolean iReadColMapTga(ILcontext* context, TARGAHEAD *Header)
 	return IL_TRUE;
 }
 
-
-ILboolean iReadUnmapTga(ILcontext* context, TARGAHEAD *Header)
+ILboolean TargaHandler::iReadUnmapTga(TARGAHEAD *Header)
 {
 	ILubyte Bpp;
 	char	ID[255];
@@ -387,7 +382,7 @@ ILboolean iReadUnmapTga(ILcontext* context, TARGAHEAD *Header)
 	
 	
 	if (Header->ImageType == TGA_UNMAP_COMP) {
-		if (!iUncompressTgaData(context, context->impl->iCurImage)) {
+		if (!iUncompressTgaData(context->impl->iCurImage)) {
 			return IL_FALSE;
 		}
 	}
@@ -399,7 +394,7 @@ ILboolean iReadUnmapTga(ILcontext* context, TARGAHEAD *Header)
 	
 	// Go ahead and expand it to 24-bit.
 	if (Header->Bpp == 16) {
-		if (!i16BitTarga(context, context->impl->iCurImage))
+		if (!i16BitTarga(context->impl->iCurImage))
 			return IL_FALSE;
 		return IL_TRUE;
 	}
@@ -407,8 +402,7 @@ ILboolean iReadUnmapTga(ILcontext* context, TARGAHEAD *Header)
 	return IL_TRUE;
 }
 
-
-ILboolean iReadBwTga(ILcontext* context, TARGAHEAD *Header)
+ILboolean TargaHandler::iReadBwTga(TARGAHEAD *Header)
 {
 	char ID[255];
 	
@@ -423,7 +417,7 @@ ILboolean iReadBwTga(ILcontext* context, TARGAHEAD *Header)
 	}
 	
 	if (Header->ImageType == TGA_BW_COMP) {
-		if (!iUncompressTgaData(context, context->impl->iCurImage)) {
+		if (!iUncompressTgaData(context->impl->iCurImage)) {
 			return IL_FALSE;
 		}
 	}
@@ -436,8 +430,7 @@ ILboolean iReadBwTga(ILcontext* context, TARGAHEAD *Header)
 	return IL_TRUE;
 }
 
-
-ILboolean iUncompressTgaData(ILcontext* context, ILimage *Image)
+ILboolean TargaHandler::iUncompressTgaData(ILimage *Image)
 {
 	ILuint	BytesRead = 0, Size, RunLen, i, ToRead;
 	ILubyte Header, Color[4];
@@ -488,9 +481,8 @@ ILboolean iUncompressTgaData(ILcontext* context, ILimage *Image)
 	return IL_TRUE;
 }
 
-
 // Pretty damn unoptimized
-ILboolean i16BitTarga(ILcontext* context, ILimage *Image)
+ILboolean TargaHandler::i16BitTarga(ILimage *Image)
 {
 	ILushort	*Temp1;
 	ILubyte 	*Data, *Temp2;
@@ -536,9 +528,8 @@ ILboolean i16BitTarga(ILcontext* context, ILimage *Image)
 	return IL_TRUE;
 }
 
-
 //! Writes a Targa file
-ILboolean ilSaveTarga(ILcontext* context, const ILstring FileName)
+ILboolean TargaHandler::save(const ILstring FileName)
 {
 	ILHANDLE	TargaFile;
 	ILuint		TargaSize;
@@ -556,7 +547,7 @@ ILboolean ilSaveTarga(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	TargaSize = ilSaveTargaF(context, TargaFile);
+	TargaSize = saveF(TargaFile);
 	context->impl->iclosew(TargaFile);
 
 	if (TargaSize == 0)
@@ -564,32 +555,29 @@ ILboolean ilSaveTarga(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Targa to an already-opened file
-ILuint ilSaveTargaF(ILcontext* context, ILHANDLE File)
+ILuint TargaHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveTargaInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Targa to a memory "lump"
-ILuint ilSaveTargaL(ILcontext* context, void *Lump, ILuint Size)
+ILuint TargaHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos = context->impl->itellw(context);
 	iSetOutputLump(context, Lump, Size);
-	if (iSaveTargaInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 // Internal function used to save the Targa.
-ILboolean iSaveTargaInternal(ILcontext* context)
+ILboolean TargaHandler::saveInternal()
 {
 	const char	*ID = iGetString(context, IL_TGA_ID_STRING);
 	const char	*AuthName = iGetString(context, IL_TGA_AUTHNAME_STRING);
@@ -837,10 +825,9 @@ ILboolean iSaveTargaInternal(ILcontext* context)
 	return IL_TRUE;
 }
 
-
 // Only to be called by ilDetermineSize.  Returns the buffer size needed to save the
 //  current image as a Targa file.
-ILuint iTargaSize(ILcontext* context)
+ILuint TargaHandler::size()
 {
 	ILuint	Size, Bpp;
 	ILubyte	IDLen = 0;
@@ -851,7 +838,7 @@ ILuint iTargaSize(ILcontext* context)
 	//@TODO: Support color indexed images.
 	if (iGetInt(context, IL_TGA_RLE) == IL_TRUE || context->impl->iCurImage->Format == IL_COLOUR_INDEX) {
 		// Use the slower method, since we are using compression.  We do a "fake" write.
-		ilSaveTargaL(context, NULL, 0);
+		saveL(NULL, 0);
 	}
 
 	if (ID)
@@ -883,7 +870,6 @@ ILuint iTargaSize(ILcontext* context)
 	return Size;
 }
 
-
 /*// Makes a neat string to go into the id field of the .tga
 void iMakeString(char *Str)
 {
@@ -905,7 +891,6 @@ void iMakeString(char *Str)
 	
 	return;
 }*/
-
 
 //changed name to iGetDateTime on 20031221 to fix bug 830196
 void iGetDateTime(ILuint *Month, ILuint *Day, ILuint *Yr, ILuint *Hr, ILuint *Min, ILuint *Sec)
@@ -956,6 +941,5 @@ void iGetDateTime(ILuint *Month, ILuint *Day, ILuint *Yr, ILuint *Hr, ILuint *Mi
 #endif
 #endif
 }
-
 
 #endif//IL_NO_TGA
