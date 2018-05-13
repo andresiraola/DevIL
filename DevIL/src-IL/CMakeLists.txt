@@ -315,7 +315,7 @@ install (TARGETS IL
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin
 )
-install (FILES ../include/IL/il.h DESTINATION include/IL)
+install (FILES ../include/IL/il.h ../include/IL/il_context.h DESTINATION include/IL)
 
 install(FILES
     ${CMAKE_CURRENT_BINARY_DIR}/IL.pc
