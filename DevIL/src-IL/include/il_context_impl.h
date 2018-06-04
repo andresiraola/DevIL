@@ -1,5 +1,7 @@
 #pragma once
 
+#include <setjmp.h>
+
 #include <IL/il_context.h>
 
 #include "il_states.h"
@@ -92,4 +94,6 @@ public:
 	fWriteProc	WriteProcCopy;
 
 	ILimage*	iCurImage;
+
+	jmp_buf		jumpBuffer;
 };

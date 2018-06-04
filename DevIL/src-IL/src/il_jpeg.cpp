@@ -144,7 +144,7 @@ typedef struct {
 	JpegHandler* handler;
 } error_mgr;
 
-typedef error_mgr  * ierror_ptr;
+typedef error_mgr* ierror_ptr;
 
 // Overrides libjpeg's stupid error/warning handlers. =P
 //void ExitErrorHandle (struct jpeg_common_struct *JpegInfo)
@@ -208,20 +208,19 @@ typedef struct {
   JpegHandler* handler;
 } iread_mgr;
 
-typedef iread_mgr * iread_ptr;
+typedef iread_mgr* iread_ptr;
 
 #define INPUT_BUF_SIZE  4096  // choose an efficiently iread'able size
 
-METHODDEF(void)
-init_source (j_decompress_ptr cinfo)
+static void init_source(j_decompress_ptr cinfo)
 {
-	iread_ptr src = (iread_ptr) cinfo->src;
+	iread_ptr src = (iread_ptr)cinfo->src;
 	src->start_of_file = (boolean)IL_TRUE;
 }
 
-boolean JpegHandler::fill_input_buffer (j_decompress_ptr cinfo)
+boolean JpegHandler::fill_input_buffer(j_decompress_ptr cinfo)
 {
-	iread_ptr src = (iread_ptr) cinfo->src;
+	iread_ptr src = (iread_ptr)cinfo->src;
 	ILint nbytes;
 
 	nbytes = src->handler->context->impl->iread(src->handler->context, src->buffer, 1, INPUT_BUF_SIZE);
@@ -233,8 +232,8 @@ boolean JpegHandler::fill_input_buffer (j_decompress_ptr cinfo)
 		}
 		//WARNMS(cinfo, JWRN_JPEG_EOF);
 		// Insert a fake EOI marker
-		src->buffer[0] = (JOCTET) 0xFF;
-		src->buffer[1] = (JOCTET) JPEG_EOI;
+		src->buffer[0] = (JOCTET)0xFF;
+		src->buffer[1] = (JOCTET)JPEG_EOI;
 		nbytes = 2;
 		return (boolean)IL_FALSE;
 	}
@@ -249,40 +248,39 @@ boolean JpegHandler::fill_input_buffer (j_decompress_ptr cinfo)
 	return (boolean)IL_TRUE;
 }
 
-void JpegHandler::skip_input_data (j_decompress_ptr cinfo, long num_bytes)
+void JpegHandler::skip_input_data(j_decompress_ptr cinfo, long num_bytes)
 {
-	iread_ptr src = (iread_ptr) cinfo->src;
+	iread_ptr src = (iread_ptr)cinfo->src;
 
 	if (num_bytes > 0) {
-		while (num_bytes > (long) src->pub.bytes_in_buffer) {
-			num_bytes -= (long) src->pub.bytes_in_buffer;
-			(void) fill_input_buffer(cinfo);
+		while (num_bytes > (long)src->pub.bytes_in_buffer) {
+			num_bytes -= (long)src->pub.bytes_in_buffer;
+			(void)fill_input_buffer(cinfo);
 		}
-		src->pub.next_input_byte += (size_t) num_bytes;
-		src->pub.bytes_in_buffer -= (size_t) num_bytes;
+		src->pub.next_input_byte += (size_t)num_bytes;
+		src->pub.bytes_in_buffer -= (size_t)num_bytes;
 	}
 }
 
-METHODDEF(void)
-term_source (j_decompress_ptr cinfo)
+static void term_source(j_decompress_ptr cinfo)
 {
 	// no work necessary here
 }
 
-void JpegHandler::devil_jpeg_read_init (j_decompress_ptr cinfo)
+void JpegHandler::devil_jpeg_read_init(j_decompress_ptr cinfo)
 {
 	iread_ptr src;
 
-	if ( cinfo->src == NULL ) {  // first time for this JPEG object?
+	if (cinfo->src == NULL) {  // first time for this JPEG object?
 		cinfo->src = (struct jpeg_source_mgr *)
-					 (*cinfo->mem->alloc_small)( (j_common_ptr)cinfo, JPOOL_PERMANENT, sizeof(iread_mgr) );
-		src = (iread_ptr) cinfo->src;
+			(*cinfo->mem->alloc_small)((j_common_ptr)cinfo, JPOOL_PERMANENT, sizeof(iread_mgr));
+		src = (iread_ptr)cinfo->src;
 		src->buffer = (JOCTET *)
-					  (*cinfo->mem->alloc_small)( (j_common_ptr)cinfo, JPOOL_PERMANENT,
-												  INPUT_BUF_SIZE * sizeof(JOCTET) );
+			(*cinfo->mem->alloc_small)((j_common_ptr)cinfo, JPOOL_PERMANENT,
+				INPUT_BUF_SIZE * sizeof(JOCTET));
 	}
 
-	src = (iread_ptr) cinfo->src;
+	src = (iread_ptr)cinfo->src;
 	src->pub.init_source = init_source;
 	src->pub.fill_input_buffer = fill_input_buffer;
 	src->pub.skip_input_data = skip_input_data;
@@ -293,14 +291,12 @@ void JpegHandler::devil_jpeg_read_init (j_decompress_ptr cinfo)
 	src->handler = this;
 }
 
-jmp_buf	JpegJumpBuffer;
-
-void JpegHandler::iJpegErrorExit(j_common_ptr cinfo )
+void JpegHandler::iJpegErrorExit(j_common_ptr cinfo)
 {
 	ierror_ptr err = (ierror_ptr)cinfo->err;
-	ilSetError( err->handler->context, IL_LIB_JPEG_ERROR );
-	jpeg_destroy( cinfo );
-	longjmp( JpegJumpBuffer, 1 );
+	ilSetError(err->handler->context, IL_LIB_JPEG_ERROR);
+	jpeg_destroy(cinfo);
+	longjmp(err->handler->context->impl->jumpBuffer, 1);
 }
 
 // Internal function used to load the jpeg.
@@ -319,7 +315,7 @@ ILboolean JpegHandler::loadInternal()
 	Error->pub.error_exit = iJpegErrorExit;				// add our exit handler
 	Error->pub.output_message = OutputMsg;
 
-	if ((result = setjmp(JpegJumpBuffer) == 0) != IL_FALSE) {
+	if ((result = setjmp(context->impl->jumpBuffer) == 0) != IL_FALSE) {
 		jpeg_create_decompress(&JpegInfo);
 		JpegInfo.do_block_smoothing = (boolean)IL_TRUE;
 		JpegInfo.do_fancy_upsampling = (boolean)IL_TRUE;
@@ -333,7 +329,6 @@ ILboolean JpegHandler::loadInternal()
 
 		jpeg_finish_decompress(&JpegInfo);
 		jpeg_destroy_decompress(&JpegInfo);
-
 	}
 	else
 	{
@@ -352,25 +347,23 @@ typedef struct
 	ILcontext* context;
 } iwrite_mgr;
 
-typedef iwrite_mgr *iwrite_ptr;
+typedef iwrite_mgr* iwrite_ptr;
 
 #define OUTPUT_BUF_SIZE 4096
 
-METHODDEF(void)
-init_destination(j_compress_ptr cinfo)
+static void init_destination(j_compress_ptr cinfo)
 {
 	iwrite_ptr dest = (iwrite_ptr)cinfo->dest;
 	dest->buffer = (JOCTET *)
-	  (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_IMAGE,
-				  OUTPUT_BUF_SIZE * sizeof(JOCTET));
+		(*cinfo->mem->alloc_small) ((j_common_ptr)cinfo, JPOOL_IMAGE,
+			OUTPUT_BUF_SIZE * sizeof(JOCTET));
 
 	dest->pub.next_output_byte = dest->buffer;
 	dest->pub.free_in_buffer = OUTPUT_BUF_SIZE;
 	return;
 }
 
-METHODDEF(boolean)
-empty_output_buffer (j_compress_ptr cinfo)
+static boolean empty_output_buffer(j_compress_ptr cinfo)
 {
 	iwrite_ptr dest = (iwrite_ptr)cinfo->dest;
 	dest->context->impl->iwrite(dest->context, dest->buffer, 1, OUTPUT_BUF_SIZE);
@@ -379,23 +372,21 @@ empty_output_buffer (j_compress_ptr cinfo)
 	return (boolean)IL_TRUE;
 }
 
-METHODDEF(void)
-term_destination (j_compress_ptr cinfo)
+static void term_destination(j_compress_ptr cinfo)
 {
 	iwrite_ptr dest = (iwrite_ptr)cinfo->dest;
 	dest->context->impl->iwrite(dest->context, dest->buffer, 1, OUTPUT_BUF_SIZE - (ILuint)dest->pub.free_in_buffer);
 	return;
 }
 
-GLOBAL(void)
-devil_jpeg_write_init(ILcontext* context, j_compress_ptr cinfo)
+void devil_jpeg_write_init(ILcontext* context, j_compress_ptr cinfo)
 {
 	iwrite_ptr dest;
 
 	if (cinfo->dest == NULL) {	// first time for this JPEG object?
 		cinfo->dest = (struct jpeg_destination_mgr *)
-		  (*cinfo->mem->alloc_small) ((j_common_ptr) cinfo, JPOOL_PERMANENT,
-					  sizeof(iwrite_mgr));
+			(*cinfo->mem->alloc_small) ((j_common_ptr)cinfo, JPOOL_PERMANENT,
+				sizeof(iwrite_mgr));
 		dest = (iwrite_ptr)cinfo->dest;
 	}
 
@@ -499,7 +490,6 @@ ILboolean JpegHandler::saveInternal()
 		TempData = TempImage->Data;
 	}
 
-
 	JpegInfo.err = jpeg_std_error(&Error);
 	// Now we can initialize the JPEG compression object.
 	jpeg_create_compress(&JpegInfo);
@@ -519,22 +509,22 @@ ILboolean JpegHandler::saveInternal()
 
 	jpeg_set_defaults(&JpegInfo);
 
-/*#ifndef IL_USE_JPEGLIB_UNMODIFIED
-	Type = iGetInt(IL_JPG_SAVE_FORMAT);
-	if (Type == IL_EXIF) {
-		JpegInfo.write_JFIF_header = FALSE;
-		JpegInfo.write_EXIF_header = TRUE;
-	}
-	else if (Type == IL_JFIF) {
-		JpegInfo.write_JFIF_header = TRUE;
-		JpegInfo.write_EXIF_header = FALSE;
-	} //EXIF not present in libjpeg...
-#else*/
+	/*#ifndef IL_USE_JPEGLIB_UNMODIFIED
+		Type = iGetInt(IL_JPG_SAVE_FORMAT);
+		if (Type == IL_EXIF) {
+			JpegInfo.write_JFIF_header = FALSE;
+			JpegInfo.write_EXIF_header = TRUE;
+		}
+		else if (Type == IL_JFIF) {
+			JpegInfo.write_JFIF_header = TRUE;
+			JpegInfo.write_EXIF_header = FALSE;
+		} //EXIF not present in libjpeg...
+	#else*/
 	Type = Type;
 	JpegInfo.write_JFIF_header = (boolean)TRUE;
-//#endif//IL_USE_JPEGLIB_UNMODIFIED
+	//#endif//IL_USE_JPEGLIB_UNMODIFIED
 
-	// Set the quality output
+		// Set the quality output
 	jpeg_set_quality(&JpegInfo, iGetInt(context, IL_JPG_QUALITY), (boolean)IL_TRUE);
 	// Sets progressive saving here
 	if (ilGetBoolean(context, IL_JPG_PROGRESSIVE))
@@ -549,7 +539,7 @@ ILboolean JpegHandler::saveInternal()
 		// Here the array is only one element long, but you could pass
 		// more than one scanline at a time if that's more convenient.
 		row_pointer[0] = &TempData[JpegInfo.next_scanline * TempImage->Bps];
-		(void) jpeg_write_scanlines(&JpegInfo, row_pointer, 1);
+		(void)jpeg_write_scanlines(&JpegInfo, row_pointer, 1);
 	}
 
 	// Step 6: Finish compression
@@ -851,18 +841,18 @@ ILboolean JpegHandler::loadFromJpegStruct(void *_JpegInfo)
 
 	switch (context->impl->iCurImage->Bpp)
 	{
-		case 1:
-			context->impl->iCurImage->Format = IL_LUMINANCE;
-			break;
-		case 3:
-			context->impl->iCurImage->Format = IL_RGB;
-			break;
-		case 4:
-			context->impl->iCurImage->Format = IL_RGBA;
-			break;
-		default:
-			//@TODO: Anyway to get here?  Need to error out or something...
-			break;
+	case 1:
+		context->impl->iCurImage->Format = IL_LUMINANCE;
+		break;
+	case 3:
+		context->impl->iCurImage->Format = IL_RGB;
+		break;
+	case 4:
+		context->impl->iCurImage->Format = IL_RGBA;
+		break;
+	default:
+		//@TODO: Anyway to get here?  Need to error out or something...
+		break;
 	}
 
 	TempPtr[0] = context->impl->iCurImage->Data;
@@ -884,8 +874,6 @@ ILboolean JpegHandler::loadFromJpegStruct(void *_JpegInfo)
 	return IL_FALSE;
 }
 
-
-
 // Access point for applications wishing to use the jpeg library directly in
 // conjunction with DevIL.
 //
@@ -899,7 +887,7 @@ ILboolean JpegHandler::saveFromJpegStruct(void *_JpegInfo)
 {
 #ifndef IL_NO_JPG
 #ifndef IL_USE_IJL
-	void (*errorHandler)(j_common_ptr);
+	void(*errorHandler)(j_common_ptr);
 	JSAMPROW	row_pointer[1];
 	ILimage		*TempImage;
 	ILubyte		*TempData;
@@ -952,7 +940,7 @@ ILboolean JpegHandler::saveFromJpegStruct(void *_JpegInfo)
 		// Here the array is only one element long, but you could pass
 		// more than one scanline at a time if that's more convenient.
 		row_pointer[0] = &TempData[JpegInfo->next_scanline * TempImage->Bps];
-		(void) jpeg_write_scanlines(JpegInfo, row_pointer, 1);
+		(void)jpeg_write_scanlines(JpegInfo, row_pointer, 1);
 	}
 
 	if (TempImage->Origin == IL_ORIGIN_LOWER_LEFT)
@@ -965,7 +953,6 @@ ILboolean JpegHandler::saveFromJpegStruct(void *_JpegInfo)
 #endif//IL_NO_JPG
 	return IL_FALSE;
 }
-
 
 #if defined(_MSC_VER)
 	#pragma warning(pop)
