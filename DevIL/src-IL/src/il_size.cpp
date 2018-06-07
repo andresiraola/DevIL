@@ -14,6 +14,7 @@
 
 #include "il_bmp.h"
 #include "il_dds.h"
+#include "il_exr.h"
 #include "il_hdr.h"
 #include "il_jp2.h"
 #include "il_jpeg.h"
@@ -111,8 +112,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_EXR
 		case IL_EXR:
-			ilSaveExrL(context, NULL, 0);
-			break;
+		{
+			ExrHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_EXR
 
 		#ifndef IL_NO_HDR

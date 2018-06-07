@@ -10,8 +10,8 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_EXR
 
 #ifndef HAVE_CONFIG_H // We are probably on a Windows box .
@@ -19,7 +19,6 @@
 #define HALF_EXPORTS
 #endif //HAVE_CONFIG_H
 
-#include "il_exr.h"
 #include <ImfRgba.h>
 #include <ImfArray.h>
 #include <ImfRgbaFile.h>
@@ -29,7 +28,7 @@
 //#include <ImfPreviewImage.h>
 //#include <ImfChannelList.h>
 
-
+#include "il_exr.h"
 
 #if (defined(_WIN32) || defined(_WIN64)) && defined(IL_USE_PRAGMA_LIBS)
 	#if defined(_MSC_VER) || defined(__BORLANDC__)
@@ -41,9 +40,75 @@
 	#endif
 #endif
 
+#include <ImfIO.h>
+
+typedef struct EXRHEAD
+{
+	ILuint		MagicNumber;		// File signature (0x76, 0x2f, 0x31, 0x01)
+	ILuint		Version;			// Treated as two bitfields
+} IL_PACKSTRUCT EXRHEAD;
+
+//@TODO: Should I just do these as enums?
+#define EXR_UINT 0
+#define EXR_HALF 1
+#define EXR_FLOAT 2
+
+#define EXR_NO_COMPRESSION    0
+#define EXR_RLE_COMPRESSION   1
+#define EXR_ZIPS_COMPRESSION  2
+#define EXR_ZIP_COMPRESSION   3
+#define EXR_PIZ_COMPRESSION   4
+#define EXR_PXR24_COMPRESSION 5
+#define EXR_B44_COMPRESSION   6
+#define EXR_B44A_COMPRESSION  7
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+ILboolean iCheckExr(EXRHEAD *Header);
+
+#ifdef __cplusplus
+}
+#endif
+
+class ilIStream : public Imf::IStream
+{
+protected:
+	ILcontext * context;
+
+public:
+	ilIStream(ILcontext * context/*, ILHANDLE Handle*/);
+	virtual bool	read(char c[/*n*/], int n);
+	// I don't think I need this one, since we are taking care of the file handles ourselves.
+	//virtual char *	readMemoryMapped (int n);
+	virtual Imf::Int64	tellg();
+	virtual void	seekg(Imf::Int64 Pos);
+	virtual void	clear();
+};
+
+class ilOStream : public Imf::OStream
+{
+protected:
+	ILcontext * context;
+
+public:
+	ilOStream(ILcontext * context/*, ILHANDLE Handle*/);
+	virtual void	write(const char c[/*n*/], int n);
+	// I don't think I need this one, since we are taking care of the file handles ourselves.
+	//virtual char *	readMemoryMapped (int n);
+	virtual Imf::Int64	tellp();
+	virtual void	seekp(Imf::Int64 Pos);
+};
+
+ExrHandler::ExrHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid EXR file.
-ILboolean ilIsValidExr(ILconst_string FileName)
+ILboolean ExrHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	ExrFile;
 	ILboolean	bExr = IL_FALSE;
@@ -59,38 +124,35 @@ ILboolean ilIsValidExr(ILconst_string FileName)
 		return bExr;
 	}
 	
-	bExr = ilIsValidExrF(ExrFile);
+	bExr = isValidF(ExrFile);
 	context->impl->icloser(ExrFile);
 	
 	return bExr;
 }
 
-
 //! Checks if the ILHANDLE contains a valid EXR file at the current position.
-ILboolean ilIsValidExrF(ILcontext* context, ILHANDLE File)
+ILboolean ExrHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidExr();
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid EXR lump.
-ILboolean ilIsValidExrL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean ExrHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidExr();
+	return isValidInternal();
 }
 
-
 // Internal function used to get the EXR header from the current file.
-ILboolean iGetExrHead(EXRHEAD *Header)
+ILboolean iGetExrHead(ILcontext* context, EXRHEAD *Header)
 {
 	Header->MagicNumber = GetLittleUInt(context);
 	Header->Version = GetLittleUInt(context);
@@ -98,19 +160,17 @@ ILboolean iGetExrHead(EXRHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidExr()
+ILboolean ExrHandler::isValidInternal()
 {
 	EXRHEAD Head;
 
-	if (!iGetExrHead(&Head))
+	if (!iGetExrHead(context, &Head))
 		return IL_FALSE;
 	context->impl->iseek(context, -8, IL_SEEK_CUR);
 	
 	return iCheckExr(&Head);
 }
-
 
 // Internal function used to check if the HEADER is a valid EXR header.
 ILboolean iCheckExr(EXRHEAD *Header)
@@ -126,21 +186,19 @@ ILboolean iCheckExr(EXRHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Nothing to do here in the constructor.
-ilIStream::ilIStream() : Imf::IStream("N/A")
+ilIStream::ilIStream(ILcontext* context) :
+	Imf::IStream("N/A"), context(context)
 {
 	return;
 }
 
-
 bool ilIStream::read(char c[], int n)
 {
-	if (context->impl->iread(c, 1, n) != n)
+	if (context->impl->iread(context, c, 1, n) != n)
 		return false;
 	return true;
 }
-
 
 //@TODO: Make this work with 64-bit values.
 Imf::Int64 ilIStream::tellg()
@@ -153,7 +211,6 @@ Imf::Int64 ilIStream::tellg()
 	return Pos;
 }
 
-
 // Note that there is no return value here, even though there probably should be.
 //@TODO: Make this work with 64-bit values.
 void ilIStream::seekg(Imf::Int64 Pos)
@@ -163,15 +220,13 @@ void ilIStream::seekg(Imf::Int64 Pos)
 	return;
 }
 
-
 void ilIStream::clear()
 {
 	return;
 }
 
-
 //! Reads an .exr file.
-ILboolean ilLoadExr(ILconst_string FileName)
+ILboolean ExrHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	ExrFile;
 	ILboolean	bExr = IL_FALSE;
@@ -182,52 +237,44 @@ ILboolean ilLoadExr(ILconst_string FileName)
 		return bExr;
 	}
 
-	bExr = ilLoadExrF(ExrFile);
+	bExr = loadF(ExrFile);
 	context->impl->icloser(ExrFile);
 
 	return bExr;
 }
 
-
 //! Reads an already-opened .exr file
-ILboolean ilLoadExrF(ILcontext* context, ILHANDLE File)
+ILboolean ExrHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadExrInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains an .exr
-ILboolean ilLoadExrL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean ExrHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadExrInternal(context);
+	return loadInternal();
 }
 
-
-using namespace Imath;
-using namespace Imf;
-using namespace std;
-
-
-ILboolean iLoadExrInternal()
+ILboolean ExrHandler::loadInternal()
 {
-	Array<Rgba> pixels;
-	Box2i dataWindow;
+	Imf::Array<Imf::Rgba> pixels;
+	Imath::Box2i dataWindow;
 	float pixelAspectRatio;
 	ILfloat *FloatData;
 
-	ilIStream File;
-	RgbaInputFile in(File);
+	ilIStream File(context);
+	Imf::RgbaInputFile in(File);
 
-	Rgba a;
+	Imf::Rgba a;
     dataWindow = in.dataWindow();
     pixelAspectRatio = in.pixelAspectRatio();
 
@@ -245,7 +292,7 @@ ILboolean iLoadExrInternal()
     {
 		in.readPixels (dataWindow.min.y, dataWindow.max.y);
     }
-    catch (const exception &e)
+    catch (const std::exception &e)
     {
 	// If some of the pixels in the file cannot be read,
 	// print an error message, and return a partial image
@@ -257,11 +304,11 @@ ILboolean iLoadExrInternal()
 
 	//if (ilTexImage(dw, dh, 1, 4, IL_RGBA, IL_UNSIGNED_BYTE, NULL) == IL_FALSE)
 	//if (ilTexImage(dw, dh, 1, 4, IL_RGBA, IL_UNSIGNED_SHORT, NULL) == IL_FALSE)
-	if (ilTexImage(dw, dh, 1, 4, IL_RGBA, IL_FLOAT, NULL) == IL_FALSE)
+	if (ilTexImage(context, dw, dh, 1, 4, IL_RGBA, IL_FLOAT, NULL) == IL_FALSE)
 		return IL_FALSE;
 
 	// Determine where the origin is in the original file.
-	if (in.lineOrder() == INCREASING_Y)
+	if (in.lineOrder() == Imf::INCREASING_Y)
 		context->impl->iCurImage->Origin = IL_ORIGIN_UPPER_LEFT;
 	else
 		context->impl->iCurImage->Origin = IL_ORIGIN_LOWER_LEFT;
@@ -294,17 +341,16 @@ ILboolean iLoadExrInternal()
 	return ilFixImage(context);
 }
 
-
-
 // Nothing to do here in the constructor.
-ilOStream::ilOStream() : Imf::OStream("N/A")
+ilOStream::ilOStream(ILcontext * context) :
+	Imf::OStream("N/A"), context(context)
 {
 	return;
 }
 
 void ilOStream::write(const char c[], int n)
 {
-	context->impl->iwrite(c, 1, n);  //@TODO: Throw an exception here.
+	context->impl->iwrite(context, c, 1, n);  //@TODO: Throw an exception here.
 	return;
 }
 
@@ -324,13 +370,12 @@ Imf::Int64 ilOStream::tellp()
 void ilOStream::seekp(Imf::Int64 Pos)
 {
 	// iseekw only uses a 32-bit value!
-	iseekw((ILint)Pos, IL_SEEK_SET);  // I am assuming this is seeking from the beginning.
+	context->impl->iseekw(context, (ILint)Pos, IL_SEEK_SET);  // I am assuming this is seeking from the beginning.
 	return;
 }
 
-
 //! Writes a Exr file
-ILboolean ilSaveExr(const ILstring FileName)
+ILboolean ExrHandler::save(const ILstring FileName)
 {
 	ILHANDLE	ExrFile;
 	ILuint		ExrSize;
@@ -348,7 +393,7 @@ ILboolean ilSaveExr(const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	ExrSize = ilSaveExrF(ExrFile);
+	ExrSize = saveF(ExrFile);
 	context->impl->iclosew(ExrFile);
 
 	if (ExrSize == 0)
@@ -356,51 +401,48 @@ ILboolean ilSaveExr(const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Exr to an already-opened file
-ILuint ilSaveExrF(ILcontext* context, ILHANDLE File)
+ILuint ExrHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveExrInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Exr to a memory "lump"
-ILuint ilSaveExrL(ILcontext* context, void *Lump, ILuint Size)
+ILuint ExrHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos = context->impl->itellw(context);
 	iSetOutputLump(context, Lump, Size);
-	if (iSaveExrInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
-ILboolean iSaveExrInternal()
+ILboolean ExrHandler::saveInternal()
 {
 	Imath::Box2i DataWindow(Imath::V2i(0, 0), Imath::V2i(context->impl->iCurImage->Width-1, context->impl->iCurImage->Height-1));
 	Imf::LineOrder Order;
 	if (context->impl->iCurImage->Origin == IL_ORIGIN_LOWER_LEFT)
-		Order = DECREASING_Y;
+		Order = Imf::DECREASING_Y;
 	else
-		Order = INCREASING_Y;
+		Order = Imf::INCREASING_Y;
 	Imf::Header Head(context->impl->iCurImage->Width, context->impl->iCurImage->Height, DataWindow, 1, Imath::V2f (0, 0), 1, Order);
 
-	ilOStream File;
+	ilOStream File(context);
 	Imf::RgbaOutputFile Out(File, Head);
 	ILimage *TempImage = context->impl->iCurImage;
 
 	//@TODO: Can we always assume that Rgba is packed the same?
-	Rgba *HalfData = (Rgba*)ialloc(context, TempImage->Width * TempImage->Height * sizeof(Rgba));
+	Imf::Rgba *HalfData = (Imf::Rgba*)ialloc(context, TempImage->Width * TempImage->Height * sizeof(Imf::Rgba));
 	if (HalfData == NULL)
 		return IL_FALSE;
 
 	if (context->impl->iCurImage->Format != IL_RGBA || context->impl->iCurImage->Type != IL_FLOAT) {
-		TempImage = iConvertImage(context->impl->iCurImage, IL_RGBA, IL_FLOAT);
+		TempImage = iConvertImage(context, context->impl->iCurImage, IL_RGBA, IL_FLOAT);
 		if (TempImage == NULL) {
 			ifree(HalfData);
 			return IL_FALSE;
@@ -430,6 +472,5 @@ ILboolean iSaveExrInternal()
 
 	return IL_TRUE;
 }
-
 
 #endif //IL_NO_EXR

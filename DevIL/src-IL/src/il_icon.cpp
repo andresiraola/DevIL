@@ -10,16 +10,76 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_ICO
+
 #include "il_icon.h"
+
 #ifndef IL_NO_PNG
 	#include <png.h>
 #endif
 
+#ifdef _WIN32
+	#pragma pack(push, ico_struct, 1)
+#endif
+
+typedef struct ICODIR
+{
+	ILshort		Reserved;	// Reserved (must be 0)
+	ILshort		Type;		// Type (1 for icons, 2 for cursors)
+	ILshort		Count;		// How many different images?
+} IL_PACKSTRUCT ICODIR;
+
+typedef struct ICODIRENTRY
+{
+	ILubyte		Width;			// Width, in pixels
+	ILubyte		Height;			// Height, in pixels
+	ILubyte		NumColours;		// Number of colors in image (0 if >=8bpp)
+	ILubyte		Reserved;		// Reserved (must be 0)
+	ILshort		Planes;			// Colour planes
+	ILshort		Bpp;			// Bits per pixel
+	ILuint		SizeOfData;		// How many bytes in this resource?
+	ILuint		Offset;			// Offset from beginning of the file
+} IL_PACKSTRUCT ICODIRENTRY;
+
+typedef struct INFOHEAD
+{
+	ILint		Size;
+	ILint		Width;
+	ILint		Height;
+	ILshort		Planes;
+	ILshort		BitCount;
+	ILint		Compression;
+	ILint		SizeImage;
+	ILint		XPixPerMeter;
+	ILint		YPixPerMeter;
+	ILint		ColourUsed;
+	ILint		ColourImportant;
+} IL_PACKSTRUCT INFOHEAD;
+
+typedef struct ICOIMAGE
+{
+	INFOHEAD	Head;
+	ILubyte		*Pal;	// Palette
+	ILubyte		*Data;	// XOR mask
+	ILubyte		*AND;	// AND mask
+} ICOIMAGE;
+
+#ifdef _WIN32
+	#pragma pack(pop, ico_struct)
+#endif
+
+ILboolean iLoadIconPNG(ILcontext* context, ICOIMAGE *Icon);
+
+IconHandler::IconHandler(ILcontext* context) :
+	context(context)
+{
+
+}
+
 //! Reads an icon file.
-ILboolean ilLoadIcon(ILcontext* context, ILconst_string FileName)
+ILboolean IconHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	IconFile;
 	ILboolean	bIcon = IL_FALSE;
@@ -30,38 +90,35 @@ ILboolean ilLoadIcon(ILcontext* context, ILconst_string FileName)
 		return bIcon;
 	}
 
-	bIcon = ilLoadIconF(context, IconFile);
+	bIcon = loadF(IconFile);
 	context->impl->icloser(IconFile);
 
 	return bIcon;
 }
 
-
 //! Reads an already-opened icon file.
-ILboolean ilLoadIconF(ILcontext* context, ILHANDLE File)
+ILboolean IconHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadIconInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains an icon.
-ILboolean ilLoadIconL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean IconHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadIconInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the icon.
-ILboolean iLoadIconInternal(ILcontext* context)
+ILboolean IconHandler::loadInternal()
 {
 	ICODIR		IconDir;
 	ICODIRENTRY	*DirEntries = NULL;
@@ -385,7 +442,6 @@ file_read_error:
 	return IL_FALSE;
 }
 
-
 #ifndef IL_NO_PNG
 // 08-22-2008: Copying a lot of this over from il_png.c for the moment.
 // @TODO: Make .ico and .png use the same functions.
@@ -429,7 +485,6 @@ static void ico_png_read(png_structp png_ptr, png_bytep data, png_size_t length)
 	return;
 }
 
-
 static void ico_png_error_func(png_structp png_ptr, png_const_charp message)
 {
 	ILcontext* context = (ILcontext*)png_get_io_ptr(png_ptr);
@@ -453,7 +508,6 @@ static void ico_png_warn_func(png_structp png_ptr, png_const_charp message)
 	png_ptr; message;
 	return;
 }
-
 
 ILint ico_readpng_init(ILcontext* context)
 {
@@ -497,7 +551,6 @@ ILint ico_readpng_init(ILcontext* context)
 
 	return 0;
 }
-
 
 ILboolean ico_readpng_get_image(ILcontext* context, ICOIMAGE *Icon, ILdouble display_exponent)
 {
@@ -661,7 +714,6 @@ ILboolean ico_readpng_get_image(ILcontext* context, ICOIMAGE *Icon, ILdouble dis
 
 	return IL_TRUE;
 }
-
 
 void ico_readpng_cleanup()
 {

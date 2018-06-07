@@ -10,31 +10,38 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#ifndef IL_NO_CUT
-#include "il_pal.h"
-#include "il_bits.h"
 
+#ifndef IL_NO_CUT
+
+#include "il_bits.h"
+#include "il_cut.h"
+#include "il_pal.h"
 
 // Wrap it just in case...
 #ifdef _MSC_VER
 #pragma pack(push, packed_struct, 1)
 #endif
+
 typedef struct CUT_HEAD
 {
 	ILushort	Width;
 	ILushort	Height;
 	ILint		Dummy;
 } IL_PACKSTRUCT CUT_HEAD;
+
 #ifdef _MSC_VER
 #pragma pack(pop,  packed_struct)
 #endif
 
-ILboolean iLoadCutInternal(ILcontext* context);
+CutHandler::CutHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Reads a .cut file
-ILboolean ilLoadCut(ILcontext* context, ILconst_string FileName)
+ILboolean CutHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	CutFile;
 	ILboolean	bCut = IL_FALSE;
@@ -45,40 +52,37 @@ ILboolean ilLoadCut(ILcontext* context, ILconst_string FileName)
 		return bCut;
 	}
 
-	bCut = ilLoadCutF(context, CutFile);
+	bCut = loadF(CutFile);
 	context->impl->icloser(CutFile);
 
 	return bCut;
 }
 
-
 //! Reads an already-opened .cut file
-ILboolean ilLoadCutF(ILcontext* context, ILHANDLE File)
+ILboolean CutHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadCutInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .cut
-ILboolean ilLoadCutL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean CutHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadCutInternal(context);
+	return loadInternal();
 }
-
 
 //	Note:  .Cut support has not been tested yet!
 // A .cut can only have 1 bpp.
 //	We need to add support for the .pal's PSP outputs with these...
-ILboolean iLoadCutInternal(ILcontext* context)
+ILboolean CutHandler::loadInternal()
 {
 	CUT_HEAD	Header;
 	ILuint		Size, i = 0, j;
@@ -141,7 +145,5 @@ void ilPopToast() {
 	flipCode[0] = flipCode[0];
 }
 */
-
-
 
 #endif//IL_NO_CUT

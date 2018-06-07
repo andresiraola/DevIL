@@ -12,9 +12,11 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_FITS
+
+#include "il_fits.h"
 
 typedef struct FITSHEAD
 {
@@ -43,14 +45,18 @@ enum {
 	CARD_SKIP
 };
 
-ILboolean	iIsValidFits(ILcontext* context);
 ILboolean	iCheckFits(ILcontext* context, FITSHEAD *Header);
-ILboolean	iLoadFitsInternal(ILcontext* context);
 ILenum		GetCardImage(ILcontext* context, FITSHEAD *Header);
 ILboolean	GetCardInt(char *Buffer, ILint *Val);
 
+FitsHandler::FitsHandler(ILcontext* context) :
+	context(context)
+{
+
+}
+
 //! Checks if the file specified in FileName is a valid FITS file.
-ILboolean ilIsValidFits(ILcontext* context, ILconst_string FileName)
+ILboolean FitsHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	FitsFile;
 	ILboolean	bFits = IL_FALSE;
@@ -66,35 +72,32 @@ ILboolean ilIsValidFits(ILcontext* context, ILconst_string FileName)
 		return bFits;
 	}
 	
-	bFits = ilIsValidFitsF(context, FitsFile);
+	bFits = isValidF(FitsFile);
 	context->impl->icloser(FitsFile);
 	
 	return bFits;
 }
 
-
 //! Checks if the ILHANDLE contains a valid FITS file at the current position.
-ILboolean ilIsValidFitsF(ILcontext* context, ILHANDLE File)
+ILboolean FitsHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidFits(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid FITS lump.
-ILboolean ilIsValidFitsL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean FitsHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidFits(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the FITS header from the current file.
 ILboolean iGetFitsHead(ILcontext* context, FITSHEAD *Header)
@@ -172,9 +175,8 @@ ILboolean iGetFitsHead(ILcontext* context, FITSHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidFits(ILcontext* context)
+ILboolean FitsHandler::isValidInternal()
 {
 	FITSHEAD	Header;
 	ILuint		Pos = context->impl->itell(context);
@@ -186,7 +188,6 @@ ILboolean iIsValidFits(ILcontext* context)
 
 	return iCheckFits(context, &Header);
 }
-
 
 // Internal function used to check if the HEADER is a valid FITS header.
 ILboolean iCheckFits(ILcontext* context, FITSHEAD *Header)
@@ -222,9 +223,8 @@ ILboolean iCheckFits(ILcontext* context, FITSHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a FITS file
-ILboolean ilLoadFits(ILcontext* context, ILconst_string FileName)
+ILboolean FitsHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	FitsFile;
 	ILboolean	bFits = IL_FALSE;
@@ -235,38 +235,35 @@ ILboolean ilLoadFits(ILcontext* context, ILconst_string FileName)
 		return bFits;
 	}
 
-	bFits = ilLoadFitsF(context, FitsFile);
+	bFits = loadF(FitsFile);
 	context->impl->icloser(FitsFile);
 
 	return bFits;
 }
 
-
 //! Reads an already-opened FITS file
-ILboolean ilLoadFitsF(ILcontext* context, ILHANDLE File)
+ILboolean FitsHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadFitsInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a FITS
-ILboolean ilLoadFitsL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean FitsHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadFitsInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the FITS.
-ILboolean iLoadFitsInternal(ILcontext* context)
+ILboolean FitsHandler::loadInternal()
 {
 	FITSHEAD	Header;
 	ILuint		i, NumPix;
@@ -342,7 +339,6 @@ ILboolean iLoadFitsInternal(ILcontext* context)
 
 	return ilFixImage(context);
 }
-
 
 //@TODO: NAXISx have to come in order.  Check this!
 ILenum GetCardImage(ILcontext* context, FITSHEAD *Header)
@@ -443,7 +439,6 @@ ILenum GetCardImage(ILcontext* context, FITSHEAD *Header)
 
 	return CARD_SKIP;  // This is a card that we do not recognize, so skip it.
 }
-
 
 ILboolean GetCardInt(char *Buffer, ILint *Val)
 {

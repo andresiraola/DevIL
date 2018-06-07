@@ -12,9 +12,11 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_DICOM
+
+#include "il_dicom.h"
 
 typedef struct DICOMHEAD
 {
@@ -35,9 +37,7 @@ typedef struct DICOMHEAD
 	ILenum	Type;
 } DICOMHEAD;
 
-ILboolean	iIsValidDicom(ILcontext* context);
 ILboolean	iCheckDicom(DICOMHEAD *Header);
-ILboolean	iLoadDicomInternal(ILcontext* context);
 ILboolean	iGetDicomHead(ILcontext* context, DICOMHEAD *Header);
 ILboolean	SkipElement(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum, ILushort ElementNum);
 ILboolean	GetNumericValue(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum, ILuint *Number);
@@ -47,8 +47,14 @@ ILuint		GetShort(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum);
 ILuint		GetInt(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum);
 ILfloat		GetFloat(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum);
 
+DicomHandler::DicomHandler(ILcontext* context) :
+	context(context)
+{
+
+}
+
 //! Checks if the file specified in FileName is a valid DICOM file.
-ILboolean ilIsValidDicom(ILcontext* context, ILconst_string FileName)
+ILboolean DicomHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	DicomFile;
 	ILboolean	bDicom = IL_FALSE;
@@ -64,38 +70,35 @@ ILboolean ilIsValidDicom(ILcontext* context, ILconst_string FileName)
 		return bDicom;
 	}
 	
-	bDicom = ilIsValidDicomF(context, DicomFile);
+	bDicom = isValidF(DicomFile);
 	context->impl->icloser(DicomFile);
 	
 	return bDicom;
 }
 
-
 //! Checks if the ILHANDLE contains a valid DICOM file at the current position.
-ILboolean ilIsValidDicomF(ILcontext* context, ILHANDLE File)
+ILboolean DicomHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidDicom(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid DICOM lump.
-ILboolean ilIsValidDicomL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean DicomHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidDicom(context);
+	return isValidInternal();
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidDicom(ILcontext* context)
+ILboolean DicomHandler::isValidInternal()
 {
 	DICOMHEAD	Header;
 	ILuint		Pos = context->impl->itell(context);
@@ -109,7 +112,6 @@ ILboolean iIsValidDicom(ILcontext* context)
 
 	return iCheckDicom(&Header);
 }
-
 
 // Internal function used to get the DICOM header from the current file.
 ILboolean iGetDicomHead(ILcontext* context, DICOMHEAD *Header)
@@ -255,7 +257,6 @@ ILboolean iGetDicomHead(ILcontext* context, DICOMHEAD *Header)
 	return IL_TRUE;
 }
 
-
 ILboolean SkipElement(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum, ILushort ElementNum)
 {
 	ILubyte	VR1, VR2;
@@ -291,7 +292,6 @@ ILboolean SkipElement(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum, 
 	return IL_TRUE;
 }
 
-
 ILuint GetGroupNum(ILcontext* context, DICOMHEAD *Header)
 {
 	ILushort GroupNum;
@@ -311,7 +311,6 @@ ILuint GetGroupNum(ILcontext* context, DICOMHEAD *Header)
 	return GroupNum;
 }
 
-
 ILuint GetShort(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum)
 {
 	ILushort Num;
@@ -330,7 +329,6 @@ ILuint GetShort(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum)
 
 	return Num;
 }
-
 
 ILuint GetInt(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum)
 {
@@ -370,7 +368,6 @@ ILfloat GetFloat(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum)
 
 	return Num;
 }
-
 
 ILboolean GetNumericValue(ILcontext* context, DICOMHEAD *Header, ILushort GroupNum, ILuint *Number)
 {
@@ -412,7 +409,6 @@ ILboolean GetNumericValue(ILcontext* context, DICOMHEAD *Header, ILushort GroupN
 
 	return IL_FALSE;
 }
-
 
 ILboolean GetUID(ILcontext* context, ILubyte *UID)
 {
@@ -460,7 +456,7 @@ ILboolean iCheckDicom(DICOMHEAD *Header)
 
 
 //! Reads a DICOM file
-ILboolean ilLoadDicom(ILcontext* context, ILconst_string FileName)
+ILboolean DicomHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	DicomFile;
 	ILboolean	bDicom = IL_FALSE;
@@ -471,38 +467,35 @@ ILboolean ilLoadDicom(ILcontext* context, ILconst_string FileName)
 		return bDicom;
 	}
 
-	bDicom = ilLoadDicomF(context, DicomFile);
+	bDicom = loadF(DicomFile);
 	context->impl->icloser(DicomFile);
 
 	return bDicom;
 }
 
-
 //! Reads an already-opened DICOM file
-ILboolean ilLoadDicomF(ILcontext* context, ILHANDLE File)
+ILboolean DicomHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadDicomInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a DICOM
-ILboolean ilLoadDicomL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean DicomHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadDicomInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the DICOM.
-ILboolean iLoadDicomInternal(ILcontext* context)
+ILboolean DicomHandler::loadInternal()
 {
 	DICOMHEAD	Header;
 	ILuint		i;
@@ -602,7 +595,5 @@ ILboolean iLoadDicomInternal(ILcontext* context)
 
 	return ilFixImage(context);
 }
-
-
 
 #endif//IL_NO_DICOM

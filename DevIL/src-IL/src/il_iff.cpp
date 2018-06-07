@@ -14,6 +14,7 @@
 
 #ifndef IL_NO_IFF
 
+#include "il_iff.h"
 #include "il_ilbm.h"
 
 // Chunk type, data and functions:
@@ -31,8 +32,6 @@ static int chunkDepth = -1;
 iff_chunk iff_begin_read_chunk(ILcontext* context);
 void iff_end_read_chunk(ILcontext* context);
 char *iff_read_data(ILcontext* context, int size);
-ILboolean iLoadIffInternal(ILcontext* context);
-
 
 /* Define the IFF tags we are looking for in the file. */
 const ILuint IFF_TAG_CIMG = ('C' << 24) | ('I' << 16) | ('M' << 8) | ('G'); 
@@ -58,12 +57,16 @@ char *iff_decompress_rle(ILcontext* context, ILuint numBytes, char *compressedDa
 							ILuint *compressedStartIndex);
 
 char *iffReadUncompressedTile(ILcontext* context, ILushort width, ILushort height, ILbyte depth);
-char *iff_decompress_tile_rle(ILcontext* context, ILushort width, ILushort height, ILushort depth, 
-				 char *compressedData, ILuint compressedDataSize);
+char *iff_decompress_tile_rle(ILcontext* context, ILushort width, ILushort height, ILushort depth, char *compressedData, ILuint compressedDataSize);
 
+IffHandler::IffHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Reads an IFF file
-ILboolean ilLoadIff(ILcontext* context, const ILstring FileName)
+ILboolean IffHandler::load(const ILstring FileName)
 {
 	ILHANDLE iffFile;
 	ILboolean ret = IL_FALSE;
@@ -73,20 +76,20 @@ ILboolean ilLoadIff(ILcontext* context, const ILstring FileName)
 		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return ret;
 	}
-	ret = ilLoadIffF(context, iffFile);
+	ret = loadF(iffFile);
 	context->impl->icloser(iffFile);
 	return ret;
 }
 
 //! Reads an already-opened IFF file
-ILboolean ilLoadIffF(ILcontext* context, ILHANDLE File)
+ILboolean IffHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadIffInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	// Lbm files can have the .iff extension as well, so if Iff-loading failed,
@@ -102,14 +105,14 @@ ILboolean ilLoadIffF(ILcontext* context, ILHANDLE File)
 }
 
 //! Reads from a memory "lump" that contains an IFF
-ILboolean ilLoadIffL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean IffHandler::loadL(const void *Lump, ILuint Size)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputLump(context, Lump, Size);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadIffInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	// Lbm files can have the .iff extension as well, so if Iff-loading failed,
@@ -124,7 +127,7 @@ ILboolean ilLoadIffL(ILcontext* context, const void *Lump, ILuint Size)
 	return IL_TRUE;
 }
 
-ILboolean iLoadIffInternal(ILcontext* context)
+ILboolean IffHandler::loadInternal()
 {
 	iff_chunk chunkInfo;
     
@@ -363,10 +366,6 @@ char * iff_read_data(ILcontext* context, int size)
 	return buffer;
 }
 
-/*
-	IFF decompress functions
-*/
-
 char *iffReadUncompressedTile(ILcontext* context, ILushort width, ILushort height, ILbyte depth)
 {
 
@@ -397,7 +396,6 @@ char *iffReadUncompressedTile(ILcontext* context, ILushort width, ILushort heigh
 	}
 	return data;
 }
-
 
 char *iff_decompress_tile_rle(ILcontext* context, ILushort width, ILushort height, ILushort depth,
 							  char *compressedData, ILuint compressedDataSize)

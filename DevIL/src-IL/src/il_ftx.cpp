@@ -11,13 +11,19 @@
 //-----------------------------------------------------------------------------
 
 #include "il_internal.h"
+
 #ifndef IL_NO_FTX
 
-ILboolean iLoadFtxInternal(ILcontext* context);
+#include "il_ftx.h"
 
+FtxHandler::FtxHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Reads a FTX file
-ILboolean ilLoadFtx(ILcontext* context, ILconst_string FileName)
+ILboolean FtxHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	FtxFile;
 	ILboolean	bFtx = IL_FALSE;
@@ -28,38 +34,35 @@ ILboolean ilLoadFtx(ILcontext* context, ILconst_string FileName)
 		return bFtx;
 	}
 
-	bFtx = ilLoadFtxF(context, FtxFile);
+	bFtx = loadF(FtxFile);
 	context->impl->icloser(FtxFile);
 
 	return bFtx;
 }
 
-
 //! Reads an already-opened FTX file
-ILboolean ilLoadFtxF(ILcontext* context, ILHANDLE File)
+ILboolean FtxHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadFtxInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a FTX
-ILboolean ilLoadFtxL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean FtxHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadFtxInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the FTX.
-ILboolean iLoadFtxInternal(ILcontext* context)
+ILboolean FtxHandler::loadInternal()
 {
 	ILuint Width, Height, HasAlpha;
 
@@ -98,4 +101,3 @@ ILboolean iLoadFtxInternal(ILcontext* context)
 }
 
 #endif//IL_NO_FTX
-

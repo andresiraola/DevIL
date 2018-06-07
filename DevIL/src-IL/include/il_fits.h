@@ -1,20 +1,8 @@
-//-----------------------------------------------------------------------------
-//
-// ImageLib Sources
-// Copyright (C) 2000-2017 by Denton Woods
-// Last modified: 02/26/2009
-//
-// Filename: src-IL/include/il_dcx.h
-//
-// Description: Reads from a .dcx file.
-//
-//-----------------------------------------------------------------------------
-
 #pragma once
 
 #include "il_internal.h"
 
-class DcxHandler
+class FitsHandler
 {
 protected:
 	ILcontext * context;
@@ -23,7 +11,7 @@ protected:
 	ILboolean	loadInternal();
 
 public:
-	DcxHandler(ILcontext* context);
+	FitsHandler(ILcontext* context);
 
 	ILboolean	isValid(ILconst_string FileName);
 	ILboolean	isValidF(ILHANDLE File);

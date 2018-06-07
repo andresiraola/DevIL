@@ -18,10 +18,21 @@
 
 #include "il_blp.h"
 #include "il_bmp.h"
+#include "il_cut.h"
+#include "il_dcx.h"
 #include "il_dds.h"
+#include "il_doom.h"
+#include "il_dpx.h"
+#include "il_dicom.h"
+#include "il_exr.h"
+#include "il_fits.h"
+#include "il_ftx.h"
 #include "il_gif.h"
 #include "il_hdr.h"
+#include "il_header.h"
 #include "il_icns.h"
+#include "il_icon.h"
+#include "il_iff.h"
 #include "il_ilbm.h"
 #include "il_iwi.h"
 #include "il_jp2.h"
@@ -279,8 +290,14 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 #endif
 
 #ifndef IL_NO_EXR
-	if (ilIsValidExrF(context, File))
-		return IL_EXR;
+	{
+		ExrHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_EXR;
+		}
+	}
 #endif
 
 #ifndef IL_NO_GIF
@@ -561,8 +578,14 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 #endif
 
 #ifndef IL_NO_EXR
-	if (ilIsValidExrL(context, Lump, Size))
-		return IL_EXR;
+	{
+		ExrHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_EXR;
+		}
+	}
 #endif
 
 #ifndef IL_NO_GIF
@@ -847,12 +870,20 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 #ifndef IL_NO_DICOM
 	case IL_DICOM:
-		return ilIsValidDicom(context, FileName);
+	{
+		DicomHandler handler(context);
+
+		return handler.isValid(FileName);
+	}
 #endif
 
 #ifndef IL_NO_EXR
 	case IL_EXR:
-		return ilIsValidExr(context, FileName);
+	{
+		ExrHandler handler(context);
+
+		return handler.isValid(FileName);
+	}
 #endif
 
 #ifndef IL_NO_GIF
@@ -1095,12 +1126,20 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_DICOM
 	case IL_DICOM:
-		return ilIsValidDicomF(context, File);
+	{
+		DicomHandler handler(context);
+
+		return handler.isValidF(File);
+	}
 #endif
 
 #ifndef IL_NO_EXR
 	case IL_EXR:
-		return ilIsValidExrF(context, File);
+	{
+		ExrHandler handler(context);
+
+		return handler.isValidF(File);
+	}
 #endif
 
 #ifndef IL_NO_GIF
@@ -1344,12 +1383,20 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 #ifndef IL_NO_DICOM
 	case IL_DICOM:
-		return ilIsValidDicomL(context, Lump, Size);
+	{
+		DicomHandler handler(context);
+
+		return handler.isValidL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_EXR
 	case IL_EXR:
-		return ilIsValidExrL(context, Lump, Size);
+	{
+		ExrHandler handler(context);
+
+		return handler.isValidL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_GIF
@@ -1626,8 +1673,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_DPX
 	case IL_DPX:
-		bRet = ilLoadDpx(context, FileName);
-		break;
+	{
+		DpxHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_GIF
@@ -1652,47 +1703,79 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_CUT
 	case IL_CUT:
-		bRet = ilLoadCut(context, FileName);
-		break;
+	{
+		CutHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_DICOM
 	case IL_DICOM:
-		bRet = ilLoadDicom(context, FileName);
-		break;
+	{
+		DicomHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_DOOM
 	case IL_DOOM:
-		bRet = ilLoadDoom(context, FileName);
-		break;
+	{
+		DoomHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 	case IL_DOOM_FLAT:
-		bRet = ilLoadDoomFlat(context, FileName);
-		break;
+	{
+		DoomFlatHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_EXR
 	case IL_EXR:
-		bRet = ilLoadExr(context, FileName);
-		break;
+	{
+		ExrHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_FITS
 	case IL_FITS:
-		bRet = ilLoadFits(context, FileName);
-		break;
+	{
+		FitsHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_FTX
 	case IL_FTX:
-		bRet = ilLoadFtx(context, FileName);
-		break;
+	{
+		FtxHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_ICO
 	case IL_ICO:
-		bRet = ilLoadIcon(context, FileName);
-		break;
+	{
+		IconHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_ICNS
@@ -1707,8 +1790,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_IFF
 	case IL_IFF:
-		bRet = ilLoadIff(context, FileName);
-		break;
+	{
+		IffHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_ILBM
@@ -2027,39 +2114,71 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_CUT
 	case IL_CUT:
-		return ilLoadCutF(context, File);
+	{
+		CutHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_DICOM
 	case IL_DICOM:
-		return ilLoadDicomF(context, File);
+	{
+		DicomHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_DOOM
 	case IL_DOOM:
-		return ilLoadDoomF(context, File);
+	{
+		DoomHandler handler(context);
+
+		return handler.loadF(File);
+	}
 	case IL_DOOM_FLAT:
-		return ilLoadDoomFlatF(context, File);
+	{
+		DoomFlatHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_DPX
 	case IL_DPX:
-		return ilLoadDpxF(context, File);
+	{
+		DpxHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_EXR
 	case IL_EXR:
-		return ilLoadExrF(context, File);
+	{
+		ExrHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_FITS
 	case IL_FITS:
-		return ilLoadFitsF(context, File);
+	{
+		FitsHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_FTX
 	case IL_FTX:
-		return ilLoadFtxF(context, File);
+	{
+		FtxHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_GIF
@@ -2082,7 +2201,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_ICO
 	case IL_ICO:
-		return ilLoadIconF(context, File);
+	{
+		IconHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_ICNS
@@ -2096,7 +2219,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_IFF
 	case IL_IFF:
-		return ilLoadIffF(context, File);
+	{
+		IffHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_ILBM
@@ -2378,39 +2505,71 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 #ifndef IL_NO_CUT
 	case IL_CUT:
-		return ilLoadCutL(context, Lump, Size);
+	{
+		CutHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_DICOM
 	case IL_DICOM:
-		return ilLoadDicomL(context, Lump, Size);
+	{
+		DicomHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_DOOM
 	case IL_DOOM:
-		return ilLoadDoomL(context, Lump, Size);
+	{
+		DoomHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 	case IL_DOOM_FLAT:
-		return ilLoadDoomFlatL(context, Lump, Size);
+	{
+		DoomFlatHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_DPX
 	case IL_DPX:
-		return ilLoadDpxL(context, Lump, Size);
+	{
+		DpxHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_EXR
 	case IL_EXR:
-		return ilLoadExrL(context, Lump, Size);
+	{
+		ExrHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_FITS
 	case IL_FITS:
-		return ilLoadFitsL(context, Lump, Size);
+	{
+		FitsHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_FTX
 	case IL_FTX:
-		return ilLoadFtxL(context, Lump, Size);
+	{
+		FtxHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_GIF
@@ -2433,7 +2592,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 #ifndef IL_NO_ICO
 	case IL_ICO:
-		return ilLoadIconL(context, Lump, Size);
+	{
+		IconHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_ICNS
@@ -2447,7 +2610,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 #ifndef IL_NO_IFF
 	case IL_IFF:
-		return ilLoadIffL(context, Lump, Size);
+	{
+		IffHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_ILBM
@@ -2761,15 +2928,23 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_DPX
-		if (!iStrCmp(Ext, IL_TEXT("dpx"))) {
-			bRet = ilLoadDpx(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("dpx")))
+		{
+			DpxHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_EXR
-		if (!iStrCmp(Ext, IL_TEXT("exr"))) {
-			bRet = ilLoadExr(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("exr")))
+		{
+			ExrHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -2797,43 +2972,66 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_CUT
-		if (!iStrCmp(Ext, IL_TEXT("cut"))) {
-			bRet = ilLoadCut(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("cut")))
+		{
+			CutHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_DCX
-		if (!iStrCmp(Ext, IL_TEXT("dcx"))) {
-			bRet = ilLoadDcx(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("dcx")))
+		{
+			DcxHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_DICOM
-		if (!iStrCmp(Ext, IL_TEXT("dicom")) || !iStrCmp(Ext, IL_TEXT("dcm"))) {
-			bRet = ilLoadDicom(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("dicom")) || !iStrCmp(Ext, IL_TEXT("dcm")))
+		{
+			DicomHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_FITS
-		if (!iStrCmp(Ext, IL_TEXT("fits")) || !iStrCmp(Ext, IL_TEXT("fit"))) {
-			bRet = ilLoadFits(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("fits")) || !iStrCmp(Ext, IL_TEXT("fit")))
+		{
+			FitsHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_FTX
-		if (!iStrCmp(Ext, IL_TEXT("ftx"))) {
-			bRet = ilLoadFtx(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("ftx")))
+		{
+			FtxHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_ICO
 		if (!iStrCmp(Ext, IL_TEXT("ico")) || !iStrCmp(Ext, IL_TEXT("cur"))) {
-			bRet = ilLoadIcon(context, FileName);
+			IconHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -2851,7 +3049,10 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 
 #ifndef IL_NO_IFF
 		if (!iStrCmp(Ext, IL_TEXT("iff"))) {
-			bRet = ilLoadIff(context, FileName);
+			IffHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -3134,7 +3335,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_CHEAD
 	case IL_CHEAD:
-		return ilSaveCHeader(context, FileName, (char*)"IL_IMAGE");
+	{
+		CHeaderHandler handler(context, (char*)"IL_IMAGE");
+
+		return handler.save(FileName);
+	}
 #endif
 
 #ifndef IL_NO_DDS
@@ -3148,7 +3353,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_EXR
 	case IL_EXR:
-		return ilSaveExr(context, FileName);
+	{
+		ExrHandler handler(context);
+
+		return handler.save(FileName);
+	}
 #endif
 
 #ifndef IL_NO_HDR
@@ -3309,8 +3518,11 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_EXR
 	case IL_EXR:
-		Ret = ilSaveExrF(context, File);
-		break;
+	{
+		ExrHandler handler(context);
+
+		Ret = handler.saveF(File);
+	}
 #endif
 
 #ifndef IL_NO_HDR
@@ -3468,7 +3680,11 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 #ifndef IL_NO_EXR
 	case IL_EXR:
-		return ilSaveExrL(context, Lump, Size);
+	{
+		ExrHandler handler(context);
+
+		return handler.saveL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_HDR
@@ -3619,8 +3835,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_CHEAD
-	if (!iStrCmp(Ext, IL_TEXT("h"))) {
-		bRet = ilSaveCHeader(context, FileName, (char*)"IL_IMAGE");
+	if (!iStrCmp(Ext, IL_TEXT("h")))
+	{
+		CHeaderHandler handler(context, (char*)"IL_IMAGE");
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 #endif
@@ -3637,8 +3857,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_EXR
-	if (!iStrCmp(Ext, IL_TEXT("exr"))) {
-		bRet = ilSaveExr(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("exr")))
+	{
+		ExrHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 #endif

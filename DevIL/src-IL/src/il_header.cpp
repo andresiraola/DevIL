@@ -14,11 +14,19 @@
 
 #include "il_internal.h"
 
+#include "il_header.h"
+
 // Just a guess...let's see what's purty!
 #define MAX_LINE_WIDTH 14
 
+CHeaderHandler::CHeaderHandler(ILcontext* context, char* internalName) :
+	context(context), internalName(internalName)
+{
+
+}
+
 //! Generates a C-style header file for the current image.
-ILboolean ilSaveCHeader(ILcontext* context, ILconst_string FileName, char *InternalName)
+ILboolean CHeaderHandler::save(ILconst_string FileName)
 {
 	FILE		*HeadFile;
 	ILuint		i = 0, j;
@@ -32,7 +40,7 @@ ILboolean ilSaveCHeader(ILcontext* context, ILconst_string FileName, char *Inter
 
 	Name = iGetString(context, IL_CHEAD_HEADER_STRING);
 	if (Name == NULL)
-		Name = InternalName;
+		Name = internalName;
 
 	if (FileName == NULL || Name == NULL ||
 		ilStrLen(FileName) < 1 || ilCharStrLen(Name) < 1) {
@@ -129,7 +137,5 @@ ILboolean ilSaveCHeader(ILcontext* context, ILconst_string FileName, char *Inter
 	fclose(HeadFile);
 	return IL_TRUE;
 }
-
-
 
 #endif//IL_NO_CHEAD

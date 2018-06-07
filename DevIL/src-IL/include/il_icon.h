@@ -10,61 +10,21 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef ICON_H
-#define ICON_H
+#pragma once
 
 #include "il_internal.h"
 
-#ifdef _WIN32
-	#pragma pack(push, ico_struct, 1)
-#endif
-typedef struct ICODIR
+class IconHandler
 {
-	ILshort		Reserved;	// Reserved (must be 0)
-	ILshort		Type;		// Type (1 for icons, 2 for cursors)
-	ILshort		Count;		// How many different images?
-} IL_PACKSTRUCT ICODIR;
+protected:
+	ILcontext * context;
 
-typedef struct ICODIRENTRY
-{
-	ILubyte		Width;			// Width, in pixels
-	ILubyte		Height;			// Height, in pixels
-	ILubyte		NumColours;		// Number of colors in image (0 if >=8bpp)
-	ILubyte		Reserved;		// Reserved (must be 0)
-	ILshort		Planes;			// Colour planes
-	ILshort		Bpp;			// Bits per pixel
-	ILuint		SizeOfData;		// How many bytes in this resource?
-	ILuint		Offset;			// Offset from beginning of the file
-} IL_PACKSTRUCT ICODIRENTRY;
+	ILboolean	loadInternal();
 
-typedef struct INFOHEAD
-{
-	ILint		Size;
-	ILint		Width;
-	ILint		Height;
-	ILshort		Planes;
-	ILshort		BitCount;
-	ILint		Compression;
-	ILint		SizeImage;
-	ILint		XPixPerMeter;
-	ILint		YPixPerMeter;
-	ILint		ColourUsed;
-	ILint		ColourImportant;
-} IL_PACKSTRUCT INFOHEAD;
+public:
+	IconHandler(ILcontext* context);
 
-typedef struct ICOIMAGE
-{
-	INFOHEAD	Head;
-	ILubyte		*Pal;	// Palette
-	ILubyte		*Data;	// XOR mask
-	ILubyte		*AND;	// AND mask
-} ICOIMAGE;
-#ifdef _WIN32
-	#pragma pack(pop, ico_struct)
-#endif
-
-ILboolean iLoadIconInternal(ILcontext* context);
-ILboolean iLoadIconPNG(ILcontext* context, ICOIMAGE *Icon);
-
-#endif//ICON_H
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+};

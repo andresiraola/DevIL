@@ -10,14 +10,52 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_DCX
+
 #include "il_dcx.h"
 
+#ifdef _WIN32
+#pragma pack(push, packed_struct, 1)
+#endif
+
+typedef struct DCXHEAD
+{
+	ILubyte		Manufacturer;
+	ILubyte		Version;
+	ILubyte		Encoding;
+	ILubyte		Bpp;
+	ILushort	Xmin, Ymin, Xmax, Ymax;
+	ILushort	HDpi;
+	ILushort	VDpi;
+	ILubyte		ColMap[48];
+	ILubyte		Reserved;
+	ILubyte		NumPlanes;
+	ILushort	Bps;
+	ILushort	PaletteInfo;
+	ILushort	HScreenSize;
+	ILushort	VScreenSize;
+	ILubyte		Filler[54];
+} IL_PACKSTRUCT DCXHEAD;
+
+#ifdef _WIN32
+#pragma pack(pop, packed_struct)
+#endif
+
+// For checking and reading
+ILboolean iCheckDcx(DCXHEAD *Header);
+ILimage*  iUncompressDcx(ILcontext* context, DCXHEAD *Header);
+ILimage*  iUncompressDcxSmall(ILcontext* context, DCXHEAD *Header);
+
+DcxHandler::DcxHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid .dcx file.
-ILboolean ilIsValidDcx(ILcontext* context, ILconst_string FileName)
+ILboolean DcxHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	DcxFile;
 	ILboolean	bDcx = IL_FALSE;
@@ -33,35 +71,32 @@ ILboolean ilIsValidDcx(ILcontext* context, ILconst_string FileName)
 		return bDcx;
 	}
 
-	bDcx = ilIsValidDcxF(context, DcxFile);
+	bDcx = isValidF(DcxFile);
 	context->impl->icloser(DcxFile);
 
 	return bDcx;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .dcx file at the current position.
-ILboolean ilIsValidDcxF(ILcontext* context, ILHANDLE File)
+ILboolean DcxHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidDcx(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid .dcx lump.
-ILboolean ilIsValidDcxL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean DcxHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidDcx(context);
+	return isValidInternal();
 }
-
 
 // Internal function obtain the .dcx header from the current file.
 ILboolean iGetDcxHead(ILcontext* context, DCXHEAD *Head)
@@ -80,9 +115,8 @@ ILboolean iGetDcxHead(ILcontext* context, DCXHEAD *Head)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidDcx(ILcontext* context)
+ILboolean DcxHandler::isValidInternal()
 {
 	ILuint Signature;
 
@@ -92,7 +126,6 @@ ILboolean iIsValidDcx(ILcontext* context)
 
 	return (Signature == 987654321);
 }
-
 
 // Internal function used to check if the HEADER is a valid .dcx header.
 // Should we also do a check on Header->Bpp?
@@ -126,9 +159,8 @@ ILboolean iCheckDcx(DCXHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a .dcx file
-ILboolean ilLoadDcx(ILcontext* context, ILconst_string FileName)
+ILboolean DcxHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	DcxFile;
 	ILboolean	bDcx = IL_FALSE;
@@ -139,37 +171,34 @@ ILboolean ilLoadDcx(ILcontext* context, ILconst_string FileName)
 		return bDcx;
 	}
 
-	bDcx = ilLoadDcxF(context, DcxFile);
+	bDcx = loadF(DcxFile);
 	context->impl->icloser(DcxFile);
 
 	return bDcx;
 }
 
-
 //! Reads an already-opened .dcx file
-ILboolean ilLoadDcxF(ILcontext* context, ILHANDLE File)
+ILboolean DcxHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadDcxInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .dcx
-ILboolean ilLoadDcxL(ILcontext* context, const void *Lump, ILuint Size) {
+ILboolean DcxHandler::loadL(const void *Lump, ILuint Size) {
 	iSetInputLump(context, Lump, Size);
-	return iLoadDcxInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the .dcx.
-ILboolean iLoadDcxInternal(ILcontext* context)
+ILboolean DcxHandler::loadInternal()
 {
 	DCXHEAD	Header;
 	ILuint	Signature, i, Entries[1024], Num = 0;
@@ -180,7 +209,7 @@ ILboolean iLoadDcxInternal(ILcontext* context)
 		return IL_FALSE;
 	}
 
-	if (!iIsValidDcx(context))
+	if (!isValidInternal())
 		return IL_FALSE;
 	context->impl->iread(context, &Signature, 1, 4);
 
@@ -216,7 +245,6 @@ ILboolean iLoadDcxInternal(ILcontext* context)
 
 	return ilFixImage(context);
 }
-
 
 // Internal function to uncompress the .dcx (all .dcx files are rle compressed)
 ILimage *iUncompressDcx(ILcontext* context, DCXHEAD *Header)
@@ -362,7 +390,6 @@ dcx_error:
 	ilCloseImage(Image);
 	return NULL;
 }
-
 
 ILimage *iUncompressDcxSmall(ILcontext* context, DCXHEAD *Header)
 {

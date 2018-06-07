@@ -10,81 +10,31 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef EXR_H
-#define EXR_H
+#pragma once
 
 #include "il_internal.h"
-#include <ImfIO.h>
 
-
-//using namespace Imf;  // Using this leads to errors with Microsoft's IStream.
-						//   So it is better to just specify the namespace explicitly.
-
-
-typedef struct EXRHEAD
+class ExrHandler
 {
-	ILuint		MagicNumber;		// File signature (0x76, 0x2f, 0x31, 0x01)
-	ILuint		Version;			// Treated as two bitfields
-} IL_PACKSTRUCT EXRHEAD;
+protected:
+	ILcontext * context;
 
-//@TODO: Should I just do these as enums?
-#define EXR_UINT 0
-#define EXR_HALF 1
-#define EXR_FLOAT 2
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+	ILboolean	saveInternal();
 
-#define EXR_NO_COMPRESSION    0
-#define EXR_RLE_COMPRESSION   1
-#define EXR_ZIPS_COMPRESSION  2
-#define EXR_ZIP_COMPRESSION   3
-#define EXR_PIZ_COMPRESSION   4
-#define EXR_PXR24_COMPRESSION 5
-#define EXR_B44_COMPRESSION   6
-#define EXR_B44A_COMPRESSION  7
+public:
+	ExrHandler(ILcontext* context);
 
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
 
-ILboolean iIsValidExr(ILcontext* context);
-ILboolean iCheckExr(EXRHEAD *Header);
-ILboolean iLoadExrInternal(ILcontext* context);
-ILboolean iSaveExrInternal(ILcontext* context);
-
-#ifdef __cplusplus
-}
-#endif
-
-class ilIStream : public Imf::IStream
-{
-	public:
-		ilIStream(/*ILHANDLE Handle*/);
-		virtual bool	read (char c[/*n*/], int n);
-		// I don't think I need this one, since we are taking care of the file handles ourselves.
-		//virtual char *	readMemoryMapped (int n);
-		virtual Imf::Int64	tellg ();
-		virtual void	seekg (Imf::Int64 Pos);
-		virtual void	clear ();
-
-	protected:
-
-	private:
+	ILboolean	save(ILconst_string FileName);
+	ILuint		saveF(ILHANDLE File);
+	ILuint		saveL(void *Lump, ILuint Size);
 };
-
-class ilOStream : public Imf::OStream
-{
-	public:
-		ilOStream(/*ILHANDLE Handle*/);
-		virtual void	write (const char c[/*n*/], int n);
-		// I don't think I need this one, since we are taking care of the file handles ourselves.
-		//virtual char *	readMemoryMapped (int n);
-		virtual Imf::Int64	tellp ();
-		virtual void	seekp (Imf::Int64 Pos);
-
-	protected:
-
-	private:
-};
-
-#endif//EXR_H

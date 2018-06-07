@@ -10,23 +10,28 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_DOOM
-#include "il_pal.h"
+
+#include "il_doom.h"
 #include "il_doompal.h"
+#include "il_pal.h"
 
+DoomHandler::DoomHandler(ILcontext* context) :
+	context(context)
+{
 
-ILboolean iLoadDoomInternal(ILcontext* context);
-ILboolean iLoadDoomFlatInternal(ILcontext* context);
+}
 
+DoomFlatHandler::DoomFlatHandler(ILcontext* context) :
+	context(context)
+{
 
-//
-// READ A DOOM IMAGE
-//
+}
 
 //! Reads a Doom file
-ILboolean ilLoadDoom(ILcontext* context, ILconst_string FileName)
+ILboolean DoomHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	DoomFile;
 	ILboolean	bDoom = IL_FALSE;
@@ -43,7 +48,7 @@ ILboolean ilLoadDoom(ILcontext* context, ILconst_string FileName)
 		return bDoom;
 	}
 
-	bDoom = ilLoadDoomF(context, DoomFile);
+	bDoom = loadF(DoomFile);
 	context->impl->icloser(DoomFile);
 
 	return bDoom;
@@ -51,14 +56,14 @@ ILboolean ilLoadDoom(ILcontext* context, ILconst_string FileName)
 
 
 //! Reads an already-opened Doom file
-ILboolean ilLoadDoomF(ILcontext* context, ILHANDLE File)
+ILboolean DoomHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadDoomInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
@@ -66,15 +71,15 @@ ILboolean ilLoadDoomF(ILcontext* context, ILHANDLE File)
 
 
 //! Reads from a memory "lump" that contains a Doom texture
-ILboolean ilLoadDoomL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean DoomHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadDoomInternal(context);
+	return loadInternal();
 }
 
 
 // From the DTE sources (mostly by Denton Woods with corrections by Randy Heit)
-ILboolean iLoadDoomInternal(ILcontext* context)
+ILboolean DoomHandler::loadInternal()
 {
 	ILshort	width, height, graphic_header[2], column_loop, row_loop;
 	ILint	column_offset, pointer_position, first_pos;
@@ -168,7 +173,7 @@ ILboolean iLoadDoomInternal(ILcontext* context)
 //
 
 //! Reads a Doom flat file
-ILboolean ilLoadDoomFlat(ILcontext* context, ILconst_string FileName)
+ILboolean DoomFlatHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	FlatFile;
 	ILboolean	bFlat = IL_FALSE;
@@ -185,7 +190,7 @@ ILboolean ilLoadDoomFlat(ILcontext* context, ILconst_string FileName)
 		return bFlat;
 	}
 
-	bFlat = ilLoadDoomF(context, FlatFile);
+	bFlat = loadF(FlatFile);
 	context->impl->icloser(FlatFile);
 
 	return bFlat;
@@ -193,14 +198,14 @@ ILboolean ilLoadDoomFlat(ILcontext* context, ILconst_string FileName)
 
 
 //! Reads an already-opened Doom flat file
-ILboolean ilLoadDoomFlatF(ILcontext* context, ILHANDLE File)
+ILboolean DoomFlatHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadDoomFlatInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
@@ -208,15 +213,15 @@ ILboolean ilLoadDoomFlatF(ILcontext* context, ILHANDLE File)
 
 
 //! Reads from a memory "lump" that contains a Doom flat
-ILboolean ilLoadDoomFlatL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean DoomFlatHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadDoomFlatInternal(context);
+	return loadInternal();
 }
 
 
 // Basically just ireads 4096 bytes and copies the palette
-ILboolean iLoadDoomFlatInternal(ILcontext* context)
+ILboolean DoomFlatHandler::loadInternal()
 {
 	ILubyte	*NewData;
 	ILuint	i;
