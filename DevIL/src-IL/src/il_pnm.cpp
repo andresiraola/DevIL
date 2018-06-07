@@ -10,18 +10,46 @@
 //
 //-----------------------------------------------------------------------------
 
-
-
 #include "il_internal.h"
+
 #ifndef IL_NO_PNM
-#include "il_pnm.h"
-#include <limits.h>  // for maximum values
+
 #include <ctype.h>
+#include <limits.h>  // for maximum values
 #include <string>
+
 #include "il_bits.h"
+#include "il_pnm.h"
 
-using namespace std;
+#define IL_PBM_ASCII	0x0001
+#define IL_PGM_ASCII	0x0002
+#define IL_PPM_ASCII	0x0003
+#define IL_PBM_BINARY	0x0004
+#define IL_PGM_BINARY	0x0005
+#define IL_PPM_BINARY	0x0006
+#define IL_PAM			0x0007
 
+enum PamTuples { PAM_BW = 1, PAM_GRAY, PAM_RGB, PAM_BW_ALPHA, PAM_GRAY_ALPHA, PAM_RGB_ALPHA };
+
+typedef struct PPMINFO
+{
+	ILenum	Type;
+	ILuint	Width;
+	ILuint	Height;
+	ILuint	Depth;
+	ILuint	MaxColour;
+	ILubyte	Bpp;
+	ILubyte	TuplType;
+} PPMINFO;
+
+ILboolean	iCheckPnm(char Header[2]);
+ILimage		*ilReadAsciiPpm(ILcontext* context, PPMINFO *Info);
+ILimage		*ilReadBinaryPpm(ILcontext* context, PPMINFO *Info);
+ILimage		*ilReadBitPbm(ILcontext* context, PPMINFO *Info);
+ILboolean	ilReadPam(ILcontext* context);
+ILboolean	iGetWord(ILcontext* context, ILboolean);
+void		PbmMaximize(ILimage *Image);
+ILint		DecodeTupleType(std::string &TupleStr);
 
 // According to the ppm specs, it's 70, but PSP
 //  likes to output longer lines.
@@ -34,9 +62,14 @@ static ILbyte SmallBuff[MAX_BUFFER];
 // Can't read direct bits from a lump yet
 ILboolean IsLump = IL_FALSE;
 
+PnmHandler::PnmHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid .pnm file.
-ILboolean ilIsValidPnm(ILcontext* context, ILconst_string FileName)
+ILboolean PnmHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	PnmFile;
 	ILboolean	bPnm = IL_FALSE;
@@ -56,38 +89,35 @@ ILboolean ilIsValidPnm(ILcontext* context, ILconst_string FileName)
 		return bPnm;
 	}
 
-	bPnm = ilIsValidPnmF(context, PnmFile);
+	bPnm = isValidF(PnmFile);
 	context->impl->icloser(PnmFile);
 
 	return bPnm;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .pnm file at the current position.
-ILboolean ilIsValidPnmF(ILcontext* context, ILHANDLE File)
+ILboolean PnmHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidPnm(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid .pnm lump.
-ILboolean ilIsValidPnmL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PnmHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidPnm(context);
+	return isValidInternal();
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidPnm(ILcontext* context)
+ILboolean PnmHandler::isValidInternal()
 {
 	char	Head[2];
 	ILint	Read;
@@ -99,7 +129,6 @@ ILboolean iIsValidPnm(ILcontext* context)
 
 	return iCheckPnm(Head);
 }
-
 
 // Internal function used to check if the HEADER is a valid .pnm header.
 ILboolean iCheckPnm(char Header[2])
@@ -121,9 +150,8 @@ ILboolean iCheckPnm(char Header[2])
 	return IL_FALSE;
 }
 
-
 // Reads a file
-ILboolean ilLoadPnm(ILcontext* context, ILconst_string FileName)
+ILboolean PnmHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	PnmFile;
 	ILboolean	bPnm = IL_FALSE;
@@ -134,38 +162,35 @@ ILboolean ilLoadPnm(ILcontext* context, ILconst_string FileName)
 		return bPnm;
 	}
 
-	bPnm = ilLoadPnmF(context, PnmFile);
+	bPnm = loadF(PnmFile);
 	context->impl->icloser(PnmFile);
 
 	return bPnm;
 }
 
-
 // Reads an already-opened file
-ILboolean ilLoadPnmF(ILcontext* context, ILHANDLE File)
+ILboolean PnmHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadPnmInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 // Reads from a memory "lump"
-ILboolean ilLoadPnmL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PnmHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadPnmInternal(context);
+	return loadInternal();
 }
 
-
 // Load either a pgm or a ppm
-ILboolean iLoadPnmInternal(ILcontext* context)
+ILboolean PnmHandler::loadInternal()
 {
 	ILimage		*PmImage = NULL;
 	PPMINFO		Info;
@@ -317,8 +342,6 @@ ILboolean iLoadPnmInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-
-
 ILimage *ilReadAsciiPpm(ILcontext* context, PPMINFO *Info)
 {
 	ILint	LineInc = 0, SmallInc = 0, DataInc = 0, Size;
@@ -387,7 +410,6 @@ ILimage *ilReadAsciiPpm(ILcontext* context, PPMINFO *Info)
 	return context->impl->iCurImage;
 }
 
-
 ILimage *ilReadBinaryPpm(ILcontext* context, PPMINFO *Info)
 {
 	ILuint Size;
@@ -416,7 +438,6 @@ ILimage *ilReadBinaryPpm(ILcontext* context, PPMINFO *Info)
 	return context->impl->iCurImage;
 }
 
-
 ILimage *ilReadBitPbm(ILcontext* context, PPMINFO *Info)
 {
 	ILuint	m, j, x, CurrByte;
@@ -439,11 +460,10 @@ ILimage *ilReadBitPbm(ILcontext* context, PPMINFO *Info)
 	return context->impl->iCurImage;
 }
 
-
 ILboolean ilReadPam(ILcontext* context)
 {
 	PPMINFO Info;
-	string TempStr;
+	std::string TempStr;
 	ILuint Size;
 
 	memset(&Info, 0, sizeof(PPMINFO));
@@ -467,7 +487,7 @@ ILboolean ilReadPam(ILcontext* context)
 		else if (!strncmp(TempStr.c_str(), "MAXVAL", 6))
 			Info.MaxColour = atoi((const char*)SmallBuff);
 		else if (!strncmp(TempStr.c_str(), "TUPLTYPE", 8)) {
-			string tmp = (char*)SmallBuff;
+			std::string tmp = (char*)SmallBuff;
 			Info.TuplType = DecodeTupleType(tmp);
 		}
 	}
@@ -559,8 +579,7 @@ ILboolean ilReadPam(ILcontext* context)
 	return ilFixImage(context);
 }
 
-
-ILint DecodeTupleType(string &TupleStr)
+ILint DecodeTupleType(std::string &TupleStr)
 {
 	if (TupleStr == "BLACKANDWHITE")
 		return PAM_BW;
@@ -577,7 +596,6 @@ ILint DecodeTupleType(string &TupleStr)
 
 	return 0;
 }
-
 
 ILboolean iGetWord(ILcontext* context, ILboolean final)
 {
@@ -639,11 +657,10 @@ ILboolean iGetWord(ILcontext* context, ILboolean final)
 	return IL_TRUE;
 }
 
-
 ILstring FName = NULL;
 
 //! Writes a Pnm file
-ILboolean ilSavePnm(ILcontext* context, const ILstring FileName)
+ILboolean PnmHandler::save(const ILstring FileName)
 {
 	ILHANDLE	PnmFile;
 	ILuint		PnmSize;
@@ -661,7 +678,7 @@ ILboolean ilSavePnm(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	PnmSize = ilSavePnmF(context, PnmFile);
+	PnmSize = saveF(PnmFile);
 	context->impl->iclosew(PnmFile);
 
 	if (PnmSize == 0)
@@ -669,34 +686,31 @@ ILboolean ilSavePnm(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Pnm to an already-opened file
-ILuint ilSavePnmF(ILcontext* context, ILHANDLE File)
+ILuint PnmHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSavePnmInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Pnm to a memory "lump"
-ILuint ilSavePnmL(ILcontext* context, void *Lump, ILuint Size)
+ILuint PnmHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	FName = NULL;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSavePnmInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 // Internal function used to save the Pnm.
-ILboolean iSavePnmInternal(ILcontext* context)
+ILboolean PnmHandler::saveInternal()
 {
 	ILuint		Bpp, MaxVal = UCHAR_MAX, i = 0, j, k;
 	ILenum		Type = 0;
@@ -850,7 +864,6 @@ ILboolean iSavePnmInternal(ILcontext* context)
 	return IL_TRUE;
 }
 
-
 // Converts a .pbm to something viewable.
 void PbmMaximize(ILimage *Image)
 {
@@ -860,6 +873,5 @@ void PbmMaximize(ILimage *Image)
 			Image->Data[i] = 0xFF;
 	return;
 }
-
 
 #endif//IL_NO_PNM

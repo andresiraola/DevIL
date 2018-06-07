@@ -10,13 +10,32 @@
 //
 //-----------------------------------------------------------------------------
 
-#ifndef JP2_H
-#define JP2_H
+#pragma once
 
 #include "il_internal.h"
 
-ILboolean		iLoadJp2Internal(ILcontext* context, jas_stream_t *Stream, ILimage *Image);
-ILboolean		iSaveJp2Internal(ILcontext* context);
-jas_stream_t	*iJp2ReadStream(ILcontext* context);
+class Jp2Handler
+{
+protected:
+	ILcontext* context;
 
-#endif//JP2_H
+	ILboolean	isValidInternal();
+	ILboolean	saveInternal();
+
+public:
+	Jp2Handler(ILcontext* context);
+
+    static ILboolean LoadLToImage(ILcontext* context, const void *Lump, ILuint Size, ILimage *Image);
+
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
+
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+
+	ILboolean	save(ILconst_string FileName);
+	ILuint		saveF(ILHANDLE File);
+	ILuint		saveL(void *Lump, ILuint Size);
+};

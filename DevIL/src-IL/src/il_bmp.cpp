@@ -22,7 +22,8 @@
 #include <stdio.h>
 
 #ifndef NOINLINE
-INLINE void GetShiftFromMask(const ILuint Mask, ILuint * CONST_RESTRICT ShiftLeft, ILuint * CONST_RESTRICT ShiftRight) {
+INLINE void GetShiftFromMask(const ILuint Mask, ILuint * CONST_RESTRICT ShiftLeft, ILuint * CONST_RESTRICT ShiftRight)
+{
 	ILuint Temp, i;
 
 	if (Mask == 0) {

@@ -10,70 +10,26 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef PIC_H
-#define PIC_H
+#pragma once
 
 #include "il_internal.h"
 
-#ifdef _MSC_VER
-#pragma pack(push, packed_struct, 1)
-#endif
-typedef struct PIC_HEAD
+class PicHandler
 {
-   ILint	Magic;			// PIC_MAGIC_NUMBER
-   ILfloat	Version;		// Version of format
-   ILbyte	Comment[80];	// Prototype description
-   ILbyte	Id[4];			// 'PICT'
-   ILshort	Width;			// Image width, in pixels
-   ILshort	Height;			// Image height, in pixels
-   ILfloat	Ratio;			// Pixel aspect ratio
-   ILshort	Fields;			// Picture field type
-   ILshort	Padding;		// Unused
-} IL_PACKSTRUCT PIC_HEAD;
+protected:
+	ILcontext* context;
 
-typedef struct CHANNEL
-{
-	ILubyte	Size;
-	ILubyte	Type;
-	ILubyte	Chan;
-	void	*Next;
-} CHANNEL;
-#ifdef _MSC_VER
-#pragma pack(pop,  packed_struct)
-#endif
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
 
+public:
+	PicHandler(ILcontext* context);
 
-// Data type
-#define PIC_UNSIGNED_INTEGER	0x00
-#define PIC_SIGNED_INTEGER		0x10	// XXX: Not implemented
-#define PIC_SIGNED_FLOAT		0x20	// XXX: Not implemented
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
 
-
-// Compression type
-#define PIC_UNCOMPRESSED		0x00
-#define PIC_PURE_RUN_LENGTH		0x01
-#define PIC_MIXED_RUN_LENGTH	0x02
-
-// CHANNEL types (OR'd)
-#define PIC_RED_CHANNEL			0x80
-#define PIC_GREEN_CHANNEL		0x40
-#define PIC_BLUE_CHANNEL		0x20
-#define PIC_ALPHA_CHANNEL		0x10
-#define PIC_SHADOW_CHANNEL		0x08	// XXX: Not implemented
-#define PIC_DEPTH_CHANNEL		0x04	// XXX: Not implemented
-#define PIC_AUXILIARY_1_CHANNEL	0x02	// XXX: Not implemented
-#define PIC_AUXILIARY_2_CHANNEL	0x01	// XXX: Not implemented
-
-ILboolean iIsValidPic(ILcontext* context);
-ILboolean iCheckPic(PIC_HEAD *Header);
-ILboolean iLoadPicInternal(ILcontext* context);
-ILboolean readScanlines(ILcontext* context, ILuint *image, ILint width, ILint height, CHANNEL *channel, ILuint alpha);
-ILuint    readScanline(ILcontext* context, ILubyte *scan, ILint width, CHANNEL *channel,  ILint bytes);
-ILboolean channelReadRaw(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
-ILboolean channelReadPure(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
-ILboolean channelReadMixed(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
-
-
-
-#endif//PIC_H
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+};

@@ -18,8 +18,11 @@
 //@TODO: Checks on iread
 
 #include "il_internal.h"
+
 #ifndef IL_NO_ICNS
+
 #include "il_icns.h"
+#include "il_jp2.h"
 
 #ifndef IL_NO_JP2
 	#if defined(_WIN32) && defined(IL_USE_PRAGMA_LIBS)
@@ -33,9 +36,35 @@
 	#endif
 #endif//IL_NO_JP2
 
+#ifdef _WIN32
+	#pragma pack(push, icns_struct, 1)
+#endif
+typedef struct ICNSHEAD
+{
+	char		Head[4];	// Must be 'ICNS'
+	ILint		Size;		// Total size of the file (including header)
+} IL_PACKSTRUCT ICNSHEAD;
+
+typedef struct ICNSDATA
+{
+	char		ID[4];		// Identifier ('it32', 'il32', etc.)
+	ILint		Size;		// Total size of the entry (including identifier)
+} IL_PACKSTRUCT ICNSDATA;
+
+#ifdef _WIN32
+	#pragma pack(pop, icns_struct)
+#endif
+
+ILboolean iIcnsReadData(ILcontext* context, ILboolean *BaseCreated, ILboolean IsAlpha, ILint Width, ICNSDATA *Entry, ILimage **Image);
+
+IcnsHandler::IcnsHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid .icns file.
-ILboolean ilIsValidIcns(ILcontext* context, ILconst_string FileName)
+ILboolean IcnsHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	IcnsFile;
 	ILboolean	bIcns = IL_FALSE;
@@ -51,38 +80,35 @@ ILboolean ilIsValidIcns(ILcontext* context, ILconst_string FileName)
 		return bIcns;
 	}
 
-	bIcns = ilIsValidIcnsF(context, IcnsFile);
+	bIcns = isValidF(IcnsFile);
 	context->impl->icloser(IcnsFile);
 
 	return bIcns;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .icns file at the current position.
-ILboolean ilIsValidIcnsF(ILcontext* context, ILHANDLE File)
+ILboolean IcnsHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidIcns(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid .icns lump.
-ILboolean ilIsValidIcnsL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean IcnsHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidIcns(context);
+	return isValidInternal();
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidIcns(ILcontext* context)
+ILboolean IcnsHandler::isValidInternal()
 {
 	ICNSHEAD	Header;
 
@@ -95,9 +121,8 @@ ILboolean iIsValidIcns(ILcontext* context)
 	return IL_TRUE;
 }
 
-
 //! Reads an icon file.
-ILboolean ilLoadIcns(ILcontext* context, ILconst_string FileName)
+ILboolean IcnsHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	IcnsFile;
 	ILboolean	bIcns = IL_FALSE;
@@ -108,44 +133,40 @@ ILboolean ilLoadIcns(ILcontext* context, ILconst_string FileName)
 		return bIcns;
 	}
 
-	bIcns = ilLoadIcnsF(context, IcnsFile);
+	bIcns = loadF(IcnsFile);
 	context->impl->icloser(IcnsFile);
 
 	return bIcns;
 }
 
-
 //! Reads an already-opened icon file.
-ILboolean ilLoadIcnsF(ILcontext* context, ILHANDLE File)
+ILboolean IcnsHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadIcnsInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains an icon.
-ILboolean ilLoadIcnsL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean IcnsHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadIcnsInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the icon.
-ILboolean iLoadIcnsInternal(ILcontext* context)
+ILboolean IcnsHandler::loadInternal()
 {
 	ICNSHEAD	Header;
 	ICNSDATA	Entry;
 	ILimage		*Image = NULL;
 	ILboolean	BaseCreated = IL_FALSE;
-
 
 	if (context->impl->iCurImage == NULL)
 	{
@@ -294,7 +315,7 @@ ILboolean iIcnsReadData(ILcontext* context, ILboolean *BaseCreated, ILboolean Is
 	{
 #ifndef IL_NO_JP2
 		context->impl->iread(context, Data, Entry->Size - 8, 1);  // Size includes the header
-		if (ilLoadJp2LInternal(context, Data, Entry->Size - 8, TempImage) == IL_FALSE)
+		if (Jp2Handler::LoadLToImage(context, Data, Entry->Size - 8, TempImage) == IL_FALSE)
 		{
 			ifree(Data);
 			ilSetError(context, IL_LIB_JP2_ERROR);
@@ -310,16 +331,16 @@ ILboolean iIcnsReadData(ILcontext* context, ILboolean *BaseCreated, ILboolean Is
 		context->impl->iread(context, Data, Entry->Size - 8, 1);  // Size includes the header
 		if (Width == 128)
 			RLEPos += 4;  // There are an extra 4 bytes here of zeros.
-		//@TODO: Should we check to make sure they are all 0?
+						  //@TODO: Should we check to make sure they are all 0?
 
 		if (Entry->Size - 8 == Width * Width * 4) // Uncompressed
 		{
 			//memcpy(TempImage->Data, Data, Entry->Size);
 			for (i = 0; i < Width * Width; i++, Position += 4)
 			{
-				TempImage->Data[i * 4 + 0] = Data[Position+1];
-				TempImage->Data[i * 4 + 1] = Data[Position+2];
-				TempImage->Data[i * 4 + 2] = Data[Position+3];
+				TempImage->Data[i * 4 + 0] = Data[Position + 1];
+				TempImage->Data[i * 4 + 1] = Data[Position + 2];
+				TempImage->Data[i * 4 + 2] = Data[Position + 3];
 			}
 		}
 		else  // RLE decoding

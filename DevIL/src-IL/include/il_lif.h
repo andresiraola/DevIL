@@ -10,28 +10,26 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef LIF_H
-#define LIF_H
+#pragma once
 
 #include "il_internal.h"
 
-typedef struct LIF_HEAD
+class LifHandler
 {
-    char	Id[8];			//"Willy 7"
-    ILuint	Version;		// Version Number (260)
-    ILuint	Flags;			// Usually 50
-    ILuint	Width;
-	ILuint	Height;
-    ILuint	PaletteCRC;		// CRC of palettes for fast comparison.
-    ILuint	ImageCRC;		// CRC of the image.
-	ILuint	PalOffset;		// Offset to the palette (not used).
-	ILuint	TeamEffect0;	// Team effect offset 0
-	ILuint	TeamEffect1;	// Team effect offset 1
-} LIF_HEAD;
+protected:
+	ILcontext * context;
 
-ILboolean iIsValidLif(ILcontext* context);
-ILboolean iCheckLif(LIF_HEAD *Header);
-ILboolean iLoadLifInternal(ILcontext* context);
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
 
-#endif//LIF_H
+public:
+	LifHandler(ILcontext* context);
+
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
+
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+};

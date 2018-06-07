@@ -15,8 +15,11 @@
 #include "il_bmp.h"
 #include "il_dds.h"
 #include "il_hdr.h"
+#include "il_jp2.h"
 #include "il_jpeg.h"
+#include "il_pcx.h"
 #include "il_png.h"
+#include "il_pnm.h"
 #include "il_psd.h"
 #include "il_raw.h"
 #include "il_targa.h"
@@ -124,8 +127,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_JP2
 		case IL_JP2:
-			ilSaveJp2L(context, NULL, 0);
-			break;
+		{
+			Jp2Handler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_JP2
 
 		#ifndef IL_NO_JPG
@@ -140,8 +147,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_PCX
 		case IL_PCX:
-			ilSavePcxL(context, NULL, 0);
-			break;
+		{
+			PcxHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_PCX
 
 		#ifndef IL_NO_PNG
@@ -156,8 +167,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_PNM
 		case IL_PNM:
-			ilSavePnmL(context, NULL, 0);
-			break;
+		{
+			PnmHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_PNM
 
 		#ifndef IL_NO_PSD

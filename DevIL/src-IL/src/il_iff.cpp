@@ -14,6 +14,8 @@
 
 #ifndef IL_NO_IFF
 
+#include "il_ilbm.h"
+
 // Chunk type, data and functions:
 typedef struct _iff_chunk {
 	ILuint	tag;
@@ -76,7 +78,6 @@ ILboolean ilLoadIff(ILcontext* context, const ILstring FileName)
 	return ret;
 }
 
-
 //! Reads an already-opened IFF file
 ILboolean ilLoadIffF(ILcontext* context, ILHANDLE File)
 {
@@ -91,11 +92,14 @@ ILboolean ilLoadIffF(ILcontext* context, ILHANDLE File)
 	// Lbm files can have the .iff extension as well, so if Iff-loading failed,
 	//  try to load it as a Lbm.
 	if (bRet == IL_FALSE)
-		return ilLoadIlbmF(context, File);
+	{
+		IlbmHandler ilbmHandler(context);
+		
+		return ilbmHandler.loadF(File);
+	}
 
 	return bRet;
 }
-
 
 //! Reads from a memory "lump" that contains an IFF
 ILboolean ilLoadIffL(ILcontext* context, const void *Lump, ILuint Size)
@@ -111,7 +115,11 @@ ILboolean ilLoadIffL(ILcontext* context, const void *Lump, ILuint Size)
 	// Lbm files can have the .iff extension as well, so if Iff-loading failed,
 	//  try to load it as a Lbm.
 	if (bRet == IL_FALSE)
-		return ilLoadIlbmL(context, Lump, Size);
+	{
+		IlbmHandler ilbmHandler(context);
+
+		return ilbmHandler.loadL(Lump, Size);
+	}
 
 	return IL_TRUE;
 }

@@ -10,14 +10,36 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_LIF
+
 #include "il_lif.h"
 
+typedef struct LIF_HEAD
+{
+    char	Id[8];			//"Willy 7"
+    ILuint	Version;		// Version Number (260)
+    ILuint	Flags;			// Usually 50
+    ILuint	Width;
+	ILuint	Height;
+    ILuint	PaletteCRC;		// CRC of palettes for fast comparison.
+    ILuint	ImageCRC;		// CRC of the image.
+	ILuint	PalOffset;		// Offset to the palette (not used).
+	ILuint	TeamEffect0;	// Team effect offset 0
+	ILuint	TeamEffect1;	// Team effect offset 1
+} LIF_HEAD;
+
+ILboolean iCheckLif(LIF_HEAD *Header);
+
+LifHandler::LifHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid Lif file.
-ILboolean ilIsValidLif(ILcontext* context, ILconst_string FileName)
+ILboolean LifHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	LifFile;
 	ILboolean	bLif = IL_FALSE;
@@ -33,40 +55,36 @@ ILboolean ilIsValidLif(ILcontext* context, ILconst_string FileName)
 		return bLif;
 	}
 
-	bLif = ilIsValidLifF(context, LifFile);
+	bLif = isValidF(LifFile);
 	context->impl->icloser(LifFile);
 
 	return bLif;
 }
 
-
 //! Checks if the ILHANDLE contains a valid Lif file at the current position.
-ILboolean ilIsValidLifF(ILcontext* context, ILHANDLE File)
+ILboolean LifHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidLif(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid Lif lump.
-ILboolean ilIsValidLifL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean LifHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidLif(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the Lif header from the current file.
 ILboolean iGetLifHead(ILcontext* context, LIF_HEAD *Header)
 {
-
 	context->impl->iread(context, Header->Id, 1, 8);
 
 	Header->Version = GetLittleUInt(context);
@@ -91,9 +109,8 @@ ILboolean iGetLifHead(ILcontext* context, LIF_HEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidLif(ILcontext* context)
+ILboolean LifHandler::isValidInternal()
 {
 	LIF_HEAD	Head;
 
@@ -103,7 +120,6 @@ ILboolean iIsValidLif(ILcontext* context)
 
 	return iCheckLif(&Head);
 }
-
 
 // Internal function used to check if the HEADER is a valid Lif header.
 ILboolean iCheckLif(LIF_HEAD *Header)
@@ -115,9 +131,8 @@ ILboolean iCheckLif(LIF_HEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a .Lif file
-ILboolean ilLoadLif(ILcontext* context, ILconst_string FileName)
+ILboolean LifHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	LifFile;
 	ILboolean	bLif = IL_FALSE;
@@ -128,37 +143,34 @@ ILboolean ilLoadLif(ILcontext* context, ILconst_string FileName)
 		return bLif;
 	}
 
-	bLif = ilLoadLifF(context, LifFile);
+	bLif = loadF(LifFile);
 	context->impl->icloser(LifFile);
 
 	return bLif;
 }
 
-
 //! Reads an already-opened .Lif file
-ILboolean ilLoadLifF(ILcontext* context, ILHANDLE File)
+ILboolean LifHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadLifInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .Lif
-ILboolean ilLoadLifL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean LifHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadLifInternal(context);
+	return loadInternal();
 }
 
-
-ILboolean iLoadLifInternal(ILcontext* context)
+ILboolean LifHandler::loadInternal()
 {
 	LIF_HEAD	LifHead;
 	ILuint		i;

@@ -11,9 +11,12 @@
 //-----------------------------------------------------------------------------
 
 #include "il_internal.h"
+
 #ifndef IL_NO_MP3
-#include "il_png.h"
+
 #include "il_jpeg.h"
+#include "il_mp3.h"
+#include "il_png.h"
 
 typedef struct MP3HEAD
 {
@@ -28,56 +31,57 @@ typedef struct MP3HEAD
 #define MP3_JPG  1
 #define MP3_PNG  2
 
-ILboolean iLoadMp3Internal(ILcontext* context);
-ILboolean iIsValidMp3(ILcontext* context);
 ILboolean iCheckMp3(MP3HEAD *Header);
 
+Mp3Handler::Mp3Handler(ILcontext* context) :
+	context(context)
+{
+
+}
+
 //! Checks if the file specified in FileName is a valid MP3 file.
-ILboolean ilIsValidMp3(ILcontext* context, ILconst_string FileName)
+ILboolean Mp3Handler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	Mp3File;
 	ILboolean	bMp3 = IL_FALSE;
-	
+
 	if (!iCheckExtension(FileName, IL_TEXT("mp3"))) {
 		ilSetError(context, IL_INVALID_EXTENSION);
 		return bMp3;
 	}
-	
+
 	Mp3File = context->impl->iopenr(FileName);
 	if (Mp3File == NULL) {
 		ilSetError(context, IL_COULD_NOT_OPEN_FILE);
 		return bMp3;
 	}
-	
-	bMp3 = ilIsValidMp3F(context, Mp3File);
+
+	bMp3 = isValidF(Mp3File);
 	context->impl->icloser(Mp3File);
-	
+
 	return bMp3;
 }
 
-
 //! Checks if the ILHANDLE contains a valid MP3 file at the current position.
-ILboolean ilIsValidMp3F(ILcontext* context, ILHANDLE File)
+ILboolean Mp3Handler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
-	
+
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidMp3(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
-	
+
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid MP3 lump.
-ILboolean ilIsValidMp3L(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean Mp3Handler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidMp3(context);
+	return isValidInternal();
 }
-
 
 ILuint GetSynchInt(ILcontext* context)
 {
@@ -86,7 +90,7 @@ ILuint GetSynchInt(ILcontext* context)
 	SynchInt = GetBigUInt(context);
 
 	SynchInt = ((SynchInt & 0x7F000000) >> 3) | ((SynchInt & 0x7F0000) >> 2)
-				| ((SynchInt & 0x7F00) >> 1) | (SynchInt & 0x7F);
+		| ((SynchInt & 0x7F00) >> 1) | (SynchInt & 0x7F);
 
 	return SynchInt;
 }
@@ -105,9 +109,8 @@ ILboolean iGetMp3Head(ILcontext* context, MP3HEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidMp3(ILcontext* context)
+ILboolean Mp3Handler::isValidInternal()
 {
 	MP3HEAD		Header;
 	ILuint		Pos = context->impl->itell(context);
@@ -120,7 +123,6 @@ ILboolean iIsValidMp3(ILcontext* context)
 	return iCheckMp3(&Header);
 }
 
-
 // Internal function used to check if the HEADER is a valid MP3 header.
 ILboolean iCheckMp3(MP3HEAD *Header)
 {
@@ -131,7 +133,6 @@ ILboolean iCheckMp3(MP3HEAD *Header)
 
 	return IL_TRUE;
 }
-
 
 ILuint iFindMp3Pic(ILcontext* context, MP3HEAD *Header)
 {
@@ -153,7 +154,7 @@ ILuint iFindMp3Pic(ILcontext* context, MP3HEAD *Header)
 
 		GetBigUShort(context);  // Skip the flags.
 
-		//@TODO: Support multiple APIC entries in an mp3 file.
+								//@TODO: Support multiple APIC entries in an mp3 file.
 		if (!strncmp(ID, "APIC", 4)) {
 			//@TODO: Use TextEncoding properly - UTF16 strings starting with FFFE or FEFF.
 			TextEncoding = context->impl->igetc(context);
@@ -175,7 +176,7 @@ ILuint iFindMp3Pic(ILcontext* context, MP3HEAD *Header)
 
 			PicType = context->impl->igetc(context);  // Whether this is a cover, band logo, etc.
 
-			// Skip the description.
+													  // Skip the description.
 			for (i = 0; i < 65; i++) {
 				Description[i] = context->impl->igetc(context);
 				if (Description[i] == 0)
@@ -195,9 +196,8 @@ ILuint iFindMp3Pic(ILcontext* context, MP3HEAD *Header)
 	return Type;
 }
 
-
 //! Reads a MP3 file
-ILboolean ilLoadMp3(ILcontext* context, ILconst_string FileName)
+ILboolean Mp3Handler::load(ILconst_string FileName)
 {
 	ILHANDLE	Mp3File;
 	ILboolean	bMp3 = IL_FALSE;
@@ -208,38 +208,35 @@ ILboolean ilLoadMp3(ILcontext* context, ILconst_string FileName)
 		return bMp3;
 	}
 
-	bMp3 = ilLoadMp3F(context, Mp3File);
+	bMp3 = loadF(Mp3File);
 	context->impl->icloser(Mp3File);
 
 	return bMp3;
 }
 
-
 //! Reads an already-opened MP3 file
-ILboolean ilLoadMp3F(ILcontext* context, ILHANDLE File)
+ILboolean Mp3Handler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadMp3Internal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a MP3
-ILboolean ilLoadMp3L(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean Mp3Handler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadMp3Internal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the MP3.
-ILboolean iLoadMp3Internal(ILcontext* context)
+ILboolean Mp3Handler::loadInternal()
 {
 	MP3HEAD	Header;
 	ILuint	Type;
@@ -254,34 +251,33 @@ ILboolean iLoadMp3Internal(ILcontext* context)
 	if (!iCheckMp3(&Header))
 		return IL_FALSE;
 	Type = iFindMp3Pic(context, &Header);
-	
+
 	switch (Type)
 	{
 #ifndef IL_NO_JPG
-		case MP3_JPG:
-		{
-			JpegHandler handler(context);
+	case MP3_JPG:
+	{
+		JpegHandler handler(context);
 
-			return handler.loadInternal();
-		}
+		return handler.loadInternal();
+	}
 #endif//IL_NO_JPG
 
 #ifndef IL_NO_PNG
-		case MP3_PNG:
-		{
-			PngHandler handler(context);
+	case MP3_PNG:
+	{
+		PngHandler handler(context);
 
-			return handler.loadInternal();
-		}
+		return handler.loadInternal();
+	}
 #endif//IL_NO_PNG
 
-		// Either a picture was not found, or the MIME type was not recognized.
-		default:
-			ilSetError(context, IL_INVALID_FILE_HEADER);
+	// Either a picture was not found, or the MIME type was not recognized.
+	default:
+		ilSetError(context, IL_INVALID_FILE_HEADER);
 	}
 
 	return IL_FALSE;
 }
 
 #endif//IL_NO_MP3
-

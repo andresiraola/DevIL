@@ -10,48 +10,33 @@
 //
 //-----------------------------------------------------------------------------
 
+#pragma once
 
-#ifndef PPMPGM_H
-#define PPMPGM_H
-
-#include "il_internal.h"
 #include <string>
 
-using namespace std;
+#include "il_internal.h"
 
-
-#define IL_PBM_ASCII	0x0001
-#define IL_PGM_ASCII	0x0002
-#define IL_PPM_ASCII	0x0003
-#define IL_PBM_BINARY	0x0004
-#define IL_PGM_BINARY	0x0005
-#define IL_PPM_BINARY	0x0006
-#define IL_PAM			0x0007
-
-enum PamTuples { PAM_BW = 1, PAM_GRAY, PAM_RGB, PAM_BW_ALPHA, PAM_GRAY_ALPHA, PAM_RGB_ALPHA };
-
-typedef struct PPMINFO
+class PnmHandler
 {
-	ILenum	Type;
-	ILuint	Width;
-	ILuint	Height;
-	ILuint	Depth;
-	ILuint	MaxColour;
-	ILubyte	Bpp;
-	ILubyte	TuplType;
-} PPMINFO;
+protected:
+	ILcontext* context;
 
-ILboolean	iIsValidPnm(ILcontext* context);
-ILboolean	iCheckPnm(char Header[2]);
-ILboolean	iLoadPnmInternal(ILcontext* context);
-ILboolean	iSavePnmInternal(ILcontext* context);
-ILimage		*ilReadAsciiPpm(ILcontext* context, PPMINFO *Info);
-ILimage		*ilReadBinaryPpm(ILcontext* context, PPMINFO *Info);
-ILimage		*ilReadBitPbm(ILcontext* context, PPMINFO *Info);
-ILboolean	ilReadPam(ILcontext* context);
-ILboolean	iGetWord(ILcontext* context, ILboolean);
-void		PbmMaximize(ILimage *Image);
-ILint		DecodeTupleType(string &TupleStr);
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+	ILboolean	saveInternal();
 
+public:
+	PnmHandler(ILcontext* context);
 
-#endif//PPMPGM_H
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
+
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+
+	ILboolean	save(ILconst_string FileName);
+	ILuint		saveF(ILHANDLE File);
+	ILuint		saveL(void *Lump, ILuint Size);
+};

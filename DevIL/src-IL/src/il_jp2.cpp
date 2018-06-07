@@ -10,10 +10,12 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_JP2
+
 #include <jasper/jasper.h>
+
 #include "il_jp2.h"
 
 #if defined(_WIN32) && defined(IL_USE_PRAGMA_LIBS)
@@ -26,13 +28,19 @@
 	#endif
 #endif
 
-ILboolean iIsValidJp2(ILcontext* context);
-
 ILboolean JasperInit = IL_FALSE;
 
+ILboolean		loadInternal(ILcontext* context, jas_stream_t *Stream, ILimage *Image);
+jas_stream_t	*iJp2ReadStream(ILcontext* context);
+
+Jp2Handler::Jp2Handler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid .jp2 file.
-ILboolean ilIsValidJp2(ILcontext* context, ILconst_string FileName)
+ILboolean Jp2Handler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	Jp2File;
 	ILboolean	bJp2 = IL_FALSE;
@@ -49,38 +57,35 @@ ILboolean ilIsValidJp2(ILcontext* context, ILconst_string FileName)
 		return bJp2;
 	}
 
-	bJp2 = ilIsValidJp2F(context, Jp2File);
+	bJp2 = isValidF(Jp2File);
 	context->impl->icloser(Jp2File);
 
 	return bJp2;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .jp2 file at the current position.
-ILboolean ilIsValidJp2F(ILcontext* context, ILHANDLE File)
+ILboolean Jp2Handler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidJp2(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid .jp2 lump.
-ILboolean ilIsValidJp2L(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean Jp2Handler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidJp2(context);
+	return isValidInternal();
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidJp2(ILcontext* context)
+ILboolean Jp2Handler::isValidInternal()
 {
 	ILubyte Signature[4];
 
@@ -101,9 +106,8 @@ ILboolean iIsValidJp2(ILcontext* context)
 	return IL_TRUE;
 }
 
-
 //! Reads a Jpeg2000 file.
-ILboolean ilLoadJp2(ILcontext* context, ILconst_string FileName)
+ILboolean Jp2Handler::load(ILconst_string FileName)
 {
 	ILHANDLE	Jp2File;
 	ILboolean	bRet;
@@ -114,15 +118,14 @@ ILboolean ilLoadJp2(ILcontext* context, ILconst_string FileName)
 		return IL_FALSE;
 	}
 
-	bRet = ilLoadJp2F(context, Jp2File);
+	bRet = loadF(Jp2File);
 	context->impl->icloser(Jp2File);
 
 	return bRet;
 }
 
-
 //! Reads an already-opened Jpeg2000 file.
-ILboolean ilLoadJp2F(ILcontext* context, ILHANDLE File)
+ILboolean Jp2Handler::loadF(ILHANDLE File)
 {
 	ILuint			FirstPos;
 	ILboolean		bRet;
@@ -145,7 +148,7 @@ ILboolean ilLoadJp2F(ILcontext* context, ILHANDLE File)
 		return IL_FALSE;
 	}
 
-	bRet = iLoadJp2Internal(context, Stream, NULL);
+	bRet = loadInternal(context, Stream, NULL);
 	// Close the input stream.
 	jas_stream_close(Stream);
 
@@ -154,16 +157,14 @@ ILboolean ilLoadJp2F(ILcontext* context, ILHANDLE File)
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a Jpeg2000 stream.
-ILboolean ilLoadJp2L(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean Jp2Handler::loadL(const void *Lump, ILuint Size)
 {
-	return ilLoadJp2LInternal(context, Lump, Size, NULL);
+	return LoadLToImage(context, Lump, Size, NULL);
 }
 
-
 //! This is separated so that it can be called for other file types, such as .icns.
-ILboolean ilLoadJp2LInternal(ILcontext* context, const void *Lump, ILuint Size, ILimage *Image)
+ILboolean Jp2Handler::LoadLToImage(ILcontext* context, const void *Lump, ILuint Size, ILimage *Image)
 {
 	ILboolean		bRet;
 	jas_stream_t	*Stream;
@@ -182,16 +183,15 @@ ILboolean ilLoadJp2LInternal(ILcontext* context, const void *Lump, ILuint Size, 
 		return IL_FALSE;
 	}
 
-	bRet = iLoadJp2Internal(context, Stream, Image);
+	bRet = loadInternal(context, Stream, Image);
 	// Close the input stream.
 	jas_stream_close(Stream);
 
 	return bRet;
 }
 
-
 // Internal function used to load the Jpeg2000 stream.
-ILboolean iLoadJp2Internal(ILcontext* context, jas_stream_t	*Stream, ILimage *Image)
+ILboolean loadInternal(ILcontext* context, jas_stream_t	*Stream, ILimage *Image)
 {
 	jas_image_t		*Jp2Image = NULL;
 	jas_matrix_t	*origdata;
@@ -312,8 +312,6 @@ ILboolean iLoadJp2Internal(ILcontext* context, jas_stream_t	*Stream, ILimage *Im
 	return ilFixImage(context);
 }
 
-
-
 static int iJp2_file_read(jas_stream_obj_t *obj, char *buf, int cnt)
 {
 	ILcontext* context = (ILcontext*)obj;
@@ -359,7 +357,6 @@ static jas_stream_ops_t jas_stream_devilops = {
 static jas_stream_t *jas_stream_create(void);
 static void jas_stream_destroy(jas_stream_t *stream);
 static void jas_stream_initbuf(jas_stream_t *stream, int bufmode );
-
 
 // Modified version of jas_stream_fopen and jas_stream_memopen from jas_stream.c of JasPer
 //  so that we can use our own file routines.
@@ -416,7 +413,6 @@ jas_stream_t *iJp2ReadStream(ILcontext* context)
 	
 	return stream;
 }
-
 
 // The following functions are taken directly from jas_stream.c of JasPer,
 //  since they are designed to be used within JasPer only.
@@ -485,9 +481,6 @@ static void jas_stream_destroy(jas_stream_t *stream)
 	jas_free(stream);
 }
 
-
-
-
 jas_stream_t *iJp2WriteStream(ILcontext* context)
 {
 	jas_stream_t *stream;
@@ -510,10 +503,8 @@ jas_stream_t *iJp2WriteStream(ILcontext* context)
 	return stream;
 }
 
-
-
 //! Writes a Jp2 file
-ILboolean ilSaveJp2(ILcontext* context, const ILstring FileName)
+ILboolean Jp2Handler::save(const ILstring FileName)
 {
 	ILHANDLE	Jp2File;
 	ILuint		Jp2Size;
@@ -531,7 +522,7 @@ ILboolean ilSaveJp2(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	Jp2Size = ilSaveJp2F(context, Jp2File);
+	Jp2Size = saveF(Jp2File);
 	context->impl->iclosew(Jp2File);
 
 	if (Jp2Size == 0)
@@ -539,31 +530,27 @@ ILboolean ilSaveJp2(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Jp2 to an already-opened file
-ILuint ilSaveJp2F(ILcontext* context, ILHANDLE File)
+ILuint Jp2Handler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveJp2Internal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Jp2 to a memory "lump"
-ILuint ilSaveJp2L(ILcontext* context, void *Lump, ILuint Size)
+ILuint Jp2Handler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSaveJp2Internal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
-
-
 
 // Function from OpenSceneGraph (originally called getdata in their sources):
 //  http://openscenegraph.sourcearchive.com/documentation/2.2.0/ReaderWriterJP2_8cpp-source.html
@@ -629,13 +616,12 @@ done:
 	return ret;
 }
 
-
 // Internal function used to save the Jp2.
 // Since the JasPer documentation is extremely incomplete, I had to look at how OpenSceneGraph uses it:
 //  http://openscenegraph.sourcearchive.com/documentation/2.2.0/ReaderWriterJP2_8cpp-source.html
 
 //@TODO: Do we need to worry about images with depths > 1?
-ILboolean iSaveJp2Internal(ILcontext* context)
+ILboolean Jp2Handler::saveInternal()
 {
 	jas_image_t *Jp2Image;
 	jas_image_cmptparm_t cmptparm[4];
@@ -782,6 +768,5 @@ ILboolean iSaveJp2Internal(ILcontext* context)
 
 	return IL_TRUE;
 }
-
 
 #endif//IL_NO_JP2

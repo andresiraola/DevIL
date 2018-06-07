@@ -10,19 +10,26 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef MD2_H
-#define MD2_H
+#pragma once
 
 #include "il_internal.h"
 
-typedef struct TEX_HEAD
+class MdlHandler
 {
-	char	Name[64];
-	ILuint	Flags;
-	ILuint	Width;
-	ILuint	Height;
-	ILuint	Offset;
-} TEX_HEAD;
+protected:
+	ILcontext * context;
 
-#endif//MD2_H
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+
+public:
+	MdlHandler(ILcontext* context);
+
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
+
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+};

@@ -10,14 +10,56 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_PCX
+
 #include "il_pcx.h"
 
+#ifdef _WIN32
+#pragma pack(push, packed_struct, 1)
+#endif
+
+typedef struct PCXHEAD
+{
+	ILubyte		Manufacturer;
+	ILubyte		Version;
+	ILubyte		Encoding;
+	ILubyte		Bpp;
+	ILushort	Xmin, Ymin, Xmax, Ymax;
+	ILushort	HDpi;
+	ILushort	VDpi;
+	ILubyte		ColMap[48];
+	ILubyte		Reserved;
+	ILubyte		NumPlanes;
+	ILushort	Bps;
+	ILushort	PaletteInfo;
+	ILushort	HScreenSize;
+	ILushort	VScreenSize;
+	ILubyte		Filler[54];
+} IL_PACKSTRUCT PCXHEAD;
+
+#ifdef _WIN32
+#pragma pack(pop, packed_struct)
+#endif
+
+// For checking and reading
+ILboolean iCheckPcx(PCXHEAD *Header);
+ILboolean iUncompressPcx(ILcontext* context, PCXHEAD *Header);
+ILboolean iUncompressSmall(ILcontext* context, PCXHEAD *Header);
+
+// For writing
+ILuint encput(ILcontext* context, ILubyte byt, ILubyte cnt);
+ILuint encLine(ILcontext* context, ILubyte *inBuff, ILint inLen, ILubyte Stride);
+
+PcxHandler::PcxHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid .pcx file.
-ILboolean ilIsValidPcx(ILcontext* context, ILconst_string FileName)
+ILboolean PcxHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	PcxFile;
 	ILboolean	bPcx = IL_FALSE;
@@ -33,35 +75,32 @@ ILboolean ilIsValidPcx(ILcontext* context, ILconst_string FileName)
 		return bPcx;
 	}
 
-	bPcx = ilIsValidPcxF(context, PcxFile);
+	bPcx = isValidF(PcxFile);
 	context->impl->icloser(PcxFile);
 
 	return bPcx;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .pcx file at the current position.
-ILboolean ilIsValidPcxF(ILcontext* context, ILHANDLE File)
+ILboolean PcxHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidPcx(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid .pcx lump.
-ILboolean ilIsValidPcxL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PcxHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidPcx(context);
+	return isValidInternal();
 }
-
 
 // Internal function obtain the .pcx header from the current file.
 ILboolean iGetPcxHead(ILcontext* context, PCXHEAD *Head)
@@ -88,9 +127,8 @@ ILboolean iGetPcxHead(ILcontext* context, PCXHEAD *Head)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidPcx(ILcontext* context)
+ILboolean PcxHandler::isValidInternal()
 {
 	PCXHEAD Head;
 
@@ -100,7 +138,6 @@ ILboolean iIsValidPcx(ILcontext* context)
 
 	return iCheckPcx(&Head);
 }
-
 
 // Internal function used to check if the HEADER is a valid .pcx header.
 // Should we also do a check on Header->Bpp?
@@ -139,9 +176,8 @@ ILboolean iCheckPcx(PCXHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a .pcx file
-ILboolean ilLoadPcx(ILcontext* context, ILconst_string FileName)
+ILboolean PcxHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	PcxFile;
 	ILboolean	bPcx = IL_FALSE;
@@ -152,38 +188,35 @@ ILboolean ilLoadPcx(ILcontext* context, ILconst_string FileName)
 		return bPcx;
 	}
 
-	bPcx = ilLoadPcxF(context, PcxFile);
+	bPcx = loadF(PcxFile);
 	context->impl->icloser(PcxFile);
 
 	return bPcx;
 }
 
-
 //! Reads an already-opened .pcx file
-ILboolean ilLoadPcxF(ILcontext* context, ILHANDLE File)
+ILboolean PcxHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadPcxInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .pcx
-ILboolean ilLoadPcxL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PcxHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadPcxInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the .pcx.
-ILboolean iLoadPcxInternal(ILcontext* context)
+ILboolean PcxHandler::loadInternal()
 {
 	PCXHEAD	Header;
 	ILboolean bPcx = IL_FALSE;
@@ -206,7 +239,6 @@ ILboolean iLoadPcxInternal(ILcontext* context)
 		return IL_FALSE;
 	return ilFixImage(context);
 }
-
 
 // Internal function to uncompress the .pcx (all .pcx files are rle compressed)
 ILboolean iUncompressPcx(ILcontext* context, PCXHEAD *Header)
@@ -347,7 +379,6 @@ file_read_error:
 	return IL_FALSE;
 }
 
-
 ILboolean iUncompressSmall(ILcontext* context, PCXHEAD *Header)
 {
 	ILuint	i = 0, j, k, c, d, x, y, Bps;
@@ -478,9 +509,8 @@ ILboolean iUncompressSmall(ILcontext* context, PCXHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Writes a .pcx file
-ILboolean ilSavePcx(ILcontext* context, const ILstring FileName)
+ILboolean PcxHandler::save(const ILstring FileName)
 {
 	ILHANDLE	PcxFile;
 	ILuint		PcxSize;
@@ -498,7 +528,7 @@ ILboolean ilSavePcx(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	PcxSize = ilSavePcxF(context, PcxFile);
+	PcxSize = saveF(PcxFile);
 	context->impl->iclosew(PcxFile);
 
 	if (PcxSize == 0)
@@ -506,33 +536,30 @@ ILboolean ilSavePcx(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a .pcx to an already-opened file
-ILuint ilSavePcxF(ILcontext* context, ILHANDLE File)
+ILuint PcxHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSavePcxInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a .pcx to a memory "lump"
-ILuint ilSavePcxL(ILcontext* context, void *Lump, ILuint Size)
+ILuint PcxHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSavePcxInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 // Internal function used to save the .pcx.
-ILboolean iSavePcxInternal(ILcontext* context)
+ILboolean PcxHandler::saveInternal()
 {
 	ILuint	i, c, PalSize;
 	ILpal	*TempPal;
@@ -659,7 +686,6 @@ ILboolean iSavePcxInternal(ILcontext* context)
 
 	return IL_TRUE;
 }
-
 
 // Routine used from ZSoft's pcx documentation
 ILuint encput(ILcontext* context, ILubyte byt, ILubyte cnt)

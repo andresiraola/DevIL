@@ -10,33 +10,26 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef ICNS_H
-#define ICNS_H
+#pragma once
 
 #include "il_internal.h"
 
-#ifdef _WIN32
-	#pragma pack(push, icns_struct, 1)
-#endif
-typedef struct ICNSHEAD
+class IcnsHandler
 {
-	char		Head[4];	// Must be 'ICNS'
-	ILint		Size;		// Total size of the file (including header)
-} IL_PACKSTRUCT ICNSHEAD;
+protected:
+	ILcontext* context;
 
-typedef struct ICNSDATA
-{
-	char		ID[4];		// Identifier ('it32', 'il32', etc.)
-	ILint		Size;		// Total size of the entry (including identifier)
-} IL_PACKSTRUCT ICNSDATA;
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
 
-#ifdef _WIN32
-	#pragma pack(pop, icns_struct)
-#endif
+public:
+	IcnsHandler(ILcontext* context);
 
-ILboolean iIsValidIcns(ILcontext* context);
-ILboolean iLoadIcnsInternal(ILcontext* context);
-ILboolean iIcnsReadData(ILcontext* context, ILboolean *BaseCreated, ILboolean IsAlpha, ILint Width, ICNSDATA *Entry, ILimage **Image);
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
 
-#endif//ICNS_H
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+};

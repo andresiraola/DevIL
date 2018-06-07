@@ -10,17 +10,29 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_MDL
+
 #include "il_mdl.h"
 
+typedef struct TEX_HEAD
+{
+	char	Name[64];
+	ILuint	Flags;
+	ILuint	Width;
+	ILuint	Height;
+	ILuint	Offset;
+} TEX_HEAD;
 
-ILboolean iLoadMdlInternal(ILcontext* context);
-ILboolean iIsValidMdl(ILcontext* context);
+MdlHandler::MdlHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid MDL file.
-ILboolean ilIsValidMdl(ILcontext* context, ILconst_string FileName)
+ILboolean MdlHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	MdlFile;
 	ILboolean	bMdl = IL_FALSE;
@@ -36,38 +48,35 @@ ILboolean ilIsValidMdl(ILcontext* context, ILconst_string FileName)
 		return bMdl;
 	}
 	
-	bMdl = ilIsValidMdlF(context, MdlFile);
+	bMdl = isValidF(MdlFile);
 	context->impl->icloser(MdlFile);
 	
 	return bMdl;
 }
 
-
 //! Checks if the ILHANDLE contains a valid MDL file at the current position.
-ILboolean ilIsValidMdlF(ILcontext* context, ILHANDLE File)
+ILboolean MdlHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidMdl(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid MDL lump.
-ILboolean ilIsValidMdlL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean MdlHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidMdl(context);
+	return isValidInternal();
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidMdl(ILcontext* context)
+ILboolean MdlHandler::isValidInternal()
 {
 	ILuint Id, Version;
 
@@ -81,9 +90,8 @@ ILboolean iIsValidMdl(ILcontext* context)
 	return IL_TRUE;
 }
 
-
 //! Reads a .mdl file
-ILboolean ilLoadMdl(ILcontext* context, ILconst_string FileName)
+ILboolean MdlHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	MdlFile;
 	ILboolean	bMdl = IL_FALSE;
@@ -94,37 +102,34 @@ ILboolean ilLoadMdl(ILcontext* context, ILconst_string FileName)
 		return bMdl;
 	}
 
-	bMdl = ilLoadMdlF(context, MdlFile);
+	bMdl = loadF(MdlFile);
 	context->impl->icloser(MdlFile);
 
 	return bMdl;
 }
 
-
 //! Reads an already-opened .mdl file
-ILboolean ilLoadMdlF(ILcontext* context, ILHANDLE File)
+ILboolean MdlHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadMdlInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .mdl
-ILboolean ilLoadMdlL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean MdlHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadMdlInternal(context);
+	return loadInternal();
 }
 
-
-ILboolean iLoadMdlInternal(ILcontext* context)
+ILboolean MdlHandler::loadInternal()
 {
 	ILuint		Id, Version, NumTex, TexOff, TexDataOff, Position, ImageNum;
 	ILubyte		*TempPal;

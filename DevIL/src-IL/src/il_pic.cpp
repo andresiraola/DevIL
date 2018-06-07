@@ -13,13 +13,77 @@
 //-----------------------------------------------------------------------------
 
 #include "il_internal.h"
-#ifndef IL_NO_PIC
-#include "il_pic.h"
-#include <string.h>
 
+#ifndef IL_NO_PIC
+
+#include <string>
+
+#include "il_pic.h"
+
+#ifdef _MSC_VER
+#pragma pack(push, packed_struct, 1)
+#endif
+
+typedef struct PIC_HEAD
+{
+   ILint	Magic;			// PIC_MAGIC_NUMBER
+   ILfloat	Version;		// Version of format
+   ILbyte	Comment[80];	// Prototype description
+   ILbyte	Id[4];			// 'PICT'
+   ILshort	Width;			// Image width, in pixels
+   ILshort	Height;			// Image height, in pixels
+   ILfloat	Ratio;			// Pixel aspect ratio
+   ILshort	Fields;			// Picture field type
+   ILshort	Padding;		// Unused
+} IL_PACKSTRUCT PIC_HEAD;
+
+typedef struct CHANNEL
+{
+	ILubyte	Size;
+	ILubyte	Type;
+	ILubyte	Chan;
+	void	*Next;
+} CHANNEL;
+
+#ifdef _MSC_VER
+#pragma pack(pop,  packed_struct)
+#endif
+
+// Data type
+#define PIC_UNSIGNED_INTEGER	0x00
+#define PIC_SIGNED_INTEGER		0x10	// XXX: Not implemented
+#define PIC_SIGNED_FLOAT		0x20	// XXX: Not implemented
+
+// Compression type
+#define PIC_UNCOMPRESSED		0x00
+#define PIC_PURE_RUN_LENGTH		0x01
+#define PIC_MIXED_RUN_LENGTH	0x02
+
+// CHANNEL types (OR'd)
+#define PIC_RED_CHANNEL			0x80
+#define PIC_GREEN_CHANNEL		0x40
+#define PIC_BLUE_CHANNEL		0x20
+#define PIC_ALPHA_CHANNEL		0x10
+#define PIC_SHADOW_CHANNEL		0x08	// XXX: Not implemented
+#define PIC_DEPTH_CHANNEL		0x04	// XXX: Not implemented
+#define PIC_AUXILIARY_1_CHANNEL	0x02	// XXX: Not implemented
+#define PIC_AUXILIARY_2_CHANNEL	0x01	// XXX: Not implemented
+
+ILboolean iCheckPic(PIC_HEAD *Header);
+ILboolean readScanlines(ILcontext* context, ILuint *image, ILint width, ILint height, CHANNEL *channel, ILuint alpha);
+ILuint    readScanline(ILcontext* context, ILubyte *scan, ILint width, CHANNEL *channel,  ILint bytes);
+ILboolean channelReadRaw(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
+ILboolean channelReadPure(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
+ILboolean channelReadMixed(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes);
+
+PicHandler::PicHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid .pic file.
-ILboolean ilIsValidPic(ILcontext* context, ILconst_string FileName)
+ILboolean PicHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	PicFile;
 	ILboolean	bPic = IL_FALSE;
@@ -35,35 +99,32 @@ ILboolean ilIsValidPic(ILcontext* context, ILconst_string FileName)
 		return bPic;
 	}
 
-	bPic = ilIsValidPicF(context, PicFile);
+	bPic = isValidF(PicFile);
 	context->impl->icloser(PicFile);
 
 	return bPic;
 }
 
-
 //! Checks if the ILHANDLE contains a valid .pic file at the current position.
-ILboolean ilIsValidPicF(ILcontext* context, ILHANDLE File)
+ILboolean PicHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidPic(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid .pic lump.
-ILboolean ilIsValidPicL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PicHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidPic(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the .pic header from the current file.
 ILboolean iGetPicHead(ILcontext* context, PIC_HEAD *Header)
@@ -81,9 +142,8 @@ ILboolean iGetPicHead(ILcontext* context, PIC_HEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidPic(ILcontext* context)
+ILboolean PicHandler::isValidInternal()
 {
 	PIC_HEAD	Head;
 
@@ -93,7 +153,6 @@ ILboolean iIsValidPic(ILcontext* context)
 
 	return iCheckPic(&Head);
 }
-
 
 // Internal function used to check if the header is a valid .pic header.
 ILboolean iCheckPic(PIC_HEAD *Header)
@@ -110,9 +169,8 @@ ILboolean iCheckPic(PIC_HEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a .pic file
-ILboolean ilLoadPic(ILcontext* context, ILconst_string FileName)
+ILboolean PicHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	PicFile;
 	ILboolean	bPic = IL_FALSE;
@@ -123,38 +181,35 @@ ILboolean ilLoadPic(ILcontext* context, ILconst_string FileName)
 		return bPic;
 	}
 
-	bPic = ilLoadPicF(context, PicFile);
+	bPic = loadF(PicFile);
 	context->impl->icloser(PicFile);
 
 	return bPic;
 }
 
-
 //! Reads an already-opened .pic file
-ILboolean ilLoadPicF(ILcontext* context, ILHANDLE File)
+ILboolean PicHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadPicInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .pic
-ILboolean ilLoadPicL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PicHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadPicInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the .pic
-ILboolean iLoadPicInternal(ILcontext* context)
+ILboolean PicHandler::loadInternal()
 {
 	ILuint		Alpha = IL_FALSE;
 	ILubyte		Chained;
@@ -241,7 +296,6 @@ finish:
 	return ilFixImage(context);
 }
 
-
 ILboolean readScanlines(ILcontext* context, ILuint *image, ILint width, ILint height, CHANNEL *channel, ILuint alpha)
 {
 	ILint	i;
@@ -260,7 +314,6 @@ ILboolean readScanlines(ILcontext* context, ILuint *image, ILint width, ILint he
 
 	return IL_TRUE;
 }
-
 
 ILuint readScanline(ILcontext* context, ILubyte *scan, ILint width, CHANNEL *channel, ILint bytes)
 {
@@ -310,7 +363,6 @@ ILuint readScanline(ILcontext* context, ILubyte *scan, ILint width, CHANNEL *cha
 	return status;
 }
 
-
 ILboolean channelReadRaw(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes)
 {
 	ILint i, j;
@@ -325,7 +377,6 @@ ILboolean channelReadRaw(ILcontext* context, ILubyte *scan, ILint width, ILint n
 	}
 	return IL_TRUE;
 }
-
 
 ILboolean channelReadPure(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes)
 {
@@ -355,7 +406,6 @@ ILboolean channelReadPure(ILcontext* context, ILubyte *scan, ILint width, ILint 
 	}
 	return IL_TRUE;
 }
-
 
 ILboolean channelReadMixed(ILcontext* context, ILubyte *scan, ILint width, ILint noCol, ILint *off, ILint bytes)
 {
@@ -420,6 +470,4 @@ ILboolean channelReadMixed(ILcontext* context, ILubyte *scan, ILint width, ILint
 	return IL_TRUE;
 }
 
-
 #endif//IL_NO_PIC
-

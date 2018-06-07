@@ -10,11 +10,13 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#ifndef IL_NO_IWI
-#include "il_dds.h"
 
+#ifndef IL_NO_IWI
+
+#include "il_iwi.h"
+
+#include "il_dds.h"
 typedef struct IWIHEAD
 {
 	ILuint		Signature;
@@ -33,15 +35,19 @@ typedef struct IWIHEAD
 #define IWI_DXT3	0x0C
 #define IWI_DXT5	0x0D
 
-ILboolean iIsValidIwi(ILcontext* context);
 ILboolean iCheckIwi(IWIHEAD *Header);
-ILboolean iLoadIwiInternal(ILcontext* context);
 ILboolean IwiInitMipmaps(ILcontext* context, ILimage *BaseImage, ILuint *NumMips);
 ILboolean IwiReadImage(ILcontext* context, ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips);
 ILenum IwiGetFormat(ILubyte Format, ILubyte *Bpp);
 
+IwiHandler::IwiHandler(ILcontext* context) :
+	context(context)
+{
+
+}
+
 //! Checks if the file specified in FileName is a valid IWI file.
-ILboolean ilIsValidIwi(ILcontext* context, ILconst_string FileName)
+ILboolean IwiHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	IwiFile;
 	ILboolean	bIwi = IL_FALSE;
@@ -57,35 +63,32 @@ ILboolean ilIsValidIwi(ILcontext* context, ILconst_string FileName)
 		return bIwi;
 	}
 	
-	bIwi = ilIsValidIwiF(context, IwiFile);
+	bIwi = isValidF(IwiFile);
 	context->impl->icloser(IwiFile);
 	
 	return bIwi;
 }
 
-
 //! Checks if the ILHANDLE contains a valid IWI file at the current position.
-ILboolean ilIsValidIwiF(ILcontext* context, ILHANDLE File)
+ILboolean IwiHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidIwi(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid IWI lump.
-ILboolean ilIsValidIwiL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean IwiHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidIwi(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the IWI header from the current file.
 ILboolean iGetIwiHead(ILcontext* context, IWIHEAD *Header)
@@ -102,9 +105,8 @@ ILboolean iGetIwiHead(ILcontext* context, IWIHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidIwi(ILcontext* context)
+ILboolean IwiHandler::isValidInternal()
 {
 	IWIHEAD		Header;
 	ILuint		Pos = context->impl->itell(context);
@@ -116,7 +118,6 @@ ILboolean iIsValidIwi(ILcontext* context)
 
 	return iCheckIwi(&Header);
 }
-
 
 // Internal function used to check if the HEADER is a valid IWI header.
 ILboolean iCheckIwi(IWIHEAD *Header)
@@ -137,9 +138,8 @@ ILboolean iCheckIwi(IWIHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a IWI file
-ILboolean ilLoadIwi(ILcontext* context, ILconst_string FileName)
+ILboolean IwiHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	IwiFile;
 	ILboolean	bIwi = IL_FALSE;
@@ -150,38 +150,35 @@ ILboolean ilLoadIwi(ILcontext* context, ILconst_string FileName)
 		return bIwi;
 	}
 
-	bIwi = ilLoadIwiF(context, IwiFile);
+	bIwi = loadF(IwiFile);
 	context->impl->icloser(IwiFile);
 
 	return bIwi;
 }
 
-
 //! Reads an already-opened IWI file
-ILboolean ilLoadIwiF(ILcontext* context, ILHANDLE File)
+ILboolean IwiHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadIwiInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a IWI
-ILboolean ilLoadIwiL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean IwiHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadIwiInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the IWI.
-ILboolean iLoadIwiInternal(ILcontext* context)
+ILboolean IwiHandler::loadInternal()
 {
 	IWIHEAD		Header;
 	ILuint		NumMips = 0;
@@ -220,7 +217,6 @@ ILboolean iLoadIwiInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-
 // Helper function to convert IWI formats to DevIL formats and Bpp.
 ILenum IwiGetFormat(ILubyte Format, ILubyte *Bpp)
 {
@@ -252,7 +248,6 @@ ILenum IwiGetFormat(ILubyte Format, ILubyte *Bpp)
 	return 0;  // Will never reach this.
 }
 
-
 // Function to intialize the mipmaps and determine the number of mipmaps.
 ILboolean IwiInitMipmaps(ILcontext* context, ILimage *BaseImage, ILuint *NumMips)
 {
@@ -283,7 +278,6 @@ ILboolean IwiInitMipmaps(ILcontext* context, ILimage *BaseImage, ILuint *NumMips
 	*NumMips = Mipmap;
 	return IL_TRUE;
 }
-
 
 ILboolean IwiReadImage(ILcontext* context, ILimage *BaseImage, IWIHEAD *Header, ILuint NumMips)
 {
@@ -396,6 +390,5 @@ ILboolean IwiReadImage(ILcontext* context, ILimage *BaseImage, IWIHEAD *Header, 
 
 	return IL_TRUE;
 }
-
 
 #endif//IL_NO_IWI
