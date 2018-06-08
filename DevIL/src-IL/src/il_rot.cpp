@@ -16,19 +16,25 @@
 //  is 1029.  However, neither way seems to work quite right for the alpha.
 
 #include "il_internal.h"
-#ifndef IL_NO_ROT
-#include "il_dds.h"
 
-ILboolean iLoadRotInternal(ILcontext* context);
+#ifndef IL_NO_ROT
+
+#include "il_dds.h"
+#include "il_rot.h"
 
 #define ROT_RGBA32	1024
 #define ROT_DXT1	1028
 #define ROT_DXT3	1029
 #define ROT_DXT5	1030
 
+RotHandler::RotHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Reads a ROT file
-ILboolean ilLoadRot(ILcontext* context, ILconst_string FileName)
+ILboolean RotHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	RotFile;
 	ILboolean	bRot = IL_FALSE;
@@ -39,38 +45,35 @@ ILboolean ilLoadRot(ILcontext* context, ILconst_string FileName)
 		return bRot;
 	}
 
-	bRot = ilLoadRotF(context, RotFile);
+	bRot = loadF(RotFile);
 	context->impl->icloser(RotFile);
 
 	return bRot;
 }
 
-
 //! Reads an already-opened ROT file
-ILboolean ilLoadRotF(ILcontext* context, ILHANDLE File)
+ILboolean RotHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadRotInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a ROT
-ILboolean ilLoadRotL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean RotHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadRotInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the ROT.
-ILboolean iLoadRotInternal(ILcontext* context)
+ILboolean RotHandler::loadInternal()
 {
 	ILubyte		Form[4], FormName[4];
 	ILuint		FormLen, Width, Height, Format, Channels, CompSize;
@@ -286,4 +289,3 @@ ILboolean iLoadRotInternal(ILcontext* context)
 }
 
 #endif//IL_NO_ROT
-

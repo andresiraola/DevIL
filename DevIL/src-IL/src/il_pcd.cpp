@@ -12,15 +12,20 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_PCD
 
+#include "il_pcd.h"
 
-ILboolean iLoadPcdInternal(ILcontext* context);
+PcdHandler::PcdHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Reads a .pcd file
-ILboolean ilLoadPcd(ILcontext* context, ILconst_string FileName)
+ILboolean PcdHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	PcdFile;
 	ILboolean	bPcd = IL_FALSE;
@@ -31,35 +36,32 @@ ILboolean ilLoadPcd(ILcontext* context, ILconst_string FileName)
 		return bPcd;
 	}
 
-	bPcd = ilLoadPcdF(context, PcdFile);
+	bPcd = loadF(PcdFile);
 	context->impl->icloser(PcdFile);
 
 	return bPcd;
 }
 
-
 //! Reads an already-opened .pcd file
-ILboolean ilLoadPcdF(ILcontext* context, ILHANDLE File)
+ILboolean PcdHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadPcdInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .pcd file
-ILboolean ilLoadPcdL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PcdHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadPcdInternal(context);
+	return loadInternal();
 }
-
 
 void YCbCr2RGB(ILubyte Y, ILubyte Cb, ILubyte Cr, ILubyte *r, ILubyte *g, ILubyte *b)
 {
@@ -102,8 +104,7 @@ void YCbCr2RGB(ILubyte Y, ILubyte Cb, ILubyte Cr, ILubyte *r, ILubyte *g, ILubyt
 	return;
 }
 
-
-ILboolean iLoadPcdInternal(ILcontext* context)
+ILboolean PcdHandler::loadInternal()
 {
 	ILubyte	VertOrientation;
 	ILuint	Width, Height, i, Total, x, CurPos = 0;
@@ -201,6 +202,5 @@ ILboolean iLoadPcdInternal(ILcontext* context)
 
 	return ilFixImage(context);
 }
-
 
 #endif//IL_NO_PCD

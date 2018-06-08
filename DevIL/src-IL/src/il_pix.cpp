@@ -10,15 +10,17 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#ifndef IL_NO_PIX
-#include "il_endian.h"
 
+#ifndef IL_NO_PIX
+
+#include "il_endian.h"
+#include "il_pix.h"
 
 #ifdef _MSC_VER
 #pragma pack(push, pix_struct, 1)
 #endif
+
 typedef struct PIXHEAD
 {
 	ILushort	Width;
@@ -27,13 +29,18 @@ typedef struct PIXHEAD
 	ILushort	OffY;
 	ILushort	Bpp;
 } IL_PACKSTRUCT PIXHEAD;
+
 #ifdef _MSC_VER
 #pragma pack(pop, pix_struct)
 #endif
 
 ILboolean iCheckPix(PIXHEAD *Header);
-ILboolean iLoadPixInternal(ILcontext* context);
 
+PixHandler::PixHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 // Internal function used to get the Pix header from the current file.
 ILboolean iGetPixHead(ILcontext* context, PIXHEAD *Header)
@@ -47,9 +54,8 @@ ILboolean iGetPixHead(ILcontext* context, PIXHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidPix(ILcontext* context)
+ILboolean PixHandler::isValidInternal()
 {
 	PIXHEAD	Head;
 
@@ -59,7 +65,6 @@ ILboolean iIsValidPix(ILcontext* context)
 
 	return iCheckPix(&Head);
 }
-
 
 // Internal function used to check if the HEADER is a valid Pix header.
 ILboolean iCheckPix(PIXHEAD *Header)
@@ -74,9 +79,8 @@ ILboolean iCheckPix(PIXHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a Pix file
-ILboolean ilLoadPix(ILcontext* context, ILconst_string FileName)
+ILboolean PixHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	PixFile;
 	ILboolean	bPix = IL_FALSE;
@@ -87,38 +91,35 @@ ILboolean ilLoadPix(ILcontext* context, ILconst_string FileName)
 		return bPix;
 	}
 
-	bPix = ilLoadPixF(context, PixFile);
+	bPix = loadF(PixFile);
 	context->impl->icloser(PixFile);
 
 	return bPix;
 }
 
-
 //! Reads an already-opened Pix file
-ILboolean ilLoadPixF(ILcontext* context, ILHANDLE File)
+ILboolean PixHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadPixInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a Pix
-ILboolean ilLoadPixL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PixHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadPixInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the Pix.
-ILboolean iLoadPixInternal(ILcontext* context)
+ILboolean PixHandler::loadInternal()
 {
 	PIXHEAD	Header;
 	ILuint	i, j;

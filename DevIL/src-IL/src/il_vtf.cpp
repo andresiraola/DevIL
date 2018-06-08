@@ -12,19 +12,127 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_VTF
-#include "il_vtf.h"
+
 #include "il_dds.h"
+#include "il_vtf.h"
 
+#ifdef _MSC_VER
+#pragma pack(push, vtf_struct, 1)
+#elif defined(MACOSX) || defined(__GNUC__)
+#pragma pack(1)
+#endif
 
-//@TODO: Get rid of these globals.
-//static VTFHEAD Head;
+typedef struct VTFHEAD
+{
+	ILubyte		Signature[4];		// File signature ("VTF\0").
+	ILuint		Version[2];			// version[0].version[1] (currently 7.2).
+	ILuint		HeaderSize;			// Size of the header struct (16 byte aligned; currently 80 bytes).
+	ILushort	Width;				// Width of the largest mipmap in pixels. Must be a power of 2.
+	ILushort	Height;				// Height of the largest mipmap in pixels. Must be a power of 2.
+	ILuint		Flags;				// VTF flags.
+	ILushort	Frames;				// Number of frames, if animated (1 for no animation).
+	ILushort	FirstFrame;			// First frame in animation (0 based).
+	ILubyte		Padding0[4];		// reflectivity padding (16 byte alignment).
+	ILfloat		Reflectivity[3];	// reflectivity vector.
+	ILubyte		Padding1[4];		// reflectivity padding (8 byte packing).
+	ILfloat		BumpmapScale;		// Bumpmap scale.
+	ILuint		HighResImageFormat;	// High resolution image format.
+	ILubyte		MipmapCount;		// Number of mipmaps.
+	ILuint		LowResImageFormat;	// Low resolution image format (always DXT1).
+	ILubyte		LowResImageWidth;	// Low resolution image width.
+	ILubyte		LowResImageHeight;	// Low resolution image height.
+	ILushort	Depth;				// Depth of the largest mipmap in pixels.
+									// Must be a power of 2. Can be 0 or 1 for a 2D texture (v7.2 only).
+} IL_PACKSTRUCT VTFHEAD;
 
+#if defined(MACOSX) || defined(__GNUC__)
+#pragma pack()
+#elif _MSC_VER
+#pragma pack(pop, vtf_struct)
+#endif
+
+enum
+{
+	IMAGE_FORMAT_NONE = -1,
+	IMAGE_FORMAT_RGBA8888 = 0,
+	IMAGE_FORMAT_ABGR8888,
+	IMAGE_FORMAT_RGB888,
+	IMAGE_FORMAT_BGR888,
+	IMAGE_FORMAT_RGB565,
+	IMAGE_FORMAT_I8,
+	IMAGE_FORMAT_IA88,
+	IMAGE_FORMAT_P8,
+	IMAGE_FORMAT_A8,
+	IMAGE_FORMAT_RGB888_BLUESCREEN,
+	IMAGE_FORMAT_BGR888_BLUESCREEN,
+	IMAGE_FORMAT_ARGB8888,
+	IMAGE_FORMAT_BGRA8888,
+	IMAGE_FORMAT_DXT1,
+	IMAGE_FORMAT_DXT3,
+	IMAGE_FORMAT_DXT5,
+	IMAGE_FORMAT_BGRX8888,
+	IMAGE_FORMAT_BGR565,
+	IMAGE_FORMAT_BGRX5551,
+	IMAGE_FORMAT_BGRA4444,
+	IMAGE_FORMAT_DXT1_ONEBITALPHA,
+	IMAGE_FORMAT_BGRA5551,
+	IMAGE_FORMAT_UV88,
+	IMAGE_FORMAT_UVWQ8888,
+	IMAGE_FORMAT_RGBA16161616F,
+	IMAGE_FORMAT_RGBA16161616,
+	IMAGE_FORMAT_UVLX8888
+};
+
+enum
+{
+	TEXTUREFLAGS_POINTSAMPLE = 0x00000001,
+	TEXTUREFLAGS_TRILINEAR = 0x00000002,
+	TEXTUREFLAGS_CLAMPS = 0x00000004,
+	TEXTUREFLAGS_CLAMPT = 0x00000008,
+	TEXTUREFLAGS_ANISOTROPIC = 0x00000010,
+	TEXTUREFLAGS_HINT_DXT5 = 0x00000020,
+	TEXTUREFLAGS_NOCOMPRESS = 0x00000040,
+	TEXTUREFLAGS_NORMAL = 0x00000080,
+	TEXTUREFLAGS_NOMIP = 0x00000100,
+	TEXTUREFLAGS_NOLOD = 0x00000200,
+	TEXTUREFLAGS_MINMIP = 0x00000400,
+	TEXTUREFLAGS_PROCEDURAL = 0x00000800,
+	TEXTUREFLAGS_ONEBITALPHA = 0x00001000,
+	TEXTUREFLAGS_EIGHTBITALPHA = 0x00002000,
+	TEXTUREFLAGS_ENVMAP = 0x00004000,
+	TEXTUREFLAGS_RENDERTARGET = 0x00008000,
+	TEXTUREFLAGS_DEPTHRENDERTARGET = 0x00010000,
+	TEXTUREFLAGS_NODEBUGOVERRIDE = 0x00020000,
+	TEXTUREFLAGS_SINGLECOPY = 0x00040000,
+	TEXTUREFLAGS_ONEOVERMIPLEVELINALPHA = 0x00080000,
+	TEXTUREFLAGS_PREMULTCOLORBYONEOVERMIPLEVEL = 0x00100000,
+	TEXTUREFLAGS_NORMALTODUDV = 0x00200000,
+	TEXTUREFLAGS_ALPHATESTMIPGENERATION = 0x00400000,
+	TEXTUREFLAGS_NODEPTHBUFFER = 0x00800000,
+	TEXTUREFLAGS_NICEFILTERED = 0x01000000,
+	TEXTUREFLAGS_CLAMPU = 0x02000000
+};
+
+// Internal functions
+ILboolean	iGetVtfHead(ILcontext* context, VTFHEAD *Header);
+ILboolean	iCheckVtf(VTFHEAD *Header);
+ILboolean	VtfInitFacesMipmaps(ILcontext* context, ILimage *BaseImage, ILuint NumFaces, VTFHEAD *Header);
+ILboolean	VtfInitMipmaps(ILcontext* context, ILimage *BaseImage, VTFHEAD *Header);
+ILboolean	VtfReadData(void);
+ILboolean	VtfDecompressDXT1(ILimage *Image);
+ILboolean	VtfDecompressDXT5(ILimage *Image);
+
+VtfHandler::VtfHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid VTF file.
-ILboolean ilIsValidVtf(ILcontext* context, ILconst_string FileName)
+ILboolean VtfHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	VtfFile;
 	ILboolean	bVtf = IL_FALSE;
@@ -40,35 +148,32 @@ ILboolean ilIsValidVtf(ILcontext* context, ILconst_string FileName)
 		return bVtf;
 	}
 
-	bVtf = ilIsValidVtfF(context, VtfFile);
+	bVtf = isValidF(VtfFile);
 	context->impl->icloser(VtfFile);
 	
 	return bVtf;
 }
 
-
 //! Checks if the ILHANDLE contains a valid VTF file at the current position.
-ILboolean ilIsValidVtfF(ILcontext* context, ILHANDLE File)
+ILboolean VtfHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidVtf(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid VTF lump.
-ILboolean ilIsValidVtfL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean VtfHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidVtf(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the VTF header from the current file.
 ILboolean iGetVtfHead(ILcontext* context, VTFHEAD *Header)
@@ -107,9 +212,8 @@ ILboolean iGetVtfHead(ILcontext* context, VTFHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidVtf(ILcontext* context)
+ILboolean VtfHandler::isValidInternal()
 {
 	VTFHEAD Header;
 
@@ -119,7 +223,6 @@ ILboolean iIsValidVtf(ILcontext* context)
 	
 	return iCheckVtf(&Header);
 }
-
 
 //@TODO: Add more checks.
 // Should we check for Frames, MipmapCount and Depth != 0?
@@ -171,9 +274,8 @@ ILboolean iCheckVtf(VTFHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a VTF file
-ILboolean ilLoadVtf(ILcontext* context, ILconst_string FileName)
+ILboolean VtfHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	VtfFile;
 	ILboolean	bVtf = IL_FALSE;
@@ -184,38 +286,35 @@ ILboolean ilLoadVtf(ILcontext* context, ILconst_string FileName)
 		return bVtf;
 	}
 
-	bVtf = ilLoadVtfF(context, VtfFile);
+	bVtf = loadF(VtfFile);
 	context->impl->icloser(VtfFile);
 
 	return bVtf;
 }
 
-
 //! Reads an already-opened VTF file
-ILboolean ilLoadVtfF(ILcontext* context, ILHANDLE File)
+ILboolean VtfHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadVtfInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a VTF
-ILboolean ilLoadVtfL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean VtfHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadVtfInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the VTF.
-ILboolean iLoadVtfInternal(ILcontext* context)
+ILboolean VtfHandler::loadInternal()
 {
 	ILboolean	bVtf = IL_TRUE;
 	ILimage		*Image, *BaseImage;
@@ -621,7 +720,6 @@ ILboolean iLoadVtfInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-
 ILuint GetFaceFlag(ILuint FaceNum)
 {
 	switch (FaceNum)
@@ -644,7 +742,6 @@ ILuint GetFaceFlag(ILuint FaceNum)
 
 	return IL_SPHEREMAP;  // Should never reach here!
 }
-
 
 ILboolean VtfInitFacesMipmaps(ILcontext* context, ILimage *BaseImage, ILuint NumFaces, VTFHEAD *Header)
 {
@@ -678,7 +775,6 @@ ILboolean VtfInitFacesMipmaps(ILcontext* context, ILimage *BaseImage, ILuint Num
 	return IL_TRUE;
 }
 
-
 ILboolean VtfInitMipmaps(ILcontext* context, ILimage *BaseImage, VTFHEAD *Header)
 {
 	ILimage	*Image;
@@ -708,8 +804,6 @@ ILboolean VtfInitMipmaps(ILcontext* context, ILimage *BaseImage, VTFHEAD *Header
 	return IL_TRUE;
 }
 
-
-
 ILboolean CheckDimensions(ILcontext* context)
 {
 	if ((ilNextPower2(context->impl->iCurImage->Width) != context->impl->iCurImage->Width) || (ilNextPower2(context->impl->iCurImage->Height) != context->impl->iCurImage->Height)) {
@@ -720,7 +814,7 @@ ILboolean CheckDimensions(ILcontext* context)
 }
 
 //! Writes a Vtf file
-ILboolean ilSaveVtf(ILcontext* context, const ILstring FileName)
+ILboolean VtfHandler::save(const ILstring FileName)
 {
 	ILHANDLE	VtfFile;
 	ILuint		VtfSize;
@@ -741,7 +835,7 @@ ILboolean ilSaveVtf(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	VtfSize = ilSaveVtfF(context, VtfFile);
+	VtfSize = saveF(VtfFile);
 	context->impl->iclosew(VtfFile);
 
 	if (VtfSize == 0)
@@ -749,37 +843,34 @@ ILboolean ilSaveVtf(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a .vtf to an already-opened file
-ILuint ilSaveVtfF(ILcontext* context, ILHANDLE File)
+ILuint VtfHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	if (!CheckDimensions(context))
 		return 0;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveVtfInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a .vtf to a memory "lump"
-ILuint ilSaveVtfL(ILcontext* context, void *Lump, ILuint Size)
+ILuint VtfHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	if (!CheckDimensions(context))
 		return 0;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSaveVtfInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 // Internal function used to save the Vtf.
-ILboolean iSaveVtfInternal(ILcontext* context)
+ILboolean VtfHandler::saveInternal()
 {
 	ILimage	*TempImage = context->impl->iCurImage;
 	ILubyte	*TempData, *CompData;
@@ -948,6 +1039,5 @@ ILboolean iSaveVtfInternal(ILcontext* context)
 
 	return IL_TRUE;
 }
-
 
 #endif//IL_NO_VTF

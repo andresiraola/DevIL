@@ -23,8 +23,10 @@
 #include "il_pnm.h"
 #include "il_psd.h"
 #include "il_raw.h"
+#include "il_sgi.h"
 #include "il_targa.h"
 #include "il_tiff.h"
+#include "il_wbmp.h"
 
 //! Fake seek function
 ILint ILAPIENTRY iSizeSeek(ILcontext* context, ILint Offset, ILuint Mode)
@@ -202,8 +204,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_SGI
 		case IL_SGI:
-			ilSaveSgiL(context, NULL, 0);
-			break;
+		{
+			SgiHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_SGI
 
 		#ifndef IL_NO_TGA
@@ -228,8 +234,12 @@ ILuint ilDetermineSize(ILcontext* context, ILenum Type)
 
 		#ifndef IL_NO_WBMP
 		case IL_WBMP:
-			ilSaveWbmpL(context, NULL, 0);
-			break;
+		{
+			WbmpHandler handler(context);
+
+			handler.saveL(NULL, 0);
+		}
+		break;
 		#endif//IL_NO_WBMP
 
 		default:

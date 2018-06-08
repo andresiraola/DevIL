@@ -10,11 +10,220 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#include "il_psp.h"
+
 #ifndef IL_NO_PSP
 
+#include "il_psp.h"
+
+// Block identifiers
+enum PSPBlockID {
+	PSP_IMAGE_BLOCK = 0,			// (0)  General Image Attributes Block (main)
+	PSP_CREATOR_BLOCK,				// (1)  Creator Data Block (main)
+	PSP_COLOR_BLOCK,				// (2)  Color Palette Block (main and sub)
+	PSP_LAYER_START_BLOCK,			// (3)  Layer Bank Block (main)
+	PSP_LAYER_BLOCK,				// (4)  Layer Block (sub)
+	PSP_CHANNEL_BLOCK,				// (5)  Channel Block (sub)
+	PSP_SELECTION_BLOCK,			// (6)  Selection Block (main)
+	PSP_ALPHA_BANK_BLOCK,			// (7)  Alpha Bank Block (main)
+	PSP_ALPHA_CHANNEL_BLOCK,		// (8)  Alpha Channel Block (sub)
+	PSP_COMPOSITE_IMAGE_BLOCK,		// (9)  Composite Image Block (sub)
+	PSP_EXTENDED_DATA_BLOCK,		// (10) Extended Data Block (main)
+	PSP_TUBE_BLOCK,					// (11) Picture Tube Data Block (main)
+	PSP_ADJUSTMENT_EXTENSION_BLOCK,	// (12) Adjustment Layer Block (sub)
+	PSP_VECTOR_EXTENSION_BLOCK,		// (13) Vector Layer Block (sub)
+	PSP_SHAPE_BLOCK,				// (14) Vector Shape Block (sub)
+	PSP_PAINTSTYLE_BLOCK,			// (15) Paint Style Block (sub)
+	PSP_COMPOSITE_IMAGE_BANK_BLOCK, // (16) Composite Image Bank (main)
+	PSP_COMPOSITE_ATTRIBUTES_BLOCK, // (17) Composite Image Attr. (sub)
+	PSP_JPEG_BLOCK,					// (18) JPEG Image Block (sub)
+	PSP_LINESTYLE_BLOCK,			// (19) Line Style Block (sub)
+	PSP_TABLE_BANK_BLOCK,			// (20) Table Bank Block (main)
+	PSP_TABLE_BLOCK,				// (21) Table Block (sub)
+	PSP_PAPER_BLOCK,				// (22) Vector Table Paper Block (sub)
+	PSP_PATTERN_BLOCK,				// (23) Vector Table Pattern Block (sub)
+};
+
+// Bitmap type
+enum PSPDIBType {
+	PSP_DIB_IMAGE = 0,	// Layer color bitmap
+	PSP_DIB_TRANS_MASK,	// Layer transparency mask bitmap
+	PSP_DIB_USER_MASK,	// Layer user mask bitmap
+	PSP_DIB_SELECTION,	// Selection mask bitmap
+	PSP_DIB_ALPHA_MASK,	// Alpha channel mask bitmap
+	PSP_DIB_THUMBNAIL	// Thumbnail bitmap
+};
+
+// Channel types
+enum PSPChannelType {
+	PSP_CHANNEL_COMPOSITE = 0,	// Channel of single channel bitmap
+	PSP_CHANNEL_RED,			// Red channel of 24 bit bitmap
+	PSP_CHANNEL_GREEN,			// Green channel of 24 bit bitmap
+	PSP_CHANNEL_BLUE			// Blue channel of 24 bit bitmap
+};
+
+// Possible metrics used to measure resolution
+enum PSP_METRIC { 
+	PSP_METRIC_UNDEFINED = 0,	// Metric unknown
+	PSP_METRIC_INCH,			// Resolution is in inches
+	PSP_METRIC_CM				// Resolution is in centimeters
+};
+
+// Possible types of compression.
+enum PSPCompression {
+	PSP_COMP_NONE = 0,	// No compression
+	PSP_COMP_RLE,		// RLE compression
+	PSP_COMP_LZ77,		// LZ77 compression
+	PSP_COMP_JPEG		// JPEG compression (only used by thumbnail and composite image)
+};
+
+// Picture tube placement mode.
+enum TubePlacementMode {
+	tpmRandom,		// Place tube images in random intervals
+	tpmConstant		// Place tube images in constant intervals
+};
+
+// Picture tube selection mode.
+enum TubeSelectionMode {
+	tsmRandom,		// Randomly select the next image in tube to display
+	tsmIncremental,	// Select each tube image in turn
+	tsmAngular,		// Select image based on cursor direction
+	tsmPressure,	// Select image based on pressure (from pressure-sensitive pad)
+	tsmVelocity		// Select image based on cursor speed
+};
+
+// Extended data field types.
+enum PSPExtendedDataID {
+	PSP_XDATA_TRNS_INDEX = 0	// Transparency index field
+};
+
+// Creator field types.
+enum PSPCreatorFieldID {
+	PSP_CRTR_FLD_TITLE = 0,		// Image document title field
+	PSP_CRTR_FLD_CRT_DATE,		// Creation date field
+	PSP_CRTR_FLD_MOD_DATE,		// Modification date field
+	PSP_CRTR_FLD_ARTIST,		// Artist name field
+	PSP_CRTR_FLD_CPYRGHT,		// Copyright holder name field
+	PSP_CRTR_FLD_DESC,			// Image document description field
+	PSP_CRTR_FLD_APP_ID,		// Creating app id field
+	PSP_CRTR_FLD_APP_VER,		// Creating app version field
+};
+
+// Creator application identifiers.
+enum PSPCreatorAppID {
+	PSP_CREATOR_APP_UNKNOWN = 0,	// Creator application unknown
+	PSP_CREATOR_APP_PAINT_SHOP_PRO	// Creator is Paint Shop Pro
+};
+
+// Layer types.
+enum PSPLayerType {
+	PSP_LAYER_NORMAL = 0,			// Normal layer
+	PSP_LAYER_FLOATING_SELECTION	// Floating selection layer
+};
+
+// Truth values.
+/*enum PSP_BOOLEAN {
+	FALSE = 0,
+	TRUE
+};*/
+
+#ifdef _MSC_VER
+#pragma pack(push, packed_struct, 1)
+#endif
+
+typedef struct PSPRECT
+{
+	ILuint x1,y1,x2,y2;
+} IL_PACKSTRUCT PSPRECT;
+
+typedef struct PSPHEAD
+{
+	char		FileSig[32];
+	ILushort	MajorVersion;
+	ILushort	MinorVersion;
+} IL_PACKSTRUCT PSPHEAD;
+
+typedef struct BLOCKHEAD
+{
+	ILubyte		HeadID[4];
+	ILushort	BlockID;
+	ILuint		BlockLen;
+} IL_PACKSTRUCT BLOCKHEAD;
+
+typedef struct GENATT_CHUNK
+{
+	ILint		Width;
+	ILint		Height;
+	ILdouble	Resolution;
+	ILubyte		ResMetric;
+	ILushort	Compression;
+	ILushort	BitDepth;
+	ILushort	PlaneCount;
+	ILuint		ColourCount;
+	ILubyte		GreyscaleFlag;
+	ILuint		SizeOfImage;
+	ILint		ActiveLayer;
+	ILushort	LayerCount;
+	ILuint		GraphicContents;
+} IL_PACKSTRUCT GENATT_CHUNK;
+
+typedef struct LAYERINFO_CHUNK
+{
+	ILubyte		LayerType;
+	PSPRECT		ImageRect;
+	PSPRECT		SavedImageRect;
+	ILubyte		Opacity;
+	ILubyte		BlendingMode;
+	ILubyte		LayerFlags;
+	ILubyte		TransProtFlag;
+	ILubyte		LinkID;
+	PSPRECT		MaskRect;
+	PSPRECT		SavedMaskRect;
+	ILubyte		MaskLinked;
+	ILubyte		MaskDisabled;
+	ILubyte		InvertMaskBlend;
+	ILushort	BlendRange;
+	ILubyte		SourceBlend1[4];
+	ILubyte		DestBlend1[4];
+	ILubyte		SourceBlend2[4];
+	ILubyte		DestBlend2[4];
+	ILubyte		SourceBlend3[4];
+	ILubyte		DestBlend3[4];
+	ILubyte		SourceBlend4[4];
+	ILubyte		DestBlend4[4];
+	ILubyte		SourceBlend5[4];
+	ILubyte		DestBlend5[4];
+} IL_PACKSTRUCT LAYERINFO_CHUNK;
+
+typedef struct LAYERBITMAP_CHUNK
+{
+	ILushort	NumBitmaps;
+	ILushort	NumChannels;
+} IL_PACKSTRUCT LAYERBITMAP_CHUNK;
+
+typedef struct CHANNEL_CHUNK
+{
+	ILuint		CompLen;
+	ILuint		Length;
+	ILushort	BitmapType;
+	ILushort	ChanType;
+} IL_PACKSTRUCT CHANNEL_CHUNK;
+
+typedef struct ALPHAINFO_CHUNK
+{
+	PSPRECT		AlphaRect;
+	PSPRECT		AlphaSavedRect;
+} IL_PACKSTRUCT ALPHAINFO_CHUNK;
+
+typedef struct ALPHA_CHUNK
+{
+	ILushort	BitmapCount;
+	ILushort	ChannelCount;
+} IL_PACKSTRUCT ALPHA_CHUNK;
+
+#ifdef _MSC_VER
+#pragma pack(pop,  packed_struct)
+#endif
 
 ILubyte PSPSignature[32] = {
 	0x50, 0x61, 0x69, 0x6E, 0x74, 0x20, 0x53, 0x68, 0x6F, 0x70, 0x20, 0x50, 0x72, 0x6F, 0x20, 0x49,
@@ -25,7 +234,6 @@ ILubyte GenAttHead[4] = {
 	0x7E, 0x42, 0x4B, 0x00
 };
 
-
 // Make these global, since they contain most of the image information.
 GENATT_CHUNK	AttChunk;
 PSPHEAD			Header;
@@ -34,10 +242,26 @@ ILubyte			**Channels = NULL;
 ILubyte			*Alpha = NULL;
 ILpal			Pal;
 
+// Function definitions
+ILboolean	iCheckPsp(void);
+ILboolean	ReadGenAttributes(ILcontext* context);
+ILboolean	ParseChunks(ILcontext* context);
+ILboolean	ReadLayerBlock(ILcontext* context, ILuint BlockLen);
+ILboolean	ReadAlphaBlock(ILcontext* context, ILuint BlockLen);
+ILubyte		*GetChannel(ILcontext* context);
+ILboolean	UncompRLE(ILubyte *CompData, ILubyte *Data, ILuint CompLen);
+ILboolean	ReadPalette(ILcontext* context, ILuint BlockLen);
+ILboolean	AssembleImage(ILcontext* context);
+ILboolean	Cleanup(void);
 
+PspHandler::PspHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid Psp file.
-ILboolean ilIsValidPsp(ILcontext* context, ILconst_string FileName)
+ILboolean PspHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	PspFile;
 	ILboolean	bPsp = IL_FALSE;
@@ -53,35 +277,32 @@ ILboolean ilIsValidPsp(ILcontext* context, ILconst_string FileName)
 		return bPsp;
 	}
 
-	bPsp = ilIsValidPspF(context, PspFile);
+	bPsp = isValidF(PspFile);
 	context->impl->icloser(PspFile);
 
 	return bPsp;
 }
 
-
 //! Checks if the ILHANDLE contains a valid Psp file at the current position.
-ILboolean ilIsValidPspF(ILcontext* context, ILHANDLE File)
+ILboolean PspHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidPsp(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid Psp lump.
-ILboolean ilIsValidPspL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PspHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidPsp(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the Psp header from the current file.
 ILboolean iGetPspHead(ILcontext* context)
@@ -94,9 +315,8 @@ ILboolean iGetPspHead(ILcontext* context)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidPsp(ILcontext* context)
+ILboolean PspHandler::isValidInternal()
 {
 	if (!iGetPspHead(context))
 		return IL_FALSE;
@@ -104,7 +324,6 @@ ILboolean iIsValidPsp(ILcontext* context)
 
 	return iCheckPsp();
 }
-
 
 // Internal function used to check if the HEADER is a valid Psp header.
 ILboolean iCheckPsp()
@@ -120,9 +339,8 @@ ILboolean iCheckPsp()
 	return IL_TRUE;
 }
 
-
 //! Reads a PSP file
-ILboolean ilLoadPsp(ILcontext* context, ILconst_string FileName)
+ILboolean PspHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	PSPFile;
 	ILboolean	bPsp = IL_FALSE;
@@ -133,38 +351,35 @@ ILboolean ilLoadPsp(ILcontext* context, ILconst_string FileName)
 		return bPsp;
 	}
 
-	bPsp = ilLoadPspF(context, PSPFile);
+	bPsp = loadF(PSPFile);
 	context->impl->icloser(PSPFile);
 
 	return bPsp;
 }
 
-
 //! Reads an already-opened PSP file
-ILboolean ilLoadPspF(ILcontext* context, ILHANDLE File)
+ILboolean PspHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadPspInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a PSP
-ILboolean ilLoadPspL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PspHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadPspInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the PSP.
-ILboolean iLoadPspInternal(ILcontext* context)
+ILboolean PspHandler::loadInternal()
 {
 	if (context->impl->iCurImage == NULL) {
 		ilSetError(context, IL_ILLEGAL_OPERATION);
@@ -192,7 +407,6 @@ ILboolean iLoadPspInternal(ILcontext* context)
 	Cleanup();
 	return ilFixImage(context);
 }
-
 
 ILboolean ReadGenAttributes(ILcontext* context)
 {
@@ -242,7 +456,6 @@ ILboolean ReadGenAttributes(ILcontext* context)
 
 	return IL_TRUE;
 }
-
 
 ILboolean ParseChunks(ILcontext* context)
 {
@@ -299,7 +512,6 @@ ILboolean ParseChunks(ILcontext* context)
 
 	return IL_TRUE;
 }
-
 
 ILboolean ReadLayerBlock(ILcontext* context, ILuint BlockLen)
 {
@@ -376,7 +588,6 @@ ILboolean ReadLayerBlock(ILcontext* context, ILuint BlockLen)
 	return IL_TRUE;
 }
 
-
 ILboolean ReadAlphaBlock(ILcontext* context, ILuint BlockLen)
 {
 	BLOCKHEAD		Block;
@@ -449,7 +660,6 @@ ILboolean ReadAlphaBlock(ILcontext* context, ILuint BlockLen)
 
 	return IL_TRUE;
 }
-
 
 ILubyte *GetChannel(ILcontext* context)
 {
@@ -532,7 +742,6 @@ ILubyte *GetChannel(ILcontext* context)
 	return Data;
 }
 
-
 ILboolean UncompRLE(ILubyte *CompData, ILubyte *Data, ILuint CompLen)
 {
 	ILubyte	Run, Colour;
@@ -589,7 +798,6 @@ ILboolean UncompRLE(ILubyte *CompData, ILubyte *Data, ILuint CompLen)
 	return IL_TRUE;
 }
 
-
 ILboolean ReadPalette(ILcontext* context, ILuint BlockLen)
 {
 	ILuint ChunkSize, PalCount, Padding;
@@ -618,7 +826,6 @@ ILboolean ReadPalette(ILcontext* context, ILuint BlockLen)
 
 	return IL_TRUE;
 }
-
 
 ILboolean AssembleImage(ILcontext* context)
 {
@@ -684,7 +891,6 @@ ILboolean AssembleImage(ILcontext* context)
 	return IL_TRUE;
 }
 
-
 ILboolean Cleanup()
 {
 	ILuint	i;
@@ -706,7 +912,5 @@ ILboolean Cleanup()
 
 	return IL_TRUE;
 }
-
-
 
 #endif//IL_NO_PSP

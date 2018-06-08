@@ -13,12 +13,94 @@
 //-----------------------------------------------------------------------------
 
 #include "il_internal.h"
+
 #ifndef IL_NO_UTX
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#include "il_dds.h"
+
+#ifdef __cplusplus
+}
+#endif
+
 #include "il_utx.h"
 
+typedef struct UTXHEADER
+{
+	ILuint		Signature;
+	ILushort	Version;
+	ILushort	LicenseMode;
+	ILuint		Flags;
+	ILuint		NameCount;
+	ILuint		NameOffset;
+	ILuint		ExportCount;
+	ILuint		ExportOffset;
+	ILuint		ImportCount;
+	ILuint		ImportOffset;
+} UTXHEADER;
+
+typedef struct UTXENTRYNAME
+{
+	//char	*Name;
+	std::string	Name;
+	ILuint	Flags;
+} UTXENTRYNAME;
+
+typedef struct UTXEXPORTTABLE
+{
+	ILint	Class;
+	ILint	Super;
+	ILint	Group;
+	ILint	ObjectName;
+	ILuint	ObjectFlags;
+	ILint	SerialSize;
+	ILint	SerialOffset;
+
+	ILboolean	ClassImported;
+	ILboolean	SuperImported;
+	ILboolean	GroupImported;
+} UTXEXPORTTABLE;
+
+typedef struct UTXIMPORTTABLE
+{
+	ILint		ClassPackage;
+	ILint		ClassName;
+	ILint		Package;
+	ILint		ObjectName;
+
+	ILboolean	PackageImported;
+} UTXIMPORTTABLE;
+
+class UTXPALETTE
+{
+public:
+	UTXPALETTE() { Pal = NULL; }
+	~UTXPALETTE() { delete [] Pal; }
+
+	ILubyte	*Pal;
+	ILuint	Count;
+	ILuint	Name;
+};
+
+// Data formats
+#define UTX_P8		0x00
+#define UTX_DXT1	0x03
+
+UtxHandler::UtxHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Reads a UTX file
-ILboolean ilLoadUtx(ILcontext* context, ILconst_string FileName)
+ILboolean UtxHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	UtxFile;
 	ILboolean	bUtx = IL_FALSE;
@@ -29,15 +111,14 @@ ILboolean ilLoadUtx(ILcontext* context, ILconst_string FileName)
 		return bUtx;
 	}
 
-	bUtx = ilLoadUtxF(context, UtxFile);
+	bUtx = loadF(UtxFile);
 	context->impl->icloser(UtxFile);
 
 	return bUtx;
 }
 
-
 //! Reads an already-opened UTX file
-ILboolean ilLoadUtxF(ILcontext* context, ILHANDLE File)
+ILboolean UtxHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
@@ -45,9 +126,9 @@ ILboolean ilLoadUtxF(ILcontext* context, ILHANDLE File)
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
 	try {
-		bRet = iLoadUtxInternal(context);
+		bRet = loadInternal();
 	}
-	catch (bad_alloc &e) {
+	catch (std::bad_alloc &e) {
 		e;
 		ilSetError(context, IL_OUT_OF_MEMORY);
 		return IL_FALSE;
@@ -57,21 +138,19 @@ ILboolean ilLoadUtxF(ILcontext* context, ILHANDLE File)
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a UTX
-ILboolean ilLoadUtxL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean UtxHandler::loadL(const void *Lump, ILuint Size)
 {
 	try {
 		iSetInputLump(context, Lump, Size);
 	}
-	catch (bad_alloc &e) {
+	catch (std::bad_alloc &e) {
 		e;
 		ilSetError(context, IL_OUT_OF_MEMORY);
 		return IL_FALSE;
 	}
-	return iLoadUtxInternal(context);
+	return loadInternal();
 }
-
 
 ILboolean GetUtxHead(ILcontext* context, UTXHEADER &Header)
 {
@@ -89,7 +168,6 @@ ILboolean GetUtxHead(ILcontext* context, UTXHEADER &Header)
 	return IL_TRUE;
 }
 
-
 ILboolean CheckUtxHead(UTXHEADER &Header)
 {
 	// This signature signifies a UTX file.
@@ -101,9 +179,8 @@ ILboolean CheckUtxHead(UTXHEADER &Header)
 	return IL_TRUE;
 }
 
-
 // Gets a name variable from the file.  Keep in mind that the return value must be freed.
-string GetUtxName(ILcontext* context, UTXHEADER &Header)
+std::string GetUtxName(ILcontext* context, UTXHEADER &Header)
 {
 #define NAME_MAX_LEN 256  //@TODO: Figure out if these can possibly be longer.
 	char	Name[NAME_MAX_LEN];
@@ -117,7 +194,7 @@ string GetUtxName(ILcontext* context, UTXHEADER &Header)
 			return "";
 		if (Name[Length-1] != 0)
 			return "";
-		return string(Name);
+		return std::string(Name);
 	}
 
 	// Old style (Unreal) name.  This string length is unknown, but it is terminated
@@ -130,12 +207,11 @@ string GetUtxName(ILcontext* context, UTXHEADER &Header)
 	if (Length == NAME_MAX_LEN && Name[Length-1] != 0)
 		return "";
 
-	return string(Name);
+	return std::string(Name);
 #undef NAME_MAX_LEN
 }
 
-
-bool GetUtxNameTable(ILcontext* context, vector <UTXENTRYNAME> &NameEntries, UTXHEADER &Header)
+bool GetUtxNameTable(ILcontext* context, std::vector <UTXENTRYNAME> &NameEntries, UTXHEADER &Header)
 {
 	ILuint	NumRead;
 
@@ -160,7 +236,6 @@ bool GetUtxNameTable(ILcontext* context, vector <UTXENTRYNAME> &NameEntries, UTX
 
 	return true;
 }
-
 
 // This following code is from http://wiki.beyondunreal.com/Legacy:Package_File_Format/Data_Details.
 /// <summary>Reads a compact integer from the FileReader.
@@ -216,7 +291,6 @@ ILint UtxReadCompactInteger(ILcontext* context)
         return output;
 }
 
-
 void ChangeObjectReference(ILint *ObjRef, ILboolean *IsImported)
 {
 	if (*ObjRef < 0) {
@@ -234,8 +308,7 @@ void ChangeObjectReference(ILint *ObjRef, ILboolean *IsImported)
 	return;
 }
 
-
-bool GetUtxExportTable(ILcontext* context, vector <UTXEXPORTTABLE> &ExportTable, UTXHEADER &Header)
+bool GetUtxExportTable(ILcontext* context, std::vector <UTXEXPORTTABLE> &ExportTable, UTXHEADER &Header)
 {
 	ILuint i;
 
@@ -262,8 +335,7 @@ bool GetUtxExportTable(ILcontext* context, vector <UTXEXPORTTABLE> &ExportTable,
 	return true;
 }
 
-
-bool GetUtxImportTable(ILcontext* context, vector <UTXIMPORTTABLE> &ImportTable, UTXHEADER &Header)
+bool GetUtxImportTable(ILcontext* context, std::vector <UTXIMPORTTABLE> &ImportTable, UTXHEADER &Header)
 {
 	ILuint i;
 
@@ -285,7 +357,6 @@ bool GetUtxImportTable(ILcontext* context, vector <UTXIMPORTTABLE> &ImportTable,
 	return true;
 }
 
-
 /*void UtxDestroyPalettes(UTXPALETTE *Palettes, ILuint NumPal)
 {
 	ILuint i;
@@ -295,7 +366,6 @@ bool GetUtxImportTable(ILcontext* context, vector <UTXIMPORTTABLE> &ImportTable,
 	}
 	ifree(Palettes);
 }*/
-
 
 ILenum UtxFormatToDevIL(ILuint Format)
 {
@@ -309,7 +379,6 @@ ILenum UtxFormatToDevIL(ILuint Format)
 	return IL_BGRA;  // Should never reach here.
 }
 
-
 ILuint UtxFormatToBpp(ILuint Format)
 {
 	switch (Format)
@@ -322,15 +391,14 @@ ILuint UtxFormatToBpp(ILuint Format)
 	return 4;  // Should never reach here.
 }
 
-
 // Internal function used to load the UTX.
-ILboolean iLoadUtxInternal(ILcontext* context)
+ILboolean UtxHandler::loadInternal()
 {
 	UTXHEADER		Header;
-	vector <UTXENTRYNAME> NameEntries;
-	vector <UTXEXPORTTABLE> ExportTable;
-	vector <UTXIMPORTTABLE> ImportTable;
-	vector <UTXPALETTE> Palettes;
+	std::vector <UTXENTRYNAME> NameEntries;
+	std::vector <UTXEXPORTTABLE> ExportTable;
+	std::vector <UTXIMPORTTABLE> ImportTable;
+	std::vector <UTXPALETTE> Palettes;
 	ILimage		*Image;
 	ILuint		NumPal = 0, i, j = 0;
 	ILint		Name;
@@ -542,4 +610,3 @@ ILboolean iLoadUtxInternal(ILcontext* context)
 }
 
 #endif//IL_NO_UTX
-

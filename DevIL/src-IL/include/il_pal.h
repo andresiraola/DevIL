@@ -10,45 +10,23 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef IL_PAL_H
-#define IL_PAL_H
+#pragma once
 
 #include "il_internal.h"
 
-#define BUFFLEN	256
-#define PALBPP	3
-
-#ifdef _MSC_VER
-#pragma pack(push, packed_struct, 1)
-#endif
-typedef struct HALOHEAD
+class PalHandler
 {
-	ILushort	Id;  // 'AH'
-	ILshort		Version;
-	ILshort		Size;
-	ILbyte		Filetype;
-	ILbyte		Subtype;
-	//ILshort	Brdid, Grmode;
-	ILint		Ignored;
-	ILushort	MaxIndex;  // Colors = maxindex + 1
-	ILushort	MaxRed;
-	ILushort	MaxGreen;
-	ILushort	MaxBlue;
-	/*ILbyte	Signature[8];
-	ILbyte		Filler[12];*/
-	ILbyte		Filler[20];  // Always 0 by PSP 4
-} IL_PACKSTRUCT HALOHEAD;
-#ifdef _MSC_VER
-#pragma pack(pop,  packed_struct)
-#endif
+protected:
+	ILcontext * context;
 
-ILboolean	ilLoadJascPal(ILcontext* context, ILconst_string FileName);
-ILboolean	ilSaveJascPal(ILcontext* context, ILconst_string FileName);
-char		*iFgetw(ILcontext* context, ILubyte *Buff, ILint MaxLen, FILE *File);
-ILboolean	ilLoadHaloPal(ILcontext* context, ILconst_string FileName);
-ILboolean	ilLoadColPal(ILcontext* context, ILconst_string FileName);
-ILboolean	ilLoadActPal(ILcontext* context, ILconst_string FileName);
-ILboolean	ilLoadPltPal(ILcontext* context, ILconst_string FileName);
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+	ILboolean	saveInternal();
 
-#endif//IL_PAL_H
+public:
+	PalHandler(ILcontext* context);
+
+	ILboolean	load(ILconst_string FileName);
+
+	ILboolean	save(ILconst_string FileName);
+};

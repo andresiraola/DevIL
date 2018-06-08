@@ -12,89 +12,19 @@
 //
 //-----------------------------------------------------------------------------
 
+#pragma once
 
-#ifndef UTX_H
-#define UTX_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include "il_internal.h"
-#include "il_dds.h"
-
-#ifdef __cplusplus
-}
-#endif
-
-
-#include <memory>
-#include <vector>
-#include <string>
-using namespace std;
-
-
-typedef struct UTXHEADER
+class UtxHandler
 {
-	ILuint		Signature;
-	ILushort	Version;
-	ILushort	LicenseMode;
-	ILuint		Flags;
-	ILuint		NameCount;
-	ILuint		NameOffset;
-	ILuint		ExportCount;
-	ILuint		ExportOffset;
-	ILuint		ImportCount;
-	ILuint		ImportOffset;
-} UTXHEADER;
+protected:
+	ILcontext * context;
 
-typedef struct UTXENTRYNAME
-{
-	//char	*Name;
-	string	Name;
-	ILuint	Flags;
-} UTXENTRYNAME;
+	ILboolean	loadInternal();
 
-typedef struct UTXEXPORTTABLE
-{
-	ILint	Class;
-	ILint	Super;
-	ILint	Group;
-	ILint	ObjectName;
-	ILuint	ObjectFlags;
-	ILint	SerialSize;
-	ILint	SerialOffset;
-
-	ILboolean	ClassImported;
-	ILboolean	SuperImported;
-	ILboolean	GroupImported;
-} UTXEXPORTTABLE;
-
-typedef struct UTXIMPORTTABLE
-{
-	ILint		ClassPackage;
-	ILint		ClassName;
-	ILint		Package;
-	ILint		ObjectName;
-
-	ILboolean	PackageImported;
-} UTXIMPORTTABLE;
-
-class UTXPALETTE
-{
 public:
-	UTXPALETTE() { Pal = NULL; }
-	~UTXPALETTE() { delete [] Pal; }
+	UtxHandler(ILcontext* context);
 
-	ILubyte	*Pal;
-	ILuint	Count;
-	ILuint	Name;
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
 };
-
-// Data formats
-#define UTX_P8		0x00
-#define UTX_DXT1	0x03
-
-ILboolean iLoadUtxInternal(ILcontext* context);
-
-#endif//UTX_H

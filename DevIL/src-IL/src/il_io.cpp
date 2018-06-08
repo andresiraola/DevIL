@@ -41,14 +41,30 @@
 #include "il_lif.h"
 #include "il_mdl.h"
 #include "il_mp3.h"
+#include "il_pal.h"
+#include "il_pcd.h"
 #include "il_pcx.h"
 #include "il_pic.h"
+#include "il_pix.h"
 #include "il_png.h"
 #include "il_pnm.h"
 #include "il_psd.h"
+#include "il_psp.h"
+#include "il_pxr.h"
 #include "il_raw.h"
+#include "il_rot.h"
+#include "il_scitex.h"
+#include "il_sgi.h"
+#include "il_sun.h"
 #include "il_targa.h"
+#include "il_texture.h"
 #include "il_tiff.h"
+#include "il_tpl.h"
+#include "il_utx.h"
+#include "il_vtf.h"
+#include "il_wal.h"
+#include "il_wbmp.h"
+#include "il_xpm.h"
 
 // Returns a widened version of a string.
 // Make sure to free this after it is used.  Code help from
@@ -455,23 +471,47 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 #endif
 
 #ifndef IL_NO_PSP
-	if (ilIsValidPspF(context, File))
-		return IL_PSP;
+	{
+		PspHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_PSP;
+		}
+	}
 #endif
 
 #ifndef IL_NO_SGI
-	if (ilIsValidSgiF(context, File))
-		return IL_SGI;
+	{
+		SgiHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_SGI;
+		}
+	}
 #endif
 
 #ifndef IL_NO_SCITEX
-	if (ilIsValidScitexF(context, File))
-		return IL_SCITEX;
+	{
+		ScitexHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_SCITEX;
+		}
+	}
 #endif
 
 #ifndef IL_NO_SUN
-	if (ilIsValidSunF(context, File))
-		return IL_SUN;
+	{
+		SunHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_SUN;
+		}
+	}
 #endif
 
 #ifndef IL_NO_TIF
@@ -486,18 +526,36 @@ ILenum ILAPIENTRY ilDetermineTypeF(ILcontext* context, ILHANDLE File)
 #endif
 
 #ifndef IL_NO_TPL
-	if (ilIsValidTplF(context, File))
-		return IL_TPL;
+	{
+		TplHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_TPL;
+		}
+	}
 #endif
 
 #ifndef IL_NO_VTF
-	if (ilIsValidVtfF(context, File))
-		return IL_VTF;
+	{
+		VtfHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_VTF;
+		}
+	}
 #endif
 
 #ifndef IL_NO_XPM
-	if (ilIsValidXpmF(context, File))
-		return IL_XPM;
+	{
+		XpmHandler handler(context);
+
+		if (handler.isValidF(File))
+		{
+			return IL_XPM;
+		}
+	}
 #endif
 
 	//moved tga to end of list because it has no magic number
@@ -743,23 +801,47 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 #endif
 
 #ifndef IL_NO_PSP
-	if (ilIsValidPspL(context, Lump, Size))
-		return IL_PSP;
+	{
+		PspHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_PSP;
+		}
+	}
 #endif
 
 #ifndef IL_NO_SCITEX
-	if (ilIsValidScitexL(context, Lump, Size))
-		return IL_SCITEX;
+	{
+		ScitexHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_SCITEX;
+		}
+	}
 #endif
 
 #ifndef IL_NO_SGI
-	if (ilIsValidSgiL(context, Lump, Size))
-		return IL_SGI;
+	{
+		SgiHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_SGI;
+		}
+	}
 #endif
 
 #ifndef IL_NO_SUN
-	if (ilIsValidSunL(context, Lump, Size))
-		return IL_SUN;
+	{
+		SunHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_SUN;
+		}
+	}
 #endif
 
 #ifndef IL_NO_TIF
@@ -774,18 +856,36 @@ ILenum ILAPIENTRY ilDetermineTypeL(ILcontext* context, const void *Lump, ILuint 
 #endif
 
 #ifndef IL_NO_TPL
-	if (ilIsValidTplL(context, Lump, Size))
-		return IL_TPL;
+	{
+		TplHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_TPL;
+		}
+	}
 #endif
 
 #ifndef IL_NO_VTF
-	if (ilIsValidVtfL(context, Lump, Size))
-		return IL_VTF;
+	{
+		VtfHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_VTF;
+		}
+	}
 #endif
 
 #ifndef IL_NO_XPM
-	if (ilIsValidXpmL(context, Lump, Size))
-		return IL_XPM;
+	{
+		XpmHandler handler(context);
+
+		if (handler.isValidL(Lump, Size))
+		{
+			return IL_XPM;
+		}
+	}
 #endif
 
 	//Moved Targa to end of list because it has no magic number
@@ -1013,22 +1113,38 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 #ifndef IL_NO_PSP
 	case IL_PSP:
-		return ilIsValidPsp(context, FileName);
+	{
+		PspHandler handler(context);
+
+		return handler.isValid(FileName);
+	}
 #endif
 
 #ifndef IL_NO_SCITEX
 	case IL_SCITEX:
-		return ilIsValidScitex(context, FileName);
+	{
+		ScitexHandler handler(context);
+
+		return handler.isValid(FileName);
+	}
 #endif
 
 #ifndef IL_NO_SGI
 	case IL_SGI:
-		return ilIsValidSgi(context, FileName);
+	{
+		SgiHandler handler(context);
+
+		return handler.isValid(FileName);
+	}
 #endif
 
 #ifndef IL_NO_SUN
 	case IL_SUN:
-		return ilIsValidSun(context, FileName);
+	{
+		SunHandler handler(context);
+
+		return handler.isValid(FileName);
+	}
 #endif
 
 #ifndef IL_NO_TIF
@@ -1042,17 +1158,29 @@ ILboolean ILAPIENTRY ilIsValid(ILcontext* context, ILenum Type, ILconst_string F
 
 #ifndef IL_NO_TPL
 	case IL_TPL:
-		return ilIsValidTpl(context, FileName);
+	{
+		TplHandler handler(context);
+
+		return handler.isValid(FileName);
+	}
 #endif
 
 #ifndef IL_NO_VTF
 	case IL_VTF:
-		return ilIsValidVtf(context, FileName);
+	{
+		VtfHandler handler(context);
+
+		return handler.isValid(FileName);
+	}
 #endif
 
 #ifndef IL_NO_XPM
 	case IL_XPM:
-		return ilIsValidXpm(context, FileName);
+	{
+		XpmHandler handler(context);
+
+		return handler.isValid(FileName);
+	}
 #endif
 	}
 
@@ -1270,22 +1398,38 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_PSP
 	case IL_PSP:
-		return ilIsValidPspF(context, File);
+	{
+		PspHandler handler(context);
+
+		return handler.isValidF(File);
+	}
 #endif
 
 #ifndef IL_NO_SCITEX
 	case IL_SCITEX:
-		return ilIsValidScitexF(context, File);
+	{
+		ScitexHandler handler(context);
+
+		return handler.isValidF(File);
+	}
 #endif
 
 #ifndef IL_NO_SGI
 	case IL_SGI:
-		return ilIsValidSgiF(context, File);
+	{
+		SgiHandler handler(context);
+
+		return handler.isValidF(File);
+	}
 #endif
 
 #ifndef IL_NO_SUN
 	case IL_SUN:
-		return ilIsValidSunF(context, File);
+	{
+		SunHandler handler(context);
+
+		return handler.isValidF(File);
+	}
 #endif
 
 #ifndef IL_NO_TIF
@@ -1299,17 +1443,29 @@ ILboolean ILAPIENTRY ilIsValidF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_TPL
 	case IL_TPL:
-		return ilIsValidTplF(context, File);
+	{
+		TplHandler handler(context);
+
+		return handler.isValidF(File);
+	}
 #endif
 
 #ifndef IL_NO_VTF
 	case IL_VTF:
-		return ilIsValidVtfF(context, File);
+	{
+		VtfHandler handler(context);
+
+		return handler.isValidF(File);
+	}
 #endif
 
 #ifndef IL_NO_XPM
 	case IL_XPM:
-		return ilIsValidXpmF(context, File);
+	{
+		XpmHandler handler(context);
+
+		return handler.isValidF(File);
+	}
 #endif
 	}
 
@@ -1527,22 +1683,38 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 #ifndef IL_NO_PSP
 	case IL_PSP:
-		return ilIsValidPspL(context, Lump, Size);
+	{
+		PspHandler handler(context);
+
+		return handler.isValidL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_SCITEX
 	case IL_SCITEX:
-		return ilIsValidScitexL(context, Lump, Size);
+	{
+		ScitexHandler handler(context);
+
+		return handler.isValidL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_SGI
 	case IL_SGI:
-		return ilIsValidSgiL(context, Lump, Size);
+	{
+		SgiHandler handler(context);
+
+		return handler.isValidL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_SUN
 	case IL_SUN:
-		return ilIsValidSunL(context, Lump, Size);
+	{
+		SunHandler handler(context);
+
+		return handler.isValidL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_TIF
@@ -1556,17 +1728,29 @@ ILboolean ILAPIENTRY ilIsValidL(ILcontext* context, ILenum Type, void *Lump, ILu
 
 #ifndef IL_NO_TPL
 	case IL_TPL:
-		return ilIsValidTplL(context, Lump, Size);
+	{
+		TplHandler handler(context);
+
+		return handler.isValidL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_VTF
 	case IL_VTF:
-		return ilIsValidVtfL(context, Lump, Size);
+	{
+		VtfHandler handler(context);
+
+		return handler.isValidL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_XPM
 	case IL_XPM:
-		return ilIsValidXpmL(context, Lump, Size);
+	{
+		XpmHandler handler(context);
+
+		return handler.isValidL(Lump, Size);
+	}
 #endif
 	}
 
@@ -1866,8 +2050,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_PCD
 	case IL_PCD:
-		ilLoadPcd(context, FileName);
-		break;
+	{
+		PcdHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_PCX
@@ -1892,8 +2080,12 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_PIX
 	case IL_PIX:
-		bRet = ilLoadPix(context, FileName);
-		break;
+	{
+		PixHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_PNM
@@ -1918,14 +2110,22 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_PSP
 	case IL_PSP:
-		bRet = ilLoadPsp(context, FileName);
-		break;
+	{
+		PspHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_PXR
 	case IL_PXR:
-		bRet = ilLoadPxr(context, FileName);
-		break;
+	{
+		PxrHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_RAW
@@ -1940,26 +2140,42 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_ROT
 	case IL_ROT:
-		bRet = ilLoadRot(context, FileName);
-		break;
+	{
+		RotHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_SGI
 	case IL_SGI:
-		bRet = ilLoadSgi(context, FileName);
-		break;
+	{
+		SgiHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_SUN
 	case IL_SUN:
-		bRet = ilLoadSun(context, FileName);
-		break;
+	{
+		SunHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_TEXTURE
 	case IL_TEXTURE:
-		bRet = ilLoadTexture(context, FileName);
-		break;
+	{
+		TextureHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_TIF
@@ -1974,38 +2190,62 @@ ILboolean ILAPIENTRY ilLoad(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_TPL
 	case IL_TPL:
-		bRet = ilLoadTpl(context, FileName);
-		break;
+	{
+		TplHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_UTX
 	case IL_UTX:
-		bRet = ilLoadUtx(context, FileName);
-		break;
+	{
+		UtxHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_VTF
 	case IL_VTF:
-		bRet = ilLoadVtf(context, FileName);
-		break;
+	{
+		VtfHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_WAL
 	case IL_WAL:
-		bRet = ilLoadWal(context, FileName);
-		break;
+	{
+		WalHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_WBMP
 	case IL_WBMP:
-		bRet = ilLoadWbmp(context, FileName);
-		break;
+	{
+		WbmpHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_XPM
 	case IL_XPM:
-		bRet = ilLoadXpm(context, FileName);
-		break;
+	{
+		XpmHandler handler(context);
+
+		bRet = handler.load(FileName);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_WDP
@@ -2287,7 +2527,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_PCD
 	case IL_PCD:
-		return ilLoadPcdF(context, File);
+	{
+		PcdHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_PCX
@@ -2310,7 +2554,11 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_PIX
 	case IL_PIX:
-		return ilLoadPixF(context, File);
+	{
+		PixHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_PNM
@@ -2333,12 +2581,20 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_PSP
 	case IL_PSP:
-		return ilLoadPspF(context, File);
+	{
+		PspHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_PXR
 	case IL_PXR:
-		return ilLoadPxrF(context, File);
+	{
+		PxrHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_RAW
@@ -2352,22 +2608,38 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_ROT
 	case IL_ROT:
-		return ilLoadRotF(context, File);
+	{
+		RotHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_SGI
 	case IL_SGI:
-		return ilLoadSgiF(context, File);
+	{
+		SgiHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_SUN
 	case IL_SUN:
-		return ilLoadSunF(context, File);
+	{
+		SunHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_TEXTURE
 	case IL_TEXTURE:
-		return ilLoadTextureF(context, File);
+	{
+		TextureHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_TIF
@@ -2381,32 +2653,56 @@ ILboolean ILAPIENTRY ilLoadF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_TPL
 	case IL_TPL:
-		return ilLoadTplF(context, File);
+	{
+		TplHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_UTX
 	case IL_UTX:
-		return ilLoadUtxF(context, File);
+	{
+		UtxHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_VTF
 	case IL_VTF:
-		return ilLoadVtfF(context, File);
+	{
+		VtfHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_WAL
 	case IL_WAL:
-		return ilLoadWalF(context, File);
+	{
+		WalHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_WBMP
 	case IL_WBMP:
-		return ilLoadWbmpF(context, File);
+	{
+		WbmpHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 
 #ifndef IL_NO_XPM
 	case IL_XPM:
-		return ilLoadXpmF(context, File);
+	{
+		XpmHandler handler(context);
+
+		return handler.loadF(File);
+	}
 #endif
 	}
 
@@ -2678,7 +2974,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 #ifndef IL_NO_PCD
 	case IL_PCD:
-		return ilLoadPcdL(context, Lump, Size);
+	{
+		PcdHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_PCX
@@ -2701,7 +3001,11 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 #ifndef IL_NO_PIX
 	case IL_PIX:
-		return ilLoadPixL(context, Lump, Size);
+	{
+		PixHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_PNM
@@ -2724,12 +3028,20 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 #ifndef IL_NO_PSP
 	case IL_PSP:
-		return ilLoadPspL(context, Lump, Size);
+	{
+		PspHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_PXR
 	case IL_PXR:
-		return ilLoadPxrL(context, Lump, Size);
+	{
+		PxrHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_RAW
@@ -2743,22 +3055,38 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 #ifndef IL_NO_ROT
 	case IL_ROT:
-		return ilLoadRotL(context, Lump, Size);
+	{
+		RotHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_SGI
 	case IL_SGI:
-		return ilLoadSgiL(context, Lump, Size);
+	{
+		SgiHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_SUN
 	case IL_SUN:
-		return ilLoadSunL(context, Lump, Size);
+	{
+		SunHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_TEXTURE
 	case IL_TEXTURE:
-		return ilLoadTextureL(context, Lump, Size);
+	{
+		TextureHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_TIF
@@ -2772,32 +3100,56 @@ ILboolean ILAPIENTRY ilLoadL(ILcontext* context, ILenum Type, const void *Lump, 
 
 #ifndef IL_NO_TPL
 	case IL_TPL:
-		return ilLoadTplL(context, Lump, Size);
+	{
+		TplHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_UTX
 	case IL_UTX:
-		return ilLoadUtxL(context, Lump, Size);
+	{
+		UtxHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_VTF
 	case IL_VTF:
-		return ilLoadVtfL(context, Lump, Size);
+	{
+		VtfHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_WAL
 	case IL_WAL:
-		return ilLoadWalL(context, Lump, Size);
+	{
+		WalHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_WBMP
 	case IL_WBMP:
-		return ilLoadWbmpL(context, Lump, Size);
+	{
+		WbmpHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_XPM
 	case IL_XPM:
-		return ilLoadXpmL(context, Lump, Size);
+	{
+		XpmHandler handler(context);
+
+		return handler.loadL(Lump, Size);
+	}
 #endif
 	}
 
@@ -2921,8 +3273,13 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_SCITEX
-		if (!iStrCmp(Ext, IL_TEXT("ch")) || !iStrCmp(Ext, IL_TEXT("ct")) || !iStrCmp(Ext, IL_TEXT("sct"))) {
-			bRet = ilLoadScitex(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("ch")) || !iStrCmp(Ext, IL_TEXT("ct")) || 
+			!iStrCmp(Ext, IL_TEXT("sct")))
+		{
+			ScitexHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -3131,8 +3488,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_PCD
-		if (!iStrCmp(Ext, IL_TEXT("pcd"))) {
-			bRet = ilLoadPcd(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("pcd")))
+		{
+			PcdHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -3160,8 +3521,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_PIX
-		if (!iStrCmp(Ext, IL_TEXT("pix"))) {
-			bRet = ilLoadPix(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("pix")))
+		{
+			PixHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -3191,30 +3556,46 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_PSP
-		if (!iStrCmp(Ext, IL_TEXT("psp"))) {
-			bRet = ilLoadPsp(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("psp")))
+		{
+			PspHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_PXR
-		if (!iStrCmp(Ext, IL_TEXT("pxr"))) {
-			bRet = ilLoadPxr(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("pxr")))
+		{
+			PxrHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_ROT
-		if (!iStrCmp(Ext, IL_TEXT("rot"))) {
-			bRet = ilLoadRot(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("rot")))
+		{
+			RotHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_SGI
 		if (!iStrCmp(Ext, IL_TEXT("sgi")) || !iStrCmp(Ext, IL_TEXT("bw")) ||
-			!iStrCmp(Ext, IL_TEXT("rgb")) || !iStrCmp(Ext, IL_TEXT("rgba"))) {
-			bRet = ilLoadSgi(context, FileName);
+			!iStrCmp(Ext, IL_TEXT("rgb")) || !iStrCmp(Ext, IL_TEXT("rgba")))
+		{
+			SgiHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -3223,15 +3604,23 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 		if (!iStrCmp(Ext, IL_TEXT("sun")) || !iStrCmp(Ext, IL_TEXT("ras")) ||
 			!iStrCmp(Ext, IL_TEXT("rs")) || !iStrCmp(Ext, IL_TEXT("im1")) ||
 			!iStrCmp(Ext, IL_TEXT("im8")) || !iStrCmp(Ext, IL_TEXT("im24")) ||
-			!iStrCmp(Ext, IL_TEXT("im32"))) {
-			bRet = ilLoadSun(context, FileName);
+			!iStrCmp(Ext, IL_TEXT("im32")))
+		{
+			SunHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_TEXTURE
-		if (!iStrCmp(Ext, IL_TEXT("texture"))) {
-			bRet = ilLoadTexture(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("texture")))
+		{
+			TextureHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -3248,36 +3637,56 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_TPL
-		if (!iStrCmp(Ext, IL_TEXT("tpl"))) {
-			bRet = ilLoadTpl(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("tpl")))
+		{
+			TplHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_UTX
-		if (!iStrCmp(Ext, IL_TEXT("utx"))) {
-			bRet = ilLoadUtx(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("utx")))
+		{
+			UtxHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_VTF
-		if (!iStrCmp(Ext, IL_TEXT("vtf"))) {
-			bRet = ilLoadVtf(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("vtf")))
+		{
+			VtfHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_WAL
-		if (!iStrCmp(Ext, IL_TEXT("wal"))) {
-			bRet = ilLoadWal(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("wal")))
+		{
+			WalHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
 
 #ifndef IL_NO_WBMP
-		if (!iStrCmp(Ext, IL_TEXT("wbmp"))) {
-			bRet = ilLoadWbmp(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("wbmp")))
+		{
+			WbmpHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -3290,8 +3699,12 @@ ILboolean ILAPIENTRY ilLoadImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_XPM
-		if (!iStrCmp(Ext, IL_TEXT("xpm"))) {
-			bRet = ilLoadXpm(context, FileName);
+		if (!iStrCmp(Ext, IL_TEXT("xpm")))
+		{
+			XpmHandler handler(context);
+
+			bRet = handler.load(FileName);
+
 			goto finish;
 		}
 #endif
@@ -3439,7 +3852,11 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_SGI
 	case IL_SGI:
-		return ilSaveSgi(context, FileName);
+	{
+		SgiHandler handler(context);
+
+		return handler.save(FileName);
+	}
 #endif
 
 #ifndef IL_NO_TGA
@@ -3462,16 +3879,28 @@ ILboolean ILAPIENTRY ilSave(ILcontext* context, ILenum Type, ILconst_string File
 
 #ifndef IL_NO_VTF
 	case IL_VTF:
-		return ilSaveVtf(context, FileName);
+	{
+		VtfHandler handler(context);
+
+		return handler.save(FileName);
+	}
 #endif
 
 #ifndef IL_NO_WBMP
 	case IL_WBMP:
-		return ilSaveWbmp(context, FileName);
+	{
+		WbmpHandler handler(context);
+
+		return handler.save(FileName);
+	}
 #endif
 
 	case IL_JASC_PAL:
-		return ilSaveJascPal(context, FileName);
+	{
+		PalHandler handler(context);
+
+		return handler.save(FileName);
+	}
 	}
 
 	ilSetError(context, IL_INVALID_ENUM);
@@ -3599,8 +4028,12 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_SGI
 	case IL_SGI:
-		Ret = ilSaveSgiF(context, File);
-		break;
+	{
+		SgiHandler handler(context);
+
+		Ret = handler.saveF(File);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_TGA
@@ -3615,14 +4048,22 @@ ILuint ILAPIENTRY ilSaveF(ILcontext* context, ILenum Type, ILHANDLE File)
 
 #ifndef IL_NO_VTF
 	case IL_VTF:
-		Ret = ilSaveVtfF(context, File);
-		break;
+	{
+		VtfHandler handler(context);
+
+		Ret = handler.saveF(File);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_WBMP
 	case IL_WBMP:
-		Ret = ilSaveWbmpF(context, File);
-		break;
+	{
+		WbmpHandler handler(context);
+
+		Ret = handler.saveF(File);
+	}
+	break;
 #endif
 
 #ifndef IL_NO_TIF
@@ -3752,7 +4193,11 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 #ifndef IL_NO_SGI
 	case IL_SGI:
-		return ilSaveSgiL(context, Lump, Size);
+	{
+		SgiHandler handler(context);
+
+		return handler.saveL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_TGA
@@ -3775,12 +4220,20 @@ ILuint ILAPIENTRY ilSaveL(ILcontext* context, ILenum Type, void *Lump, ILuint Si
 
 #ifndef IL_NO_VTF
 	case IL_VTF:
-		return ilSaveVtfL(context, Lump, Size);
+	{
+		VtfHandler handler(context);
+
+		return handler.saveL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_WBMP
 	case IL_WBMP:
-		return ilSaveWbmpL(context, Lump, Size);
+	{
+		WbmpHandler handler(context);
+
+		return handler.saveL(Lump, Size);
+	}
 #endif
 
 #ifndef IL_NO_TIF
@@ -3958,8 +4411,12 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 
 #ifndef IL_NO_SGI
 	if (!iStrCmp(Ext, IL_TEXT("sgi")) || !iStrCmp(Ext, IL_TEXT("bw")) ||
-		!iStrCmp(Ext, IL_TEXT("rgb")) || !iStrCmp(Ext, IL_TEXT("rgba"))) {
-		bRet = ilSaveSgi(context, FileName);
+		!iStrCmp(Ext, IL_TEXT("rgb")) || !iStrCmp(Ext, IL_TEXT("rgba")))
+	{
+		SgiHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 #endif
@@ -3987,15 +4444,23 @@ ILboolean ILAPIENTRY ilSaveImage(ILcontext* context, ILconst_string FileName)
 #endif
 
 #ifndef IL_NO_VTF
-	if (!iStrCmp(Ext, IL_TEXT("vtf"))) {
-		bRet = ilSaveVtf(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("vtf")))
+	{
+		VtfHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 #endif
 
 #ifndef IL_NO_WBMP
-	if (!iStrCmp(Ext, IL_TEXT("wbmp"))) {
-		bRet = ilSaveWbmp(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("wbmp")))
+	{
+		WbmpHandler handler(context);
+
+		bRet = handler.save(FileName);
+
 		goto finish;
 	}
 #endif

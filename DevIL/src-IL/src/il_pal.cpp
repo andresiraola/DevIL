@@ -10,13 +10,54 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#include "il_pal.h"
-#include <string.h>
+
 #include <ctype.h>
 #include <limits.h>
+#include <string.h>
 
+#include "il_pal.h"
+
+#define BUFFLEN	256
+#define PALBPP	3
+
+#ifdef _MSC_VER
+#pragma pack(push, packed_struct, 1)
+#endif
+
+typedef struct HALOHEAD
+{
+	ILushort	Id;  // 'AH'
+	ILshort		Version;
+	ILshort		Size;
+	ILbyte		Filetype;
+	ILbyte		Subtype;
+	//ILshort	Brdid, Grmode;
+	ILint		Ignored;
+	ILushort	MaxIndex;  // Colors = maxindex + 1
+	ILushort	MaxRed;
+	ILushort	MaxGreen;
+	ILushort	MaxBlue;
+	/*ILbyte	Signature[8];
+	ILbyte		Filler[12];*/
+	ILbyte		Filler[20];  // Always 0 by PSP 4
+} IL_PACKSTRUCT HALOHEAD;
+
+#ifdef _MSC_VER
+#pragma pack(pop,  packed_struct)
+#endif
+
+char*		iFgetw(ILcontext* context, ILubyte *Buff, ILint MaxLen, FILE *File);
+ILboolean	ilLoadActPal(ILcontext* context, ILconst_string FileName);
+ILboolean	ilLoadColPal(ILcontext* context, ILconst_string FileName);
+ILboolean	ilLoadHaloPal(ILcontext* context, ILconst_string FileName);
+ILboolean	ilLoadPltPal(ILcontext* context, ILconst_string FileName);
+
+PalHandler::PalHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Loads a palette from FileName into the current image's palette.
 ILboolean ILAPIENTRY ilLoadPal(ILcontext* context, ILconst_string FileName)
@@ -59,13 +100,17 @@ ILboolean ILAPIENTRY ilLoadPal(ILcontext* context, ILconst_string FileName)
 	fclose(f);
 
 	if (IsPsp)
-		return ilLoadJascPal(context, FileName);
+	{
+		PalHandler handler(context);
+
+		return handler.load(FileName);
+	}
+
 	return ilLoadHaloPal(context, FileName);
 }
 
-
 //! Loads a Paint Shop Pro formatted palette (.pal) file.
-ILboolean ilLoadJascPal(ILcontext* context, ILconst_string FileName)
+ILboolean PalHandler::load(ILconst_string FileName)
 {
 	FILE *PalFile;
 	ILuint NumColours, i, c;
@@ -135,7 +180,6 @@ ILboolean ilLoadJascPal(ILcontext* context, ILconst_string FileName)
 	return IL_TRUE;
 }
 
-
 // File Get Word
 //	MaxLen must be greater than 1, because the trailing NULL is always stored.
 char *iFgetw(ILcontext* context, ILubyte *Buff, ILint MaxLen, FILE *File)
@@ -177,7 +221,6 @@ char *iFgetw(ILcontext* context, ILubyte *Buff, ILint MaxLen, FILE *File)
 	return (char *)Buff;
 }
 
-
 ILboolean ILAPIENTRY ilSavePal(ILcontext* context, ILconst_string FileName)
 {
 	ILstring Ext = iGetExtension(FileName);
@@ -201,17 +244,19 @@ ILboolean ILAPIENTRY ilSavePal(ILcontext* context, ILconst_string FileName)
 		return IL_FALSE;
 	}
 
-	if (!iStrCmp(Ext, IL_TEXT("pal"))) {
-		return ilSaveJascPal(context, FileName);
+	if (!iStrCmp(Ext, IL_TEXT("pal")))
+	{
+		PalHandler handler(context);
+
+		return handler.save(FileName);
 	}
 
 	ilSetError(context, IL_INVALID_EXTENSION);
 	return IL_FALSE;
 }
 
-
 //! Saves a Paint Shop Pro formatted palette (.pal) file.
-ILboolean ilSaveJascPal(ILcontext* context, ILconst_string FileName)
+ILboolean PalHandler::save(ILconst_string FileName)
 {
 	FILE	*PalFile;
 	ILuint	i, PalBpp, NumCols = ilGetInteger(context, IL_PALETTE_NUM_COLS);
@@ -290,7 +335,6 @@ ILboolean ilSaveJascPal(ILcontext* context, ILconst_string FileName)
 	return IL_TRUE;
 }
 
-
 //! Loads a Halo formatted palette (.pal) file.
 ILboolean ilLoadHaloPal(ILcontext* context, ILconst_string FileName)
 {
@@ -359,10 +403,6 @@ ILboolean ilLoadHaloPal(ILcontext* context, ILconst_string FileName)
 
 	return IL_TRUE;
 }
-
-
-// Hasn't been tested
-//	@TODO: Test the thing!
 
 //! Loads a .col palette file
 ILboolean ilLoadColPal(ILcontext* context, ILconst_string FileName)
@@ -444,7 +484,6 @@ ILboolean ilLoadColPal(ILcontext* context, ILconst_string FileName)
 	return IL_TRUE;
 }
 
-
 //! Loads an .act palette file.
 ILboolean ilLoadActPal(ILcontext* context, ILconst_string FileName)
 {
@@ -488,7 +527,6 @@ ILboolean ilLoadActPal(ILcontext* context, ILconst_string FileName)
 
 	return IL_TRUE;
 }
-
 
 //! Loads an .plt palette file.
 ILboolean ilLoadPltPal(ILcontext* context, ILconst_string FileName)
@@ -540,7 +578,6 @@ ILboolean ilLoadPltPal(ILcontext* context, ILconst_string FileName)
 	return IL_TRUE;
 }
 
-
 // Assumes that Dest has nothing in it.
 ILboolean iCopyPalette(ILcontext* context, ILpal *Dest, ILpal *Src)
 {
@@ -558,7 +595,6 @@ ILboolean iCopyPalette(ILcontext* context, ILpal *Dest, ILpal *Src)
 
 	return IL_TRUE;
 }
-
 
 ILAPI ILpal* ILAPIENTRY iCopyPal(ILcontext* context)
 {
@@ -581,7 +617,6 @@ ILAPI ILpal* ILAPIENTRY iCopyPal(ILcontext* context)
 
 	return Pal;
 }
-
 
 // Converts the palette to the DestFormat format.
 ILAPI ILpal* ILAPIENTRY iConvertPal(ILcontext* context, ILpal *Pal, ILenum DestFormat)
@@ -839,7 +874,6 @@ alloc_error:
 	return NULL;
 }
 
-
 //! Converts the current image to the DestFormat format.
 ILboolean ILAPIENTRY ilConvertPal(ILcontext* context, ILenum DestFormat)
 {
@@ -871,7 +905,6 @@ ILboolean ILAPIENTRY ilConvertPal(ILcontext* context, ILenum DestFormat)
 	return IL_TRUE;
 }
 
-
 // Sets the current palette.
 ILAPI void ILAPIENTRY ilSetPal(ILcontext* context, ILpal *Pal)
 {
@@ -896,7 +929,6 @@ ILAPI void ILAPIENTRY ilSetPal(ILcontext* context, ILpal *Pal)
 	return;
 }
 
-
 ILuint CurSort = 0;
 typedef struct COL_CUBE
 {
@@ -909,7 +941,6 @@ int sort_func(void *e1, void *e2)
 {
 	return ((COL_CUBE*)e1)->Val[CurSort] - ((COL_CUBE*)e2)->Val[CurSort];
 }
-
 
 ILboolean ILAPIENTRY ilApplyPal(ILcontext* context, ILconst_string FileName)
 {

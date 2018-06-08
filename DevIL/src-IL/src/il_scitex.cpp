@@ -12,11 +12,11 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#ifndef IL_NO_SCITEX
-//#include "il_scitex.h"
 
+#ifndef IL_NO_SCITEX
+
+#include "il_scitex.h"
 
 typedef struct SCITEXHEAD
 {
@@ -31,10 +31,13 @@ typedef struct SCITEXHEAD
 	ILuint	WidthPixels;
 } SCITEXHEAD;
 
-ILboolean iIsValidScitex(ILcontext* context);
-ILboolean iLoadScitexInternal(ILcontext* context);
 ILboolean iCheckScitex(SCITEXHEAD *Header);
 
+ScitexHandler::ScitexHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 // Internal function used to get the Scitex header from the current file.
 ILboolean iGetScitexHead(ILcontext* context, SCITEXHEAD *Header)
@@ -86,9 +89,8 @@ ILboolean iGetScitexHead(ILcontext* context, SCITEXHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Checks if the file specified in FileName is a valid BLP file.
-ILboolean ilIsValidScitex(ILcontext* context, ILconst_string FileName)
+ILboolean ScitexHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	ScitexFile;
 	ILboolean	bScitex = IL_FALSE;
@@ -104,38 +106,35 @@ ILboolean ilIsValidScitex(ILcontext* context, ILconst_string FileName)
 		return bScitex;
 	}
 
-	bScitex = ilIsValidScitexF(context, ScitexFile);
+	bScitex = isValidF(ScitexFile);
 	context->impl->icloser(ScitexFile);
 
 	return bScitex;
 }
 
-
 //! Checks if the ILHANDLE contains a valid Scitex file at the current position.
-ILboolean ilIsValidScitexF(ILcontext* context, ILHANDLE File)
+ILboolean ScitexHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidScitex(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid BLP lump.
-ILboolean ilIsValidScitexL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean ScitexHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidScitex(context);
+	return isValidInternal();
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidScitex(ILcontext* context)
+ILboolean ScitexHandler::isValidInternal()
 {
 	SCITEXHEAD Header;
 
@@ -145,7 +144,6 @@ ILboolean iIsValidScitex(ILcontext* context)
 
 	return iCheckScitex(&Header);
 }
-
 
 // Internal function used to check if the HEADER is a valid BLP header.
 ILboolean iCheckScitex(SCITEXHEAD *Header)
@@ -166,10 +164,8 @@ ILboolean iCheckScitex(SCITEXHEAD *Header)
 	return IL_TRUE;
 }
 
-
-
 //! Reads a BLP file
-ILboolean ilLoadScitex(ILcontext* context, ILconst_string FileName)
+ILboolean ScitexHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	ScitexFile;
 	ILboolean	bScitex = IL_FALSE;
@@ -180,38 +176,35 @@ ILboolean ilLoadScitex(ILcontext* context, ILconst_string FileName)
 		return bScitex;
 	}
 
-	bScitex = ilLoadScitexF(context, ScitexFile);
+	bScitex = loadF(ScitexFile);
 	context->impl->icloser(ScitexFile);
 
 	return bScitex;
 }
 
-
 //! Reads an already-opened BLP file
-ILboolean ilLoadScitexF(ILcontext* context, ILHANDLE File)
+ILboolean ScitexHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadScitexInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a BLP
-ILboolean ilLoadScitexL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean ScitexHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadScitexInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the BLP.
-ILboolean iLoadScitexInternal(ILcontext* context)
+ILboolean ScitexHandler::loadInternal()
 {
 	SCITEXHEAD Header;
 	ILuint Pos = 0;
@@ -290,7 +283,5 @@ ILboolean iLoadScitexInternal(ILcontext* context)
 
 	return ilFixImage(context);
 };
-
-
 
 #endif//IL_NO_SCITEX

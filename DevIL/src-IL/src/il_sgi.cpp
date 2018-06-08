@@ -11,16 +11,64 @@
 //-----------------------------------------------------------------------------
 
 #include "il_internal.h"
+
 #ifndef IL_NO_SGI
-#include "il_sgi.h"
+
 #include <limits.h>
 
-static char *FName = NULL;
+#include "il_sgi.h"
 
-/*----------------------------------------------------------------------------*/
+typedef struct iSgiHeader
+{
+	ILshort		MagicNum;	// IRIS image file magic number
+	ILbyte		Storage;	// Storage format
+	ILbyte		Bpc;		// Number of bytes per pixel channel
+	ILushort	Dim;		// Number of dimensions
+							//  1: single channel, 1 row with XSize pixels
+							//  2: single channel, XSize*YSize pixels
+							//  3: ZSize channels, XSize*YSize pixels
+	
+	ILushort	XSize;		// X size in pixels
+	ILushort	YSize;		// Y size in pixels
+	ILushort	ZSize;		// Number of channels
+	ILint		PixMin;		// Minimum pixel value
+	ILint		PixMax;		// Maximum pixel value
+	ILint		Dummy1;		// Ignored
+	ILbyte		Name[80];	// Image name
+	ILint		ColMap;		// Colormap ID
+	ILbyte		Dummy[404];	// Ignored
+} IL_PACKSTRUCT iSgiHeader;
+
+// Sgi format #define's
+#define SGI_VERBATIM		0
+#define SGI_RLE				1
+#define SGI_MAGICNUM		474
+
+// Sgi colormap types
+#define SGI_COLMAP_NORMAL	0
+#define SGI_COLMAP_DITHERED	1
+#define SGI_COLMAP_SCREEN	2
+#define SGI_COLMAP_COLMAP	3
+
+// Internal functions
+ILboolean	iCheckSgi(iSgiHeader *Header);
+void		iExpandScanLine(ILubyte *Dest, ILubyte *Src, ILuint Bpc);
+ILint		iGetScanLine(ILcontext* context, ILubyte *ScanLine, iSgiHeader *Head, ILuint Length);
+ILint		iGetScanLineFast(ILubyte *ScanLine, iSgiHeader *Head, ILuint Length, ILubyte*);
+void		sgiSwitchData(ILubyte *Data, ILuint SizeOfData);
+ILboolean	iNewSgi(ILcontext* context, iSgiHeader *Head);
+ILboolean	iReadNonRleSgi(ILcontext* context, iSgiHeader *Head);
+ILboolean	iReadRleSgi(ILcontext* context, iSgiHeader *Head);
+ILboolean 	iSaveRleSgi(ILcontext* context, ILubyte *Data, ILuint w, ILuint h, ILuint numChannels, ILuint bps);
+
+SgiHandler::SgiHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 /*! Checks if the file specified in FileName is a valid .sgi file. */
-ILboolean ilIsValidSgi(ILcontext* context, ILconst_string FileName)
+ILboolean SgiHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	SgiFile;
 	ILboolean	bSgi = IL_FALSE;
@@ -38,39 +86,33 @@ ILboolean ilIsValidSgi(ILcontext* context, ILconst_string FileName)
 		return bSgi;
 	}
 
-	bSgi = ilIsValidSgiF(context, SgiFile);
+	bSgi = isValidF(SgiFile);
 	context->impl->icloser(SgiFile);
 
 	return bSgi;
 }
 
-/*----------------------------------------------------------------------------*/
-
 /*! Checks if the ILHANDLE contains a valid .sgi file at the current position.*/
-ILboolean ilIsValidSgiF(ILcontext* context, ILHANDLE File)
+ILboolean SgiHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidSgi(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-/*----------------------------------------------------------------------------*/
-
 //! Checks if Lump is a valid .sgi lump.
-ILboolean ilIsValidSgiL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean SgiHandler::isValidL(const void *Lump, ILuint Size)
 {
 	FName = NULL;
 	iSetInputLump(context, Lump, Size);
-	return iIsValidSgi(context);
+	return isValidInternal();
 }
-
-/*----------------------------------------------------------------------------*/
 
 // Internal function used to get the .sgi header from the current file.
 ILboolean iGetSgiHead(ILcontext* context, iSgiHeader *Header)
@@ -92,10 +134,8 @@ ILboolean iGetSgiHead(ILcontext* context, iSgiHeader *Header)
 	return IL_TRUE;
 }
 
-/*----------------------------------------------------------------------------*/
-
 /* Internal function to get the header and check it. */
-ILboolean iIsValidSgi(ILcontext* context)
+ILboolean SgiHandler::isValidInternal()
 {
 	iSgiHeader	Head;
 
@@ -105,8 +145,6 @@ ILboolean iIsValidSgi(ILcontext* context)
 
 	return iCheckSgi(&Head);
 }
-
-/*----------------------------------------------------------------------------*/
 
 /* Internal function used to check if the HEADER is a valid .sgi header. */
 ILboolean iCheckSgi(iSgiHeader *Header)
@@ -123,10 +161,8 @@ ILboolean iCheckSgi(iSgiHeader *Header)
 	return IL_TRUE;
 }
 
-/*----------------------------------------------------------------------------*/
-
 /*! Reads a SGI file */
-ILboolean ilLoadSgi(ILcontext* context, ILconst_string FileName)
+ILboolean SgiHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	SgiFile;
 	ILboolean	bSgi = IL_FALSE;
@@ -137,41 +173,35 @@ ILboolean ilLoadSgi(ILcontext* context, ILconst_string FileName)
 		return bSgi;
 	}
 
-	bSgi = ilLoadSgiF(context, SgiFile);
+	bSgi = loadF(SgiFile);
 	context->impl->icloser(SgiFile);
 
 	return bSgi;
 }
 
-/*----------------------------------------------------------------------------*/
-
 /*! Reads an already-opened SGI file */
-ILboolean ilLoadSgiF(ILcontext* context, ILHANDLE File)
+ILboolean SgiHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadSgiInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-/*----------------------------------------------------------------------------*/
-
 /*! Reads from a memory "lump" that contains a SGI image */
-ILboolean ilLoadSgiL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean SgiHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadSgiInternal(context);
+	return loadInternal();
 }
 
-/*----------------------------------------------------------------------------*/
-
 /* Internal function used to load the SGI image */
-ILboolean iLoadSgiInternal(ILcontext* context)
+ILboolean SgiHandler::loadInternal()
 {
 	iSgiHeader	Header;
 	ILboolean	bSgi;
@@ -206,8 +236,6 @@ ILboolean iLoadSgiInternal(ILcontext* context)
 		return IL_FALSE;
 	return ilFixImage(context);
 }
-
-/*----------------------------------------------------------------------------*/
 
 ILboolean iReadRleSgi(ILcontext* context, iSgiHeader *Head)
 {
@@ -316,8 +344,6 @@ cleanup_error:
 	return IL_FALSE;
 }
 
-/*----------------------------------------------------------------------------*/
-
 ILint iGetScanLine(ILcontext* context, ILubyte *ScanLine, iSgiHeader *Head, ILuint Length)
 {
 	ILushort Pixel, Count;  // For current pixel
@@ -369,9 +395,6 @@ ILint iGetScanLine(ILcontext* context, ILubyte *ScanLine, iSgiHeader *Head, ILui
 	return CurPos;
 }
 
-
-/*----------------------------------------------------------------------------*/
-
 // Much easier to read - just assemble from planes, no decompression
 ILboolean iReadNonRleSgi(ILcontext* context, iSgiHeader *Head)
 {
@@ -406,8 +429,6 @@ ILboolean iReadNonRleSgi(ILcontext* context, iSgiHeader *Head)
 	return IL_TRUE;
 }
 
-/*----------------------------------------------------------------------------*/
-
 void sgiSwitchData(ILubyte *Data, ILuint SizeOfData)
 {	
 	ILubyte	Temp;
@@ -436,8 +457,6 @@ void sgiSwitchData(ILubyte *Data, ILuint SizeOfData)
 	}
 	return;
 }
-
-/*----------------------------------------------------------------------------*/
 
 // Just an internal convenience function for reading SGI files
 ILboolean iNewSgi(ILcontext* context, iSgiHeader *Head)
@@ -490,10 +509,8 @@ ILboolean iNewSgi(ILcontext* context, iSgiHeader *Head)
 	return IL_TRUE;
 }
 
-/*----------------------------------------------------------------------------*/
-
 //! Writes a SGI file
-ILboolean ilSaveSgi(ILcontext* context, const ILstring FileName)
+ILboolean SgiHandler::save(const ILstring FileName)
 {
 	ILHANDLE	SgiFile;
 	ILuint		SgiSize;
@@ -511,7 +528,7 @@ ILboolean ilSaveSgi(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	SgiSize = ilSaveSgiF(context, SgiFile);
+	SgiSize = saveF(SgiFile);
 	context->impl->iclosew(SgiFile);
 
 	if (SgiSize == 0)
@@ -519,30 +536,27 @@ ILboolean ilSaveSgi(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a Sgi to an already-opened file
-ILuint ilSaveSgiF(ILcontext* context, ILHANDLE File)
+ILuint SgiHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveSgiInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a Sgi to a memory "lump"
-ILuint ilSaveSgiL(ILcontext* context, void *Lump, ILuint Size)
+ILuint SgiHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSaveSgiInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
-
 
 ILenum DetermineSgiType(ILcontext* context, ILenum Type)
 {
@@ -554,12 +568,10 @@ ILenum DetermineSgiType(ILcontext* context, ILenum Type)
 	return Type;
 }
 
-/*----------------------------------------------------------------------------*/
-
 // Rle does NOT work yet.
 
 // Internal function used to save the Sgi.
-ILboolean iSaveSgiInternal(ILcontext* context)
+ILboolean SgiHandler::saveInternal()
 {
 	ILuint		i, c;
 	ILboolean	Compress;
@@ -692,8 +704,6 @@ ILboolean iSaveSgiInternal(ILcontext* context)
 	return IL_TRUE;
 }
 
-/*----------------------------------------------------------------------------*/
-
 ILboolean iSaveRleSgi(ILcontext* context, ILubyte *Data, ILuint w, ILuint h, ILuint numChannels,
 		ILuint bps)
 {
@@ -756,7 +766,5 @@ ILboolean iSaveRleSgi(ILcontext* context, ILubyte *Data, ILuint w, ILuint h, ILu
 
 	return IL_TRUE;
 }
-
-/*----------------------------------------------------------------------------*/
 
 #endif//IL_NO_SGI

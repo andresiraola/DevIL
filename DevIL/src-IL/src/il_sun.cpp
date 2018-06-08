@@ -11,13 +11,13 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#ifndef IL_NO_SUN
-#include "il_bits.h"
 
-ILboolean	iLoadSunInternal(ILcontext* context);
-ILboolean	iIsValidSun(ILcontext* context);
+#ifndef IL_NO_SUN
+
+#include "il_bits.h"
+#include "il_sun.h"
+
 ILuint		iSunGetRle(ILcontext* context, ILubyte *Data, ILuint Length);
 
 typedef struct SUNHEAD
@@ -46,9 +46,14 @@ typedef struct SUNHEAD
 #define IL_SUN_RGB_MAP	0x01
 #define IL_SUN_RAW_MAP	0x02
 
+SunHandler::SunHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid Sun file.
-ILboolean ilIsValidSun(ILcontext* context, ILconst_string FileName)
+ILboolean SunHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	SunFile;
 	ILboolean	bSun = IL_FALSE;
@@ -67,35 +72,32 @@ ILboolean ilIsValidSun(ILcontext* context, ILconst_string FileName)
 		return bSun;
 	}
 	
-	bSun = ilIsValidSunF(context, SunFile);
+	bSun = isValidF(SunFile);
 	context->impl->icloser(SunFile);
 	
 	return bSun;
 }
 
-
 //! Checks if the ILHANDLE contains a valid Sun file at the current position.
-ILboolean ilIsValidSunF(ILcontext* context, ILHANDLE File)
+ILboolean SunHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidSun(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid Sun lump.
-ILboolean ilIsValidSunL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean SunHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidSun(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the Sun header from the current file.
 ILboolean iGetSunHead(ILcontext* context, SUNHEAD *Header)
@@ -111,7 +113,6 @@ ILboolean iGetSunHead(ILcontext* context, SUNHEAD *Header)
 
 	return IL_TRUE;
 }
-
 
 // Internal function used to check if the HEADER is a valid SUN header.
 ILboolean iCheckSun(SUNHEAD *Header)
@@ -137,9 +138,8 @@ ILboolean iCheckSun(SUNHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidSun(ILcontext* context)
+ILboolean SunHandler::isValidInternal()
 {
 	SUNHEAD Head;
 
@@ -150,9 +150,8 @@ ILboolean iIsValidSun(ILcontext* context)
 	return iCheckSun(&Head);
 }
 
-
 // Reads a Sun file
-ILboolean ilLoadSun(ILcontext* context, ILconst_string FileName)
+ILboolean SunHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	SunFile;
 	ILboolean	bSun = IL_FALSE;
@@ -165,38 +164,35 @@ ILboolean ilLoadSun(ILcontext* context, ILconst_string FileName)
 
 	iSetInputFile(context, SunFile);
 
-	bSun = ilLoadSunF(context, SunFile);
+	bSun = loadF(SunFile);
 
 	context->impl->icloser(SunFile);
 
 	return bSun;
 }
 
-
 //! Reads an already-opened Sun file
-ILboolean ilLoadSunF(ILcontext* context, ILHANDLE File)
+ILboolean SunHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadSunInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a Sun
-ILboolean ilLoadSunL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean SunHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadSunInternal(context);
+	return loadInternal();
 }
 
-
-ILboolean iLoadSunInternal(ILcontext* context)
+ILboolean SunHandler::loadInternal()
 {
 	SUNHEAD	Header;
 	BITFILE	*File;
@@ -358,7 +354,6 @@ ILboolean iLoadSunInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-
 ILuint iSunGetRle(ILcontext* context, ILubyte *Data, ILuint Length)
 {
 	ILuint	i = 0, j;
@@ -393,6 +388,4 @@ ILuint iSunGetRle(ILcontext* context, ILubyte *Data, ILuint Length)
 	return i;
 }
 
-
 #endif//IL_NO_SUN
-

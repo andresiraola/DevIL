@@ -10,15 +10,17 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#ifndef IL_NO_PXR
-#include "il_endian.h"
 
+#ifndef IL_NO_PXR
+
+#include "il_endian.h"
+#include "il_pxr.h"
 
 #ifdef _MSC_VER
 #pragma pack(push, pxr_struct, 1)
 #endif
+
 typedef struct PIXHEAD
 {
 	ILushort	Signature;
@@ -29,15 +31,19 @@ typedef struct PIXHEAD
 	ILubyte		BppInfo;
 	ILubyte		Reserved3[598];
 } IL_PACKSTRUCT PIXHEAD;
+
 #ifdef _MSC_VER
 #pragma pack(pop, pxr_struct)
 #endif
 
-ILboolean iLoadPxrInternal(ILcontext* context);
+PxrHandler::PxrHandler(ILcontext* context) :
+	context(context)
+{
 
+}
 
 //! Reads a Pxr file
-ILboolean ilLoadPxr(ILcontext* context, ILconst_string FileName)
+ILboolean PxrHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	PxrFile;
 	ILboolean	bPxr = IL_FALSE;
@@ -48,38 +54,35 @@ ILboolean ilLoadPxr(ILcontext* context, ILconst_string FileName)
 		return bPxr;
 	}
 
-	bPxr = ilLoadPxrF(context, PxrFile);
+	bPxr = loadF(PxrFile);
 	context->impl->icloser(PxrFile);
 
 	return bPxr;
 }
 
-
 //! Reads an already-opened Pxr file
-ILboolean ilLoadPxrF(ILcontext* context, ILHANDLE File)
+ILboolean PxrHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadPxrInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a Pxr
-ILboolean ilLoadPxrL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean PxrHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadPxrInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the Pxr.
-ILboolean iLoadPxrInternal(ILcontext* context)
+ILboolean PxrHandler::loadInternal()
 {
 	ILushort	Width, Height;
 	ILubyte		Bpp;
@@ -114,6 +117,5 @@ ILboolean iLoadPxrInternal(ILcontext* context)
 
 	return IL_TRUE;
 }
-
 
 #endif//IL_NO_PXR

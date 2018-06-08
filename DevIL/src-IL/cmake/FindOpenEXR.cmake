@@ -29,19 +29,21 @@ FIND_PATH(OPENEXR_INCLUDE_DIR ImfIO.h
 # example: OPENEXR_FIND_VAR(OPENEXR_IlmImf_LIBRARY IlmImf)
 MACRO(OPENEXR_FIND_VAR varname libname)
     FIND_LIBRARY( ${varname}
-        NAMES ${libname}
+        NAMES 
+            ${libname}
+            ${libname}-2_2.lib
         PATHS
-        $ENV{OPENEXR_DIR}/lib
-        $ENV{OPENEXR_DIR}
-        ~/Library/Frameworks
-        /Library/Frameworks
-        /usr/local/lib
-        /usr/lib
-        /sw/lib
-        /opt/local/lib
-        /opt/csw/lib
-        /opt/lib
-        /usr/freeware/lib64
+            $ENV{OPENEXR_DIR}/lib
+            $ENV{OPENEXR_DIR}
+            ~/Library/Frameworks
+            /Library/Frameworks
+            /usr/local/lib
+            /usr/lib
+            /sw/lib
+            /opt/local/lib
+            /opt/csw/lib
+            /opt/lib
+            /usr/freeware/lib64
     )
 ENDMACRO(OPENEXR_FIND_VAR)
 

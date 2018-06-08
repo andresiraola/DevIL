@@ -10,11 +10,12 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#ifndef IL_NO_WAL
-#include "il_q2pal.h"
 
+#ifndef IL_NO_WAL
+
+#include "il_q2pal.h"
+#include "il_wal.h"
 
 typedef struct WALHEAD
 {
@@ -28,11 +29,14 @@ typedef struct WALHEAD
 	ILuint	Value;			// ??
 } WALHEAD;
 
-ILboolean iLoadWalInternal(ILcontext* context);
+WalHandler::WalHandler(ILcontext* context) :
+	context(context)
+{
 
+}
 
 //! Reads a .wal file
-ILboolean ilLoadWal(ILcontext* context, ILconst_string FileName)
+ILboolean WalHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	WalFile;
 	ILboolean	bWal = IL_FALSE;
@@ -43,37 +47,34 @@ ILboolean ilLoadWal(ILcontext* context, ILconst_string FileName)
 		return bWal;
 	}
 
-	bWal = ilLoadWalF(context, WalFile);
+	bWal = loadF(WalFile);
 	context->impl->icloser(WalFile);
 
 	return bWal;
 }
 
-
 //! Reads an already-opened .wal file
-ILboolean ilLoadWalF(ILcontext* context, ILHANDLE File)
+ILboolean WalHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadWalInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .wal file
-ILboolean ilLoadWalL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean WalHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadWalInternal(context);
+	return loadInternal();
 }
 
-
-ILboolean iLoadWalInternal(ILcontext* context)
+ILboolean WalHandler::loadInternal()
 {
 	WALHEAD	Header;
 	ILimage	*Mipmaps[3], *CurImage;
@@ -163,6 +164,5 @@ cleanup_error:
 	}
 	return IL_FALSE;
 }
-
 
 #endif//IL_NO_WAL

@@ -11,18 +11,23 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_WBMP
+
 #include "il_bits.h"
+#include "il_wbmp.h"
 
+ILuint WbmpGetMultibyte(ILcontext* context);
 
-ILboolean	iLoadWbmpInternal(ILcontext* context);
-ILuint		WbmpGetMultibyte(ILcontext* context);
-ILboolean	iSaveWbmpInternal(ILcontext* context);
+WbmpHandler::WbmpHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 // Reads a .wbmp file
-ILboolean ilLoadWbmp(ILcontext* context, ILconst_string FileName)
+ILboolean WbmpHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	WbmpFile;
 	ILboolean	bWbmp = IL_FALSE;
@@ -35,38 +40,35 @@ ILboolean ilLoadWbmp(ILcontext* context, ILconst_string FileName)
 
 	iSetInputFile(context, WbmpFile);
 
-	bWbmp = ilLoadWbmpF(context, WbmpFile);
+	bWbmp = loadF(WbmpFile);
 
 	context->impl->icloser(WbmpFile);
 
 	return bWbmp;
 }
 
-
 //! Reads an already-opened .wbmp file
-ILboolean ilLoadWbmpF(ILcontext* context, ILHANDLE File)
+ILboolean WbmpHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadWbmpInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a .wbmp
-ILboolean ilLoadWbmpL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean WbmpHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadWbmpInternal(context);
+	return loadInternal();
 }
 
-
-ILboolean iLoadWbmpInternal(ILcontext* context)
+ILboolean WbmpHandler::loadInternal()
 {
 	ILuint	Width, Height, BitPadding, i;
 	BITFILE	*File;
@@ -119,7 +121,6 @@ ILboolean iLoadWbmpInternal(ILcontext* context)
 	return IL_TRUE;
 }
 
-
 ILuint WbmpGetMultibyte(ILcontext* context)
 {
 	ILuint Val = 0, i;
@@ -135,7 +136,6 @@ ILuint WbmpGetMultibyte(ILcontext* context)
 
 	return Val;
 }
-
 
 ILboolean WbmpPutMultibyte(ILcontext* context, ILuint Val)
 {
@@ -157,9 +157,8 @@ ILboolean WbmpPutMultibyte(ILcontext* context, ILuint Val)
 	return IL_TRUE;
 }
 
-
 //! Writes a Wbmp file
-ILboolean ilSaveWbmp(ILcontext* context, const ILstring FileName)
+ILboolean WbmpHandler::save(const ILstring FileName)
 {
 	ILHANDLE	WbmpFile;
 	ILuint		WbmpSize;
@@ -177,7 +176,7 @@ ILboolean ilSaveWbmp(ILcontext* context, const ILstring FileName)
 		return IL_FALSE;
 	}
 
-	WbmpSize = ilSaveWbmpF(context, WbmpFile);
+	WbmpSize = saveF(WbmpFile);
 	context->impl->iclosew(WbmpFile);
 
 	if (WbmpSize == 0)
@@ -185,39 +184,35 @@ ILboolean ilSaveWbmp(ILcontext* context, const ILstring FileName)
 	return IL_TRUE;
 }
 
-
 //! Writes a .wbmp to an already-opened file
-ILuint ilSaveWbmpF(ILcontext* context, ILHANDLE File)
+ILuint WbmpHandler::saveF(ILHANDLE File)
 {
 	ILuint Pos;
 	iSetOutputFile(context, File);
 	Pos = context->impl->itellw(context);
-	if (iSaveWbmpInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
 
-
 //! Writes a .wbmp to a memory "lump"
-ILuint ilSaveWbmpL(ILcontext* context, void *Lump, ILuint Size)
+ILuint WbmpHandler::saveL(void *Lump, ILuint Size)
 {
 	ILuint Pos;
 	iSetOutputLump(context, Lump, Size);
 	Pos = context->impl->itellw(context);
-	if (iSaveWbmpInternal(context) == IL_FALSE)
+	if (saveInternal() == IL_FALSE)
 		return 0;  // Error occurred
 	return context->impl->itellw(context) - Pos;  // Return the number of bytes written.
 }
-
 
 // In il_quantizer.c
 ILimage *iQuantizeImage(ILcontext* context, ILimage *Image, ILuint NumCols);
 // In il_neuquant.c
 ILimage *iNeuQuant(ILcontext* context, ILimage *Image, ILuint NumCols);
 
-
 // Internal function used to save the Wbmp.
-ILboolean iSaveWbmpInternal(ILcontext* context)
+ILboolean WbmpHandler::saveInternal()
 {
 	ILimage	*TempImage = NULL;
 	ILuint	i, j;
@@ -271,4 +266,3 @@ ILboolean iSaveWbmpInternal(ILcontext* context)
 }
 
 #endif//IL_NO_WBMP
-

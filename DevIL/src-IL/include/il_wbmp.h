@@ -2,13 +2,11 @@
 //
 // ImageLib Sources
 // Copyright (C) 2000-2017 by Denton Woods
-// Last modified: 02/28/2009
+// Last modified: 09/01/2003 <--Y2K Compliant! =]
 //
-// Filename: src-IL/include/il_vtf.h
+// Filename: src-IL/include/il_bmp.h
 //
-// Description: Reads from and writes to a Valve Texture Format (.vtf) file.
-//                These are used in Valve's Source games.  VTF specs available
-//                from http://developer.valvesoftware.com/wiki/VTF.
+// Description: Reads and writes to a bitmap (.bmp) file.
 //
 //-----------------------------------------------------------------------------
 
@@ -16,21 +14,16 @@
 
 #include "il_internal.h"
 
-class VtfHandler
+class WbmpHandler
 {
 protected:
 	ILcontext * context;
 
-	ILboolean	isValidInternal();
 	ILboolean	loadInternal();
 	ILboolean	saveInternal();
 
 public:
-	VtfHandler(ILcontext* context);
-
-	ILboolean	isValid(ILconst_string FileName);
-	ILboolean	isValidF(ILHANDLE File);
-	ILboolean	isValidL(const void *Lump, ILuint Size);
+	WbmpHandler(ILcontext* context);
 
 	ILboolean	load(ILconst_string FileName);
 	ILboolean	loadF(ILHANDLE File);

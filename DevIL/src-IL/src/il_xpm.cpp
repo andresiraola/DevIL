@@ -10,23 +10,29 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
+
 #ifndef IL_NO_XPM
+
 #include <ctype.h>
 
+#include "il_xpm.h"
 
 //If this is defined, only xpm files with 1 char/pixel
 //can be loaded. They load somewhat faster then, though
 //(not much).
 //#define XPM_DONT_USE_HASHTABLE
 
-ILboolean iIsValidXpm(ILcontext* context);
-ILboolean iLoadXpmInternal(ILcontext* context);
 ILint XpmGetsInternal(ILcontext* context, ILubyte *Buffer, ILint MaxLen);
 
+XpmHandler::XpmHandler(ILcontext* context) :
+	context(context)
+{
+
+}
+
 //! Checks if the file specified in FileName is a valid XPM file.
-ILboolean ilIsValidXpm(ILcontext* context, ILconst_string FileName)
+ILboolean XpmHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	XpmFile;
 	ILboolean	bXpm = IL_FALSE;
@@ -42,38 +48,35 @@ ILboolean ilIsValidXpm(ILcontext* context, ILconst_string FileName)
 		return bXpm;
 	}
 	
-	bXpm = ilIsValidXpmF(context, XpmFile);
+	bXpm = isValidF(XpmFile);
 	context->impl->icloser(XpmFile);
 	
 	return bXpm;
 }
 
-
 //! Checks if the ILHANDLE contains a valid XPM file at the current position.
-ILboolean ilIsValidXpmF(ILcontext* context, ILHANDLE File)
+ILboolean XpmHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidXpm(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid XPM lump.
-ILboolean ilIsValidXpmL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean XpmHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidXpm(context);
+	return isValidInternal();
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidXpm(ILcontext* context)
+ILboolean XpmHandler::isValidInternal()
 {
 	ILubyte	Buffer[10];
 	ILuint	Pos = context->impl->itell(context);
@@ -86,9 +89,8 @@ ILboolean iIsValidXpm(ILcontext* context)
 	return IL_TRUE;
 }
 
-
 // Reads an .xpm file
-ILboolean ilLoadXpm(ILcontext* context, ILconst_string FileName)
+ILboolean XpmHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	XpmFile;
 	ILboolean	bXpm = IL_FALSE;
@@ -100,40 +102,36 @@ ILboolean ilLoadXpm(ILcontext* context, ILconst_string FileName)
 	}
 
 	iSetInputFile(context, XpmFile);
-	bXpm = ilLoadXpmF(context, XpmFile);
+	bXpm = loadF(XpmFile);
 	context->impl->icloser(XpmFile);
 
 	return bXpm;
 }
 
-
 //! Reads an already-opened .xpm file
-ILboolean ilLoadXpmF(ILcontext* context, ILHANDLE File)
+ILboolean XpmHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadXpmInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains an .xpm
-ILboolean ilLoadXpmL(ILcontext* context, const void *Lump, ILuint Size)
- {
+ILboolean XpmHandler::loadL(const void *Lump, ILuint Size)
+{
 	iSetInputLump(context, Lump, Size);
-	return iLoadXpmInternal(context);
+	return loadInternal();
 }
-
 
 typedef ILubyte XpmPixel[4];
 
 #define XPM_MAX_CHAR_PER_PIXEL 2
-
 
 #ifndef XPM_DONT_USE_HASHTABLE
 
@@ -158,7 +156,6 @@ typedef struct XPMHASHENTRY
 	struct XPMHASHENTRY *Next;
 } XPMHASHENTRY;
 
-
 static ILuint XpmHash(const ILubyte* name, int len)
 {
 	ILint i, sum;
@@ -166,7 +163,6 @@ static ILuint XpmHash(const ILubyte* name, int len)
 		sum += name[i];
 	return sum % XPM_HASH_LEN;
 }
-
 
 XPMHASHENTRY** XpmCreateHashTable(ILcontext* context)
 {
@@ -176,7 +172,6 @@ XPMHASHENTRY** XpmCreateHashTable(ILcontext* context)
 		memset(Table, 0, XPM_HASH_LEN*sizeof(XPMHASHENTRY*));
 	return Table;
 }
-
 
 void XpmDestroyHashTable(XPMHASHENTRY **Table)
 {
@@ -194,7 +189,6 @@ void XpmDestroyHashTable(XPMHASHENTRY **Table)
 	ifree(Table);
 }
 
-
 void XpmInsertEntry(ILcontext* context, XPMHASHENTRY **Table, const ILubyte* Name, int Len, XpmPixel Colour)
 {
 	XPMHASHENTRY* NewEntry;
@@ -209,7 +203,6 @@ void XpmInsertEntry(ILcontext* context, XPMHASHENTRY **Table, const ILubyte* Nam
 		Table[Index] = NewEntry;
 	}
 }
-
 
 void XpmGetEntry(XPMHASHENTRY **Table, const ILubyte* Name, int Len, XpmPixel Colour)
 {
@@ -226,7 +219,6 @@ void XpmGetEntry(XPMHASHENTRY **Table, const ILubyte* Name, int Len, XpmPixel Co
 }
 
 #endif //XPM_DONT_USE_HASHTABLE
-
 
 ILint XpmGetsInternal(ILcontext* context, ILubyte *Buffer, ILint MaxLen)
 {
@@ -259,7 +251,6 @@ ILint XpmGetsInternal(ILcontext* context, ILubyte *Buffer, ILint MaxLen)
 
 	return i;
 }
-
 
 ILint XpmGets(ILcontext* context, ILubyte *Buffer, ILint MaxLen)
 {
@@ -308,7 +299,6 @@ ILint XpmGets(ILcontext* context, ILubyte *Buffer, ILint MaxLen)
 	return Size;
 }
 
-
 ILint XpmGetInt(ILubyte *Buffer, ILint Size, ILint *Position)
 {
 	char		Buff[1024];
@@ -331,7 +321,6 @@ ILint XpmGetInt(ILubyte *Buffer, ILint Size, ILint *Position)
 
 	return -1;
 }
-
 
 ILboolean XpmPredefCol(char *Buff, XpmPixel *Colour)
 {
@@ -429,7 +418,6 @@ ILboolean XpmPredefCol(char *Buff, XpmPixel *Colour)
 
 	return IL_FALSE;
 }
-
 
 #ifndef XPM_DONT_USE_HASHTABLE
 ILboolean XpmGetColour(ILcontext* context, ILubyte *Buffer, ILint Size, int Len, XPMHASHENTRY **Table)
@@ -540,8 +528,7 @@ ILboolean XpmGetColour(ILcontext* context, ILubyte *Buffer, ILint Size, int Len,
 	return IL_TRUE;
 }
 
-
-ILboolean iLoadXpmInternal(ILcontext* context)
+ILboolean XpmHandler::loadInternal()
 {
 #define BUFFER_SIZE 2000
 	ILubyte			Buffer[BUFFER_SIZE], *Data;
@@ -652,4 +639,3 @@ ILboolean iLoadXpmInternal(ILcontext* context)
 }
 
 #endif//IL_NO_XPM
-

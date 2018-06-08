@@ -12,11 +12,12 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "il_internal.h"
-#ifndef IL_NO_TPL
-#include "il_dds.h"
 
+#ifndef IL_NO_TPL
+
+#include "il_dds.h"
+#include "il_tpl.h"
 
 typedef struct TPLHEAD
 {
@@ -48,15 +49,17 @@ typedef struct TPLHEAD
 #define TPL_PAL_RGB565	1
 #define TPL_PAL_RGB5A3	2
 
-
-ILboolean iIsValidTpl(ILcontext* context);
 ILboolean iCheckTpl(TPLHEAD *Header);
-ILboolean iLoadTplInternal(ILcontext* context);
 ILboolean TplGetIndexImage(ILcontext* context, ILimage *Image, ILuint TexOff, ILuint DataFormat);
 
+TplHandler::TplHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Checks if the file specified in FileName is a valid TPL file.
-ILboolean ilIsValidTpl(ILcontext* context, ILconst_string FileName)
+ILboolean TplHandler::isValid(ILconst_string FileName)
 {
 	ILHANDLE	TplFile;
 	ILboolean	bTpl = IL_FALSE;
@@ -72,35 +75,32 @@ ILboolean ilIsValidTpl(ILcontext* context, ILconst_string FileName)
 		return bTpl;
 	}
 	
-	bTpl = ilIsValidTplF(context, TplFile);
+	bTpl = isValidF(TplFile);
 	context->impl->icloser(TplFile);
 	
 	return bTpl;
 }
 
-
 //! Checks if the ILHANDLE contains a valid TPL file at the current position.
-ILboolean ilIsValidTplF(ILcontext* context, ILHANDLE File)
+ILboolean TplHandler::isValidF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iIsValidTpl(context);
+	bRet = isValidInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Checks if Lump is a valid TPL lump.
-ILboolean ilIsValidTplL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean TplHandler::isValidL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iIsValidTpl(context);
+	return isValidInternal();
 }
-
 
 // Internal function used to get the TPL header from the current file.
 ILboolean iGetTplHead(ILcontext* context, TPLHEAD *Header)
@@ -111,9 +111,8 @@ ILboolean iGetTplHead(ILcontext* context, TPLHEAD *Header)
 	return IL_TRUE;
 }
 
-
 // Internal function to get the header and check it.
-ILboolean iIsValidTpl(ILcontext* context)
+ILboolean TplHandler::isValidInternal()
 {
 	TPLHEAD Header;
 
@@ -123,7 +122,6 @@ ILboolean iIsValidTpl(ILcontext* context)
 	
 	return iCheckTpl(&Header);
 }
-
 
 // Internal function used to check if the HEADER is a valid TPL header.
 ILboolean iCheckTpl(TPLHEAD *Header)
@@ -141,9 +139,8 @@ ILboolean iCheckTpl(TPLHEAD *Header)
 	return IL_TRUE;
 }
 
-
 //! Reads a TPL file
-ILboolean ilLoadTpl(ILcontext* context, ILconst_string FileName)
+ILboolean TplHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	TplFile;
 	ILboolean	bTpl = IL_FALSE;
@@ -154,38 +151,35 @@ ILboolean ilLoadTpl(ILcontext* context, ILconst_string FileName)
 		return bTpl;
 	}
 
-	bTpl = ilLoadTplF(context, TplFile);
+	bTpl = loadF(TplFile);
 	context->impl->icloser(TplFile);
 
 	return bTpl;
 }
 
-
 //! Reads an already-opened TPL file
-ILboolean ilLoadTplF(ILcontext* context, ILHANDLE File)
+ILboolean TplHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
 	
 	iSetInputFile(context, File);
 	FirstPos = context->impl->itell(context);
-	bRet = iLoadTplInternal(context);
+	bRet = loadInternal();
 	context->impl->iseek(context, FirstPos, IL_SEEK_SET);
 	
 	return bRet;
 }
 
-
 //! Reads from a memory "lump" that contains a TPL
-ILboolean ilLoadTplL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean TplHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
-	return iLoadTplInternal(context);
+	return loadInternal();
 }
 
-
 // Internal function used to load the TPL.
-ILboolean iLoadTplInternal(ILcontext* context)
+ILboolean TplHandler::loadInternal()
 {
 	TPLHEAD		Header;
 	ILimage		*Image/*, *BaseImage*/;
@@ -591,7 +585,6 @@ ILboolean iLoadTplInternal(ILcontext* context)
 	return ilFixImage(context);
 }
 
-
 ILboolean TplGetIndexImage(ILcontext* context, ILimage *Image, ILuint TexOff, ILuint DataFormat)
 {
 	ILushort	NumPal, ShortPixel;
@@ -779,4 +772,5 @@ ILboolean TplGetIndexImage(ILcontext* context, ILimage *Image, ILuint TexOff, IL
 
 	return IL_TRUE;
 }
+
 #endif//IL_NO_TPL

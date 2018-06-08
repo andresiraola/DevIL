@@ -10,57 +10,33 @@
 //
 //-----------------------------------------------------------------------------
 
-
-#ifndef SGI_H
-#define SGI_H
+#pragma once
 
 #include "il_internal.h"
 
-typedef struct iSgiHeader
+class SgiHandler
 {
-	ILshort		MagicNum;	// IRIS image file magic number
-	ILbyte		Storage;	// Storage format
-	ILbyte		Bpc;		// Number of bytes per pixel channel
-	ILushort	Dim;		// Number of dimensions
-							//  1: single channel, 1 row with XSize pixels
-							//  2: single channel, XSize*YSize pixels
-							//  3: ZSize channels, XSize*YSize pixels
-	
-	ILushort	XSize;		// X size in pixels
-	ILushort	YSize;		// Y size in pixels
-	ILushort	ZSize;		// Number of channels
-	ILint		PixMin;		// Minimum pixel value
-	ILint		PixMax;		// Maximum pixel value
-	ILint		Dummy1;		// Ignored
-	ILbyte		Name[80];	// Image name
-	ILint		ColMap;		// Colormap ID
-	ILbyte		Dummy[404];	// Ignored
-} IL_PACKSTRUCT iSgiHeader;
+protected:
+	ILcontext * context;
 
-// Sgi format #define's
-#define SGI_VERBATIM		0
-#define SGI_RLE				1
-#define SGI_MAGICNUM		474
+	char* FName = nullptr;
 
-// Sgi colormap types
-#define SGI_COLMAP_NORMAL	0
-#define SGI_COLMAP_DITHERED	1
-#define SGI_COLMAP_SCREEN	2
-#define SGI_COLMAP_COLMAP	3
+	ILboolean	isValidInternal();
+	ILboolean	loadInternal();
+	ILboolean	saveInternal();
 
+public:
+	SgiHandler(ILcontext* context);
 
-// Internal functions
-ILboolean	iIsValidSgi(ILcontext* context);
-ILboolean	iCheckSgi(iSgiHeader *Header);
-ILboolean	iLoadSgiInternal(ILcontext* context);
-ILboolean	iSaveSgiInternal(ILcontext* context);
-void		iExpandScanLine(ILubyte *Dest, ILubyte *Src, ILuint Bpc);
-ILint		iGetScanLine(ILcontext* context, ILubyte *ScanLine, iSgiHeader *Head, ILuint Length);
-ILint		iGetScanLineFast(ILubyte *ScanLine, iSgiHeader *Head, ILuint Length, ILubyte*);
-void		sgiSwitchData(ILubyte *Data, ILuint SizeOfData);
-ILboolean	iNewSgi(ILcontext* context, iSgiHeader *Head);
-ILboolean	iReadNonRleSgi(ILcontext* context, iSgiHeader *Head);
-ILboolean	iReadRleSgi(ILcontext* context, iSgiHeader *Head);
-ILboolean 	iSaveRleSgi(ILcontext* context, ILubyte *Data, ILuint w, ILuint h, ILuint numChannels, ILuint bps);
+	ILboolean	isValid(ILconst_string FileName);
+	ILboolean	isValidF(ILHANDLE File);
+	ILboolean	isValidL(const void *Lump, ILuint Size);
 
-#endif//SGI_H
+	ILboolean	load(ILconst_string FileName);
+	ILboolean	loadF(ILHANDLE File);
+	ILboolean	loadL(const void *Lump, ILuint Size);
+
+	ILboolean	save(ILconst_string FileName);
+	ILuint		saveF(ILHANDLE File);
+	ILuint		saveL(void *Lump, ILuint Size);
+};

@@ -16,9 +16,16 @@
 #ifndef IL_NO_TEXTURE
 
 #include "il_dds.h"
+#include "il_texture.h"
+
+TextureHandler::TextureHandler(ILcontext* context) :
+	context(context)
+{
+
+}
 
 //! Reads a TEXTURE file
-ILboolean ilLoadTexture(ILcontext* context, ILconst_string FileName)
+ILboolean TextureHandler::load(ILconst_string FileName)
 {
 	ILHANDLE	TextureFile;
 	ILboolean	bTexture = IL_FALSE;
@@ -29,14 +36,14 @@ ILboolean ilLoadTexture(ILcontext* context, ILconst_string FileName)
 		return bTexture;
 	}
 
-	bTexture = ilLoadTextureF(context, TextureFile);
+	bTexture = loadF(TextureFile);
 	context->impl->icloser(TextureFile);
 
 	return bTexture;
 }
 
 //! Reads an already-opened TEXTURE file
-ILboolean ilLoadTextureF(ILcontext* context, ILHANDLE File)
+ILboolean TextureHandler::loadF(ILHANDLE File)
 {
 	ILuint		FirstPos;
 	ILboolean	bRet;
@@ -57,7 +64,7 @@ ILboolean ilLoadTextureF(ILcontext* context, ILHANDLE File)
 }
 
 //! Reads from a memory "lump" that contains a TEXTURE
-ILboolean ilLoadTextureL(ILcontext* context, const void *Lump, ILuint Size)
+ILboolean TextureHandler::loadL(const void *Lump, ILuint Size)
 {
 	iSetInputLump(context, Lump, Size);
 	// From http://forums.totalwar.org/vb/showthread.php?t=70886, all that needs to be done
