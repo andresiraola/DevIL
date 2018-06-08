@@ -10,28 +10,27 @@
 //
 //-----------------------------------------------------------------------------
 
-
 #include "ilu_internal.h"
 #include "ilu_states.h"
 
+#include "ilu_context.h"
 
 ILboolean ILAPIENTRY iluEnlargeImage(ILcontext* context, ILfloat XDim, ILfloat YDim, ILfloat ZDim)
 {
-	if (XDim <= 0.0f || YDim <= 0.0f || ZDim <= 0.0f) {
+	if (XDim <= 0.0f || YDim <= 0.0f || ZDim <= 0.0f)
+	{
 		ilSetError(context, ILU_INVALID_PARAM);
 		return IL_FALSE;
 	}
 
 	iluCurImage = ilGetCurImage(context);
-	return iluScale(context, (ILuint)(iluCurImage->Width * XDim), (ILuint)(iluCurImage->Height * YDim),
-					(ILuint)(iluCurImage->Depth * ZDim));
+
+	return iluScale(context, (ILuint)(iluCurImage->Width * XDim), (ILuint)(iluCurImage->Height * YDim), (ILuint)(iluCurImage->Depth * ZDim));
 }
 
-
-ILimage *iluScale1D_(ILcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width);
-ILimage *iluScale2D_(ILcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height);
-ILimage *iluScale3D_(ILcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height, ILuint Depth);
-
+ILimage *iluScale1D_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width);
+ILimage *iluScale2D_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height);
+ILimage *iluScale3D_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height, ILuint Depth);
 
 ILboolean ILAPIENTRY iluScale(ILcontext* context, ILuint Width, ILuint Height, ILuint Depth)
 {
@@ -133,7 +132,6 @@ ILboolean ILAPIENTRY iluScale(ILcontext* context, ILuint Width, ILuint Height, I
 	return IL_FALSE;
 }
 
-
 ILAPI ILimage* ILAPIENTRY iluScale_(ILcontext* context, ILimage *Image, ILuint Width, ILuint Height, ILuint Depth)
 {
 	ILimage	*Scaled, *CurImage, *ToScale;
@@ -166,16 +164,22 @@ ILAPI ILimage* ILAPIENTRY iluScale_(ILcontext* context, ILimage *Image, ILuint W
 		ilSetCurImage(context, CurImage);
 		return NULL;
 	}
+
+	ILUcontext* iluContext = new ILUcontext();
+
+	iluContext->ilContext = context;
 	
 	if (Height <= 1 && Image->Height <= 1) {
-		iluScale1D_(context, ToScale, Scaled, Width);
+		iluScale1D_(iluContext, ToScale, Scaled, Width);
 	}
 	if (Depth <= 1 && Image->Depth <= 1) {
-		iluScale2D_(context, ToScale, Scaled, Width, Height);
+		iluScale2D_(iluContext, ToScale, Scaled, Width, Height);
 	}
 	else {
-		iluScale3D_(context, ToScale, Scaled, Width, Height, Depth);
+		iluScale3D_(iluContext, ToScale, Scaled, Width, Height, Depth);
 	}
+
+	delete iluContext;
 
 	if (Format == IL_COLOUR_INDEX) {
 		//ilSetCurImage(Scaled);
@@ -187,8 +191,7 @@ ILAPI ILimage* ILAPIENTRY iluScale_(ILcontext* context, ILimage *Image, ILuint W
 	return Scaled;
 }
 
-
-ILimage *iluScale1D_(ILcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width)
+ILimage *iluScale1D_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width)
 {
 	ILuint		x1, x2;
 	ILuint		NewX1, NewX2, NewX3, x, c;
@@ -197,7 +200,7 @@ ILimage *iluScale1D_(ILcontext* context, ILimage *Image, ILimage *Scaled, ILuint
 	ILuint		*IntPtr, *SIntPtr;
 
 	if (Image == NULL) {
-		ilSetError(context, ILU_ILLEGAL_OPERATION);
+		ilSetError(context->ilContext, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 

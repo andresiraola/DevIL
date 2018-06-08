@@ -10,461 +10,407 @@
 //
 //-----------------------------------------------------------------------------
 
-
 // NOTE:  Don't look at this file if you wish to preserve your sanity!
 
-
+#include "ilu_context.h"
 #include "ilu_internal.h"
 #include "ilu_states.h"
 
+ILimage *iluScale2DNear_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height);
+ILimage *iluScale2DLinear_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height);
+ILimage *iluScale2DBilinear_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height);
 
-ILimage *iluScale2DNear_(ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height);
-ILimage *iluScale2DLinear_(ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height);
-ILimage *iluScale2DBilinear_(ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height);
-
-static ILuint	x1, x2;
-static ILuint	NewY1, NewY2, NewX1, NewX2, Size, x, y, c;
-static ILdouble	ScaleX, ScaleY, t1, t2, t3, t4, f, ft, NewX;
-static ILdouble	Table[2][4];  // Assumes we don't have larger than 32-bit images.
-static ILuint	ImgBps, SclBps;
-static ILushort	*ShortPtr, *SShortPtr;
-static ILuint	*IntPtr, *SIntPtr;
-static ILfloat	*FloatPtr, *SFloatPtr;
-
-
-
-ILimage *iluScale2D_(ILcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
+ILimage *iluScale2D_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
 {
 	if (Image == NULL) {
-		ilSetError(context, ILU_ILLEGAL_OPERATION);
+		ilSetError(context->ilContext, ILU_ILLEGAL_OPERATION);
 		return IL_FALSE;
 	}
 
-	ScaleX = (ILfloat)Width / Image->Width;
-	ScaleY = (ILfloat)Height / Image->Height;
+	context->ScaleX = (ILfloat)Width / Image->Width;
+	context->ScaleY = (ILfloat)Height / Image->Height;
 
 	if (iluFilter == ILU_NEAREST)
-		return iluScale2DNear_(Image, Scaled, Width, Height);
+		return iluScale2DNear_(context, Image, Scaled, Width, Height);
 	else if (iluFilter == ILU_LINEAR)
-		return iluScale2DLinear_(Image, Scaled, Width, Height);
+		return iluScale2DLinear_(context, Image, Scaled, Width, Height);
 	// iluFilter == ILU_BILINEAR
-	return iluScale2DBilinear_(Image, Scaled, Width, Height);
+	return iluScale2DBilinear_(context, Image, Scaled, Width, Height);
 }
 
-
-ILimage *iluScale2DNear_(ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
+ILimage *iluScale2DNear_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
 {
-	ImgBps = Image->Bps / Image->Bpc;
-	SclBps = Scaled->Bps / Scaled->Bpc;
+	context->ImgBps = Image->Bps / Image->Bpc;
+	context->SclBps = Scaled->Bps / Scaled->Bpc;
 
 	switch (Image->Bpc)
 	{
-		case 1:
-			for (y = 0; y < Height; y++) {
-				NewY1 = y * SclBps;
-				NewY2 = (ILuint)(y / ScaleY) * ImgBps;
-				for (x = 0; x < Width; x++) {
-					NewX1 = x * Scaled->Bpp;
-					NewX2 = (ILuint)(x / ScaleX) * Image->Bpp;
-					for (c = 0; c < Scaled->Bpp; c++) {
-						Scaled->Data[NewY1 + NewX1 + c] = Image->Data[NewY2 + NewX2 + c];
-						x1 = 0;
-					}
+	case 1:
+		for (context->y = 0; context->y < Height; context->y++) {
+			context->NewY1 = context->y * context->SclBps;
+			context->NewY2 = (ILuint)(context->y / context->ScaleY) * context->ImgBps;
+			for (context->x = 0; context->x < Width; context->x++) {
+				context->NewX1 = context->x * Scaled->Bpp;
+				context->NewX2 = (ILuint)(context->x / context->ScaleX) * Image->Bpp;
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					Scaled->Data[context->NewY1 + context->NewX1 + context->c] = Image->Data[context->NewY2 + context->NewX2 + context->c];
+					context->x1 = 0;
 				}
 			}
-			break;
+		}
+		break;
 
-		case 2:
-			ShortPtr = (ILushort*)Image->Data;
-			SShortPtr = (ILushort*)Scaled->Data;
-			for (y = 0; y < Height; y++) {
-				NewY1 = y * SclBps;
-				NewY2 = (ILuint)(y / ScaleY) * ImgBps;
-				for (x = 0; x < Width; x++) {
-					NewX1 = x * Scaled->Bpp;
-					NewX2 = (ILuint)(x / ScaleX) * Image->Bpp;
-					for (c = 0; c < Scaled->Bpp; c++) {
-						SShortPtr[NewY1 + NewX1 + c] = ShortPtr[NewY2 + NewX2 + c];
-						x1 = 0;
-					}
+	case 2:
+		context->ShortPtr = (ILushort*)Image->Data;
+		context->SShortPtr = (ILushort*)Scaled->Data;
+		for (context->y = 0; context->y < Height; context->y++) {
+			context->NewY1 = context->y * context->SclBps;
+			context->NewY2 = (ILuint)(context->y / context->ScaleY) * context->ImgBps;
+			for (context->x = 0; context->x < Width; context->x++) {
+				context->NewX1 = context->x * Scaled->Bpp;
+				context->NewX2 = (ILuint)(context->x / context->ScaleX) * Image->Bpp;
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					context->SShortPtr[context->NewY1 + context->NewX1 + context->c] = context->ShortPtr[context->NewY2 + context->NewX2 + context->c];
+					context->x1 = 0;
 				}
 			}
-			break;
+		}
+		break;
 
-		case 4:
-			IntPtr = (ILuint*)Image->Data;
-			SIntPtr = (ILuint*)Scaled->Data;
-			for (y = 0; y < Height; y++) {
-				NewY1 = y * SclBps;
-				NewY2 = (ILuint)(y / ScaleY) * ImgBps;
-				for (x = 0; x < Width; x++) {
-					NewX1 = x * Scaled->Bpp;
-					NewX2 = (ILuint)(x / ScaleX) * Image->Bpp;
-					for (c = 0; c < Scaled->Bpp; c++) {
-						SIntPtr[NewY1 + NewX1 + c] = IntPtr[NewY2 + NewX2 + c];
-						x1 = 0;
-					}
+	case 4:
+		context->IntPtr = (ILuint*)Image->Data;
+		context->SIntPtr = (ILuint*)Scaled->Data;
+		for (context->y = 0; context->y < Height; context->y++) {
+			context->NewY1 = context->y * context->SclBps;
+			context->NewY2 = (ILuint)(context->y / context->ScaleY) * context->ImgBps;
+			for (context->x = 0; context->x < Width; context->x++) {
+				context->NewX1 = context->x * Scaled->Bpp;
+				context->NewX2 = (ILuint)(context->x / context->ScaleX) * Image->Bpp;
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					context->SIntPtr[context->NewY1 + context->NewX1 + context->c] = context->IntPtr[context->NewY2 + context->NewX2 + context->c];
+					context->x1 = 0;
 				}
 			}
-			break;
+		}
+		break;
 	}
 
 	return Scaled;
 }
 
-
-ILimage *iluScale2DLinear_(ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
+ILimage *iluScale2DLinear_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
 {
-	ImgBps = Image->Bps / Image->Bpc;
-	SclBps = Scaled->Bps / Scaled->Bpc;
+	context->ImgBps = Image->Bps / Image->Bpc;
+	context->SclBps = Scaled->Bps / Scaled->Bpc;
 
 	switch (Image->Bpc)
 	{
-		case 1:
-			for (y = 0; y < Height; y++) {
-				NewY1 = (ILuint)(y / ScaleY) * ImgBps;
-				for (x = 0; x < Width; x++) {
-					t1 = x / (ILdouble)Width;
-					t4 = t1 * Width;
-					t2 = t4 - (ILuint)(t4);
-					ft = t2 * IL_PI;
-					f = (1.0 - cos(ft)) * .5;
-					NewX1 = ((ILuint)(t4 / ScaleX)) * Image->Bpp;
-					NewX2 = ((ILuint)(t4 / ScaleX) + 1) * Image->Bpp;
+	case 1:
+		for (context->y = 0; context->y < Height; context->y++) {
+			context->NewY1 = (ILuint)(context->y / context->ScaleY) * context->ImgBps;
+			for (context->x = 0; context->x < Width; context->x++) {
+				context->t1 = context->x / (ILdouble)Width;
+				context->t4 = context->t1 * Width;
+				context->t2 = context->t4 - (ILuint)(context->t4);
+				context->ft = context->t2 * IL_PI;
+				context->f = (1.0 - cos(context->ft)) * .5;
+				context->NewX1 = ((ILuint)(context->t4 / context->ScaleX)) * Image->Bpp;
+				context->NewX2 = ((ILuint)(context->t4 / context->ScaleX) + 1) * Image->Bpp;
 
-					Size = y * SclBps + x * Scaled->Bpp;
-					for (c = 0; c < Scaled->Bpp; c++) {
-						x1 = Image->Data[NewY1 + NewX1 + c];
-						x2 = Image->Data[NewY1 + NewX2 + c];
-						Scaled->Data[Size + c] = (ILubyte)((1.0 - f) * x1 + f * x2);
-					}
+				context->Size = context->y * context->SclBps + context->x * Scaled->Bpp;
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					context->x1 = Image->Data[context->NewY1 + context->NewX1 + context->c];
+					context->x2 = Image->Data[context->NewY1 + context->NewX2 + context->c];
+					Scaled->Data[context->Size + context->c] = (ILubyte)((1.0 - context->f) * context->x1 + context->f * context->x2);
 				}
 			}
-			break;
+		}
+		break;
 
-		case 2:
-			ShortPtr = (ILushort*)Image->Data;
-			SShortPtr = (ILushort*)Scaled->Data;
-			for (y = 0; y < Height; y++) {
-				NewY1 = (ILuint)(y / ScaleY) * ImgBps;
-				for (x = 0; x < Width; x++) {
-					t1 = x / (ILdouble)Width;
-					t4 = t1 * Width;
-					t2 = t4 - (ILuint)(t4);
-					ft = t2 * IL_PI;
-					f = (1.0 - cos(ft)) * .5;
-					NewX1 = ((ILuint)(t4 / ScaleX)) * Image->Bpp;
-					NewX2 = ((ILuint)(t4 / ScaleX) + 1) * Image->Bpp;
+	case 2:
+		context->ShortPtr = (ILushort*)Image->Data;
+		context->SShortPtr = (ILushort*)Scaled->Data;
+		for (context->y = 0; context->y < Height; context->y++) {
+			context->NewY1 = (ILuint)(context->y / context->ScaleY) * context->ImgBps;
+			for (context->x = 0; context->x < Width; context->x++) {
+				context->t1 = context->x / (ILdouble)Width;
+				context->t4 = context->t1 * Width;
+				context->t2 = context->t4 - (ILuint)(context->t4);
+				context->ft = context->t2 * IL_PI;
+				context->f = (1.0 - cos(context->ft)) * .5;
+				context->NewX1 = ((ILuint)(context->t4 / context->ScaleX)) * Image->Bpp;
+				context->NewX2 = ((ILuint)(context->t4 / context->ScaleX) + 1) * Image->Bpp;
 
-					Size = y * SclBps + x * Scaled->Bpp;
-					for (c = 0; c < Scaled->Bpp; c++) {
-						x1 = ShortPtr[NewY1 + NewX1 + c];
-						x2 = ShortPtr[NewY1 + NewX2 + c];
-						SShortPtr[Size + c] = (ILushort)((1.0 - f) * x1 + f * x2);
-					}
+				context->Size = context->y * context->SclBps + context->x * Scaled->Bpp;
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					context->x1 = context->ShortPtr[context->NewY1 + context->NewX1 + context->c];
+					context->x2 = context->ShortPtr[context->NewY1 + context->NewX2 + context->c];
+					context->SShortPtr[context->Size + context->c] = (ILushort)((1.0 - context->f) * context->x1 + context->f * context->x2);
 				}
 			}
-			break;
+		}
+		break;
 
-		case 4:
-			IntPtr = (ILuint*)Image->Data;
-			SIntPtr = (ILuint*)Scaled->Data;
-			for (y = 0; y < Height; y++) {
-				NewY1 = (ILuint)(y / ScaleY) * ImgBps;
-				for (x = 0; x < Width; x++) {
-					t1 = x / (ILdouble)Width;
-					t4 = t1 * Width;
-					t2 = t4 - (ILuint)(t4);
-					ft = t2 * IL_PI;
-					f = (1.0 - cos(ft)) * .5;
-					NewX1 = ((ILuint)(t4 / ScaleX)) * Image->Bpp;
-					NewX2 = ((ILuint)(t4 / ScaleX) + 1) * Image->Bpp;
+	case 4:
+		context->IntPtr = (ILuint*)Image->Data;
+		context->SIntPtr = (ILuint*)Scaled->Data;
+		for (context->y = 0; context->y < Height; context->y++) {
+			context->NewY1 = (ILuint)(context->y / context->ScaleY) * context->ImgBps;
+			for (context->x = 0; context->x < Width; context->x++) {
+				context->t1 = context->x / (ILdouble)Width;
+				context->t4 = context->t1 * Width;
+				context->t2 = context->t4 - (ILuint)(context->t4);
+				context->ft = context->t2 * IL_PI;
+				context->f = (1.0 - cos(context->ft)) * .5;
+				context->NewX1 = ((ILuint)(context->t4 / context->ScaleX)) * Image->Bpp;
+				context->NewX2 = ((ILuint)(context->t4 / context->ScaleX) + 1) * Image->Bpp;
 
-					Size = y * SclBps + x * Scaled->Bpp;
-					for (c = 0; c < Scaled->Bpp; c++) {
-						x1 = IntPtr[NewY1 + NewX1 + c];
-						x2 = IntPtr[NewY1 + NewX2 + c];
-						SIntPtr[Size + c] = (ILuint)((1.0 - f) * x1 + f * x2);
-					}
+				context->Size = context->y * context->SclBps + context->x * Scaled->Bpp;
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					context->x1 = context->IntPtr[context->NewY1 + context->NewX1 + context->c];
+					context->x2 = context->IntPtr[context->NewY1 + context->NewX2 + context->c];
+					context->SIntPtr[context->Size + context->c] = (ILuint)((1.0 - context->f) * context->x1 + context->f * context->x2);
 				}
 			}
-			break;
+		}
+		break;
 	}
 
 	return Scaled;
 }
-
 
 // Rewrote using an algorithm described by Paul Nettle at
 //  http://www.gamedev.net/reference/articles/article669.asp.
-ILimage *iluScale2DBilinear_(ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
+ILimage *iluScale2DBilinear_(ILUcontext* context, ILimage *Image, ILimage *Scaled, ILuint Width, ILuint Height)
 {
 	ILfloat	ul, ll, ur, lr;
 	ILfloat	FracX, FracY;
 	ILfloat	SrcX, SrcY;
 	ILuint	iSrcX, iSrcY, iSrcXPlus1, iSrcYPlus1, ulOff, llOff, urOff, lrOff;
 
-	ImgBps = Image->Bps / Image->Bpc;
-	SclBps = Scaled->Bps / Scaled->Bpc;
+	context->ImgBps = Image->Bps / Image->Bpc;
+	context->SclBps = Scaled->Bps / Scaled->Bpc;
 
 	switch (Image->Bpc)
 	{
-		case 1:
-			for (y = 0; y < Height; y++) {
-				for (x = 0; x < Width; x++) {
-					// Calculate where we want to choose pixels from in our source image.
-					SrcX = (ILfloat)x / (ILfloat)ScaleX;
-					SrcY = (ILfloat)y / (ILfloat)ScaleY;
-					// Integer part of SrcX and SrcY
-					iSrcX = (ILuint)floor(SrcX);
-					iSrcY = (ILuint)floor(SrcY);
-					// Fractional part of SrcX and SrcY
-					FracX = SrcX - (ILfloat)(iSrcX);
-					FracY = SrcY - (ILfloat)(iSrcY);
+	case 1:
+		for (context->y = 0; context->y < Height; context->y++) {
+			for (context->x = 0; context->x < Width; context->x++) {
+				// Calculate where we want to choose pixels from in our source image.
+				SrcX = (ILfloat)context->x / (ILfloat)context->ScaleX;
+				SrcY = (ILfloat)context->y / (ILfloat)context->ScaleY;
+				// Integer part of SrcX and SrcY
+				iSrcX = (ILuint)floor(SrcX);
+				iSrcY = (ILuint)floor(SrcY);
+				// Fractional part of SrcX and SrcY
+				FracX = SrcX - (ILfloat)(iSrcX);
+				FracY = SrcY - (ILfloat)(iSrcY);
 
-					// We do not want to go past the right edge of the image or past the last line in the image,
-					//  so this takes care of that.  Normally, iSrcXPlus1 is iSrcX + 1, but if this is past the
-					//  right side, we have to bring it back to iSrcX.  The same goes for iSrcYPlus1.
-					if (iSrcX < Image->Width - 1)
-						iSrcXPlus1 = iSrcX + 1;
-					else 
-						iSrcXPlus1 = iSrcX;
-					if (iSrcY < Image->Height - 1)
-						iSrcYPlus1 = iSrcY + 1;
-					else
-						iSrcYPlus1 = iSrcY;
+				// We do not want to go past the right edge of the image or past the last line in the image,
+				//  so this takes care of that.  Normally, iSrcXPlus1 is iSrcX + 1, but if this is past the
+				//  right side, we have to bring it back to iSrcX.  The same goes for iSrcYPlus1.
+				if (iSrcX < Image->Width - 1)
+					iSrcXPlus1 = iSrcX + 1;
+				else
+					iSrcXPlus1 = iSrcX;
+				if (iSrcY < Image->Height - 1)
+					iSrcYPlus1 = iSrcY + 1;
+				else
+					iSrcYPlus1 = iSrcY;
 
-					// Find out how much we want each of the four pixels contributing to the final values.
-					ul = (1.0f - FracX) * (1.0f - FracY);
-					ll = (1.0f - FracX) * FracY;
-					ur = FracX * (1.0f - FracY);
-					lr = FracX * FracY;
+				// Find out how much we want each of the four pixels contributing to the final values.
+				ul = (1.0f - FracX) * (1.0f - FracY);
+				ll = (1.0f - FracX) * FracY;
+				ur = FracX * (1.0f - FracY);
+				lr = FracX * FracY;
 
-					for (c = 0; c < Scaled->Bpp; c++) {
-						// We just calculate the offsets for each pixel here...
-						ulOff = iSrcY * Image->Bps + iSrcX * Image->Bpp + c;
-						llOff = iSrcYPlus1 * Image->Bps + iSrcX * Image->Bpp + c;
-						urOff = iSrcY * Image->Bps + iSrcXPlus1 * Image->Bpp + c;
-						lrOff = iSrcYPlus1 * Image->Bps + iSrcXPlus1 * Image->Bpp + c;
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					// We just calculate the offsets for each pixel here...
+					ulOff = iSrcY * Image->Bps + iSrcX * Image->Bpp + context->c;
+					llOff = iSrcYPlus1 * Image->Bps + iSrcX * Image->Bpp + context->c;
+					urOff = iSrcY * Image->Bps + iSrcXPlus1 * Image->Bpp + context->c;
+					lrOff = iSrcYPlus1 * Image->Bps + iSrcXPlus1 * Image->Bpp + context->c;
 
-						// ...and then we do the actual interpolation here.
-						Scaled->Data[y * Scaled->Bps + x * Scaled->Bpp + c] = (ILubyte)(
-							ul * Image->Data[ulOff] + ll * Image->Data[llOff] + ur * Image->Data[urOff] + lr * Image->Data[lrOff]);
-					}
+					// ...and then we do the actual interpolation here.
+					Scaled->Data[context->y * Scaled->Bps + context->x * Scaled->Bpp + context->c] = (ILubyte)(
+						ul * Image->Data[ulOff] + ll * Image->Data[llOff] + ur * Image->Data[urOff] + lr * Image->Data[lrOff]);
 				}
 			}
-			break;
+		}
+		break;
 
-		case 2:
-			ShortPtr = (ILushort*)Image->Data;
-			SShortPtr = (ILushort*)Scaled->Data;
+	case 2:
+		context->ShortPtr = (ILushort*)Image->Data;
+		context->SShortPtr = (ILushort*)Scaled->Data;
+		Height--;  // Only use regular Height once in the following loop.
+		for (context->y = 0; context->y < Height; context->y++) {
+			context->NewY1 = (ILuint)(context->y / context->ScaleY) * context->ImgBps;
+			context->NewY2 = (ILuint)((context->y + 1) / context->ScaleY) * context->ImgBps;
+			for (context->x = 0; context->x < Width; context->x++) {
+				context->NewX = Width / context->ScaleX;
+				context->t1 = context->x / (ILdouble)Width;
+				context->t4 = context->t1 * Width;
+				context->t2 = context->t4 - (ILuint)(context->t4);
+				context->t3 = (1.0 - context->t2);
+				context->t4 = context->t1 * context->NewX;
+				context->NewX1 = (ILuint)(context->t4)* Image->Bpp;
+				context->NewX2 = (ILuint)(context->t4 + 1) * Image->Bpp;
+
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					context->Table[0][context->c] = context->t3 * context->ShortPtr[context->NewY1 + context->NewX1 + context->c] +
+						context->t2 * context->ShortPtr[context->NewY1 + context->NewX2 + context->c];
+
+					context->Table[1][context->c] = context->t3 * context->ShortPtr[context->NewY2 + context->NewX1 + context->c] +
+						context->t2 * context->ShortPtr[context->NewY2 + context->NewX2 + context->c];
+				}
+
+				// Linearly interpolate between the table values.
+				context->t1 = context->y / (ILdouble)(Height + 1);  // Height+1 is the real height now.
+				context->t3 = (1.0 - context->t1);
+				context->Size = context->y * context->SclBps + context->x * Scaled->Bpp;
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					context->SShortPtr[context->Size + context->c] =
+						(ILushort)(context->t3 * context->Table[0][context->c] + context->t1 * context->Table[1][context->c]);
+				}
+			}
+		}
+
+		// Calculate the last row.
+		context->NewY1 = (ILuint)(Height / context->ScaleY) * context->ImgBps;
+		for (context->x = 0; context->x < Width; context->x++) {
+			context->NewX = Width / context->ScaleX;
+			context->t1 = context->x / (ILdouble)Width;
+			context->t4 = context->t1 * Width;
+			context->ft = (context->t4 - (ILuint)(context->t4)) * IL_PI;
+			context->f = (1.0 - cos(context->ft)) * .5;  // Cosine interpolation
+			context->NewX1 = (ILuint)(context->t1 * context->NewX) * Image->Bpp;
+			context->NewX2 = (ILuint)(context->t1 * context->NewX + 1) * Image->Bpp;
+
+			context->Size = Height * context->SclBps + context->x * Image->Bpp;
+			for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+				context->SShortPtr[context->Size + context->c] = (ILushort)((1.0 - context->f) * context->ShortPtr[context->NewY1 + context->NewX1 + context->c] +
+					context->f * context->ShortPtr[context->NewY1 + context->NewX2 + context->c]);
+			}
+		}
+		break;
+
+	case 4:
+		if (Image->Type != IL_FLOAT) {
+			context->IntPtr = (ILuint*)Image->Data;
+			context->SIntPtr = (ILuint*)Scaled->Data;
 			Height--;  // Only use regular Height once in the following loop.
-			for (y = 0; y < Height; y++) {
-				NewY1 = (ILuint)(y / ScaleY) * ImgBps;
-				NewY2 = (ILuint)((y+1) / ScaleY) * ImgBps;
-				for (x = 0; x < Width; x++) {
-					NewX = Width / ScaleX;
-					t1 = x / (ILdouble)Width;
-					t4 = t1 * Width;
-					t2 = t4 - (ILuint)(t4);
-					t3 = (1.0 - t2);
-					t4 = t1 * NewX;
-					NewX1 = (ILuint)(t4) * Image->Bpp;
-					NewX2 = (ILuint)(t4 + 1) * Image->Bpp;
+			for (context->y = 0; context->y < Height; context->y++) {
+				context->NewY1 = (ILuint)(context->y / context->ScaleY) * context->ImgBps;
+				context->NewY2 = (ILuint)((context->y + 1) / context->ScaleY) * context->ImgBps;
+				for (context->x = 0; context->x < Width; context->x++) {
+					context->NewX = Width / context->ScaleX;
+					context->t1 = context->x / (ILdouble)Width;
+					context->t4 = context->t1 * Width;
+					context->t2 = context->t4 - (ILuint)(context->t4);
+					context->t3 = (1.0 - context->t2);
+					context->t4 = context->t1 * context->NewX;
+					context->NewX1 = (ILuint)(context->t4)* Image->Bpp;
+					context->NewX2 = (ILuint)(context->t4 + 1) * Image->Bpp;
 
-					for (c = 0; c < Scaled->Bpp; c++) {
-						Table[0][c] = t3 * ShortPtr[NewY1 + NewX1 + c] +
-							t2 * ShortPtr[NewY1 + NewX2 + c];
+					for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+						context->Table[0][context->c] = context->t3 * context->IntPtr[context->NewY1 + context->NewX1 + context->c] +
+							context->t2 * context->IntPtr[context->NewY1 + context->NewX2 + context->c];
 
-						Table[1][c] = t3 * ShortPtr[NewY2 + NewX1 + c] +
-							t2 * ShortPtr[NewY2 + NewX2 + c];
+						context->Table[1][context->c] = context->t3 * context->IntPtr[context->NewY2 + context->NewX1 + context->c] +
+							context->t2 * context->IntPtr[context->NewY2 + context->NewX2 + context->c];
 					}
 
 					// Linearly interpolate between the table values.
-					t1 = y / (ILdouble)(Height + 1);  // Height+1 is the real height now.
-					t3 = (1.0 - t1);
-					Size = y * SclBps + x * Scaled->Bpp;
-					for (c = 0; c < Scaled->Bpp; c++) {
-						SShortPtr[Size + c] =
-							(ILushort)(t3 * Table[0][c] + t1 * Table[1][c]);
+					context->t1 = context->y / (ILdouble)(Height + 1);  // Height+1 is the real height now.
+					context->t3 = (1.0 - context->t1);
+					context->Size = context->y * context->SclBps + context->x * Scaled->Bpp;
+					for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+						context->SIntPtr[context->Size + context->c] =
+							(ILuint)(context->t3 * context->Table[0][context->c] + context->t1 * context->Table[1][context->c]);
 					}
 				}
 			}
 
 			// Calculate the last row.
-			NewY1 = (ILuint)(Height / ScaleY) * ImgBps;
-			for (x = 0; x < Width; x++) {
-				NewX = Width / ScaleX;
-				t1 = x / (ILdouble)Width;
-				t4 = t1 * Width;
-				ft = (t4 - (ILuint)(t4)) * IL_PI;
-				f = (1.0 - cos(ft)) * .5;  // Cosine interpolation
-				NewX1 = (ILuint)(t1 * NewX) * Image->Bpp;
-				NewX2 = (ILuint)(t1 * NewX + 1) * Image->Bpp;
+			context->NewY1 = (ILuint)(Height / context->ScaleY) * context->ImgBps;
+			for (context->x = 0; context->x < Width; context->x++) {
+				context->NewX = Width / context->ScaleX;
+				context->t1 = context->x / (ILdouble)Width;
+				context->t4 = context->t1 * Width;
+				context->ft = (context->t4 - (ILuint)(context->t4)) * IL_PI;
+				context->f = (1.0 - cos(context->ft)) * .5;  // Cosine interpolation
+				context->NewX1 = (ILuint)(context->t1 * context->NewX) * Image->Bpp;
+				context->NewX2 = (ILuint)(context->t1 * context->NewX + 1) * Image->Bpp;
 
-				Size = Height * SclBps + x * Image->Bpp;
-				for (c = 0; c < Scaled->Bpp; c++) {
-					SShortPtr[Size + c] = (ILushort)((1.0 - f) * ShortPtr[NewY1 + NewX1 + c] +
-						f * ShortPtr[NewY1 + NewX2 + c]);
+				context->Size = Height * context->SclBps + context->x * Image->Bpp;
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+					context->SIntPtr[context->Size + context->c] = (ILuint)((1.0 - context->f) * context->IntPtr[context->NewY1 + context->NewX1 + context->c] +
+						context->f * context->IntPtr[context->NewY1 + context->NewX2 + context->c]);
 				}
 			}
-			break;
 
-		case 4:
-			if (Image->Type != IL_FLOAT) {
-				IntPtr = (ILuint*)Image->Data;
-				SIntPtr = (ILuint*)Scaled->Data;
-				Height--;  // Only use regular Height once in the following loop.
-				for (y = 0; y < Height; y++) {
-					NewY1 = (ILuint)(y / ScaleY) * ImgBps;
-					NewY2 = (ILuint)((y+1) / ScaleY) * ImgBps;
-					for (x = 0; x < Width; x++) {
-						NewX = Width / ScaleX;
-						t1 = x / (ILdouble)Width;
-						t4 = t1 * Width;
-						t2 = t4 - (ILuint)(t4);
-						t3 = (1.0 - t2);
-						t4 = t1 * NewX;
-						NewX1 = (ILuint)(t4) * Image->Bpp;
-						NewX2 = (ILuint)(t4 + 1) * Image->Bpp;
+		}
 
-						for (c = 0; c < Scaled->Bpp; c++) {
-							Table[0][c] = t3 * IntPtr[NewY1 + NewX1 + c] +
-								t2 * IntPtr[NewY1 + NewX2 + c];
+		else {  // IL_FLOAT
+			context->FloatPtr = (ILfloat*)Image->Data;
+			context->SFloatPtr = (ILfloat*)Scaled->Data;
+			Height--;  // Only use regular Height once in the following loop.
 
-							Table[1][c] = t3 * IntPtr[NewY2 + NewX1 + c] +
-								t2 * IntPtr[NewY2 + NewX2 + c];
-						}
+			for (context->y = 0; context->y < Height; context->y++) {
 
-						// Linearly interpolate between the table values.
-						t1 = y / (ILdouble)(Height + 1);  // Height+1 is the real height now.
-						t3 = (1.0 - t1);
-						Size = y * SclBps + x * Scaled->Bpp;
-						for (c = 0; c < Scaled->Bpp; c++) {
-							SIntPtr[Size + c] =
-								(ILuint)(t3 * Table[0][c] + t1 * Table[1][c]);
-						}
-					}
-				}
+				context->NewY1 = (ILuint)(context->y / context->ScaleY) * context->ImgBps;
 
-				// Calculate the last row.
-				NewY1 = (ILuint)(Height / ScaleY) * ImgBps;
-				for (x = 0; x < Width; x++) {
-					NewX = Width / ScaleX;
-					t1 = x / (ILdouble)Width;
-					t4 = t1 * Width;
-					ft = (t4 - (ILuint)(t4)) * IL_PI;
-					f = (1.0 - cos(ft)) * .5;  // Cosine interpolation
-					NewX1 = (ILuint)(t1 * NewX) * Image->Bpp;
-					NewX2 = (ILuint)(t1 * NewX + 1) * Image->Bpp;
+				context->NewY2 = (ILuint)((context->y + 1) / context->ScaleY) * context->ImgBps;
 
-					Size = Height * SclBps + x * Image->Bpp;
-					for (c = 0; c < Scaled->Bpp; c++) {
-						SIntPtr[Size + c] = (ILuint)((1.0 - f) * IntPtr[NewY1 + NewX1 + c] +
-							f * IntPtr[NewY1 + NewX2 + c]);
-					}
-				}
+				for (context->x = 0; context->x < Width; context->x++) {
 
-			}
+					context->NewX = Width / context->ScaleX;
 
-			else {  // IL_FLOAT
-				FloatPtr = (ILfloat*)Image->Data;
-				SFloatPtr = (ILfloat*)Scaled->Data;
-				Height--;  // Only use regular Height once in the following loop.
+					context->t1 = context->x / (ILdouble)Width;
 
-				for (y = 0; y < Height; y++) {
+					context->t4 = context->t1 * Width;
 
-					NewY1 = (ILuint)(y / ScaleY) * ImgBps;
+					context->t2 = context->t4 - (ILuint)(context->t4);
 
-					NewY2 = (ILuint)((y+1) / ScaleY) * ImgBps;
+					context->t3 = (1.0 - context->t2);
 
-					for (x = 0; x < Width; x++) {
+					context->t4 = context->t1 * context->NewX;
 
-						NewX = Width / ScaleX;
+					context->NewX1 = (ILuint)(context->t4)* Image->Bpp;
 
-						t1 = x / (ILdouble)Width;
-
-						t4 = t1 * Width;
-
-						t2 = t4 - (ILuint)(t4);
-
-						t3 = (1.0 - t2);
-
-						t4 = t1 * NewX;
-
-						NewX1 = (ILuint)(t4) * Image->Bpp;
-
-						NewX2 = (ILuint)(t4 + 1) * Image->Bpp;
+					context->NewX2 = (ILuint)(context->t4 + 1) * Image->Bpp;
 
 
 
-						for (c = 0; c < Scaled->Bpp; c++) {
+					for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
 
-							Table[0][c] = t3 * FloatPtr[NewY1 + NewX1 + c] +
+						context->Table[0][context->c] = context->t3 * context->FloatPtr[context->NewY1 + context->NewX1 + context->c] +
 
-								t2 * FloatPtr[NewY1 + NewX2 + c];
-
-
-
-							Table[1][c] = t3 * FloatPtr[NewY2 + NewX1 + c] +
-
-								t2 * FloatPtr[NewY2 + NewX2 + c];
-
-						}
+							context->t2 * context->FloatPtr[context->NewY1 + context->NewX2 + context->c];
 
 
 
-						// Linearly interpolate between the table values.
+						context->Table[1][context->c] = context->t3 * context->FloatPtr[context->NewY2 + context->NewX1 + context->c] +
 
-						t1 = y / (ILdouble)(Height + 1);  // Height+1 is the real height now.
-
-						t3 = (1.0 - t1);
-
-						Size = y * SclBps + x * Scaled->Bpp;
-
-						for (c = 0; c < Scaled->Bpp; c++) {
-
-							SFloatPtr[Size + c] =
-
-								(ILfloat)(t3 * Table[0][c] + t1 * Table[1][c]);
-
-						}
+							context->t2 * context->FloatPtr[context->NewY2 + context->NewX2 + context->c];
 
 					}
 
-				}
 
 
+					// Linearly interpolate between the table values.
 
-				// Calculate the last row.
+					context->t1 = context->y / (ILdouble)(Height + 1);  // Height+1 is the real height now.
 
-				NewY1 = (ILuint)(Height / ScaleY) * ImgBps;
+					context->t3 = (1.0 - context->t1);
 
-				for (x = 0; x < Width; x++) {
+					context->Size = context->y * context->SclBps + context->x * Scaled->Bpp;
 
-					NewX = Width / ScaleX;
+					for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
 
-					t1 = x / (ILdouble)Width;
+						context->SFloatPtr[context->Size + context->c] =
 
-					t4 = t1 * Width;
-
-					ft = (t4 - (ILuint)(t4)) * IL_PI;
-
-					f = (1.0 - cos(ft)) * .5;  // Cosine interpolation
-
-					NewX1 = (ILuint)(t1 * NewX) * Image->Bpp;
-
-					NewX2 = (ILuint)(t1 * NewX + 1) * Image->Bpp;
-
-
-
-					Size = Height * SclBps + x * Image->Bpp;
-
-					for (c = 0; c < Scaled->Bpp; c++) {
-
-						SFloatPtr[Size + c] = (ILfloat)((1.0 - f) * FloatPtr[NewY1 + NewX1 + c] +
-
-							f * FloatPtr[NewY1 + NewX2 + c]);
+							(ILfloat)(context->t3 * context->Table[0][context->c] + context->t1 * context->Table[1][context->c]);
 
 					}
 
@@ -472,7 +418,45 @@ ILimage *iluScale2DBilinear_(ILimage *Image, ILimage *Scaled, ILuint Width, ILui
 
 			}
 
-			break;
+
+
+			// Calculate the last row.
+
+			context->NewY1 = (ILuint)(Height / context->ScaleY) * context->ImgBps;
+
+			for (context->x = 0; context->x < Width; context->x++) {
+
+				context->NewX = Width / context->ScaleX;
+
+				context->t1 = context->x / (ILdouble)Width;
+
+				context->t4 = context->t1 * Width;
+
+				context->ft = (context->t4 - (ILuint)(context->t4)) * IL_PI;
+
+				context->f = (1.0 - cos(context->ft)) * .5;  // Cosine interpolation
+
+				context->NewX1 = (ILuint)(context->t1 * context->NewX) * Image->Bpp;
+
+				context->NewX2 = (ILuint)(context->t1 * context->NewX + 1) * Image->Bpp;
+
+
+
+				context->Size = Height * context->SclBps + context->x * Image->Bpp;
+
+				for (context->c = 0; context->c < Scaled->Bpp; context->c++) {
+
+					context->SFloatPtr[context->Size + context->c] = (ILfloat)((1.0 - context->f) * context->FloatPtr[context->NewY1 + context->NewX1 + context->c] +
+
+						context->f * context->FloatPtr[context->NewY1 + context->NewX2 + context->c]);
+
+				}
+
+			}
+
+		}
+
+		break;
 	}
 
 	return Scaled;
